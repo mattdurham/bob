@@ -99,5 +99,3 @@ After committing:
    )
    ```
 
-## Next Phase
-After user approves, push the branch and move to **MONITOR** phase to watch PR/CI.

@@ -241,9 +241,6 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 		}
 	}
 
-	// Get next step
-	nextStep, _ := GetNextStep(state.Workflow, state.CurrentStep)
-
 	// Get loop targets
 	def, _ := GetWorkflowDefinition(state.Workflow)
 	var canLoopBack []string
@@ -258,7 +255,6 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 		"currentStep":     state.CurrentStep,
 		"prompt":          prompt,
 		"taskDescription": state.TaskDescription,
-		"nextStep":        nextStep,
 		"canLoopBack":     canLoopBack,
 		"loopCount":       state.LoopCount,
 	}, nil

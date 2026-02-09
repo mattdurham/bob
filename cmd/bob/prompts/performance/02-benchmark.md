@@ -82,5 +82,3 @@ After establishing baseline:
    )
    ```
 
-## Next Phase
-Move to **ANALYZE** to identify optimization opportunities.

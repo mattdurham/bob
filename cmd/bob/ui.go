@@ -133,14 +133,14 @@ func handleTasks(w http.ResponseWriter, r *http.Request, tmpl *template.Template
 	fmt.Fprintf(w, "Tasks page - Coming soon!")
 }
 
-// loadWorkflows loads all workflow summaries from ~/.claude/workflows/
+// loadWorkflows loads all workflow summaries from ~/.bob/state/
 func loadWorkflows() ([]WorkflowSummary, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 
-	workflowsDir := filepath.Join(homeDir, ".claude", "workflows")
+	workflowsDir := filepath.Join(homeDir, ".bob", "state")
 	entries, err := os.ReadDir(workflowsDir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -197,7 +197,7 @@ func loadWorkflowDetail(workflowID string) (*WorkflowDetailData, error) {
 	}
 
 	// Find the workflow file
-	workflowsDir := filepath.Join(homeDir, ".claude", "workflows")
+	workflowsDir := filepath.Join(homeDir, ".bob", "state")
 	filePath := filepath.Join(workflowsDir, workflowID+".json")
 
 	data, err := os.ReadFile(filePath)

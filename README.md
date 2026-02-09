@@ -157,7 +157,7 @@ The UI defaults to `127.0.0.1` (localhost only) for security. Only use `--host 0
 
 The web UI:
 - Runs independently of the MCP server (separate process)
-- Reads workflow state from `~/.claude/workflows/`
+- Reads workflow state from `~/.bob/state/`
 - Uses embedded Go templates (no external files needed)
 - Single binary with all assets included
 - Refreshes on page load (no WebSocket yet)

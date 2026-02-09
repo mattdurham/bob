@@ -194,7 +194,7 @@ Bob manages tasks in `.bob/issues/` with git branch integration:
 - `state` - open, in_progress, completed, blocked
 - `priority` - low, medium, high, critical
 - `dependencies` - Task IDs this depends on
-- `labels` - Categorization tags
+- `tags` - Categorization tags
 
 ## Custom Workflows
 

@@ -27,7 +27,7 @@ Perform comprehensive code review to catch bugs, issues, and quality problems.
 
 Use Task tool to spawn a code review agent. Pass the following text verbatim as the prompt parameter:
 
-```
+~~~
 subagent_type: "general-purpose"
 prompt: "Perform comprehensive MULTI-PASS code review to catch semantic and logical errors.
 
@@ -64,9 +64,9 @@ grep -r "config\..*\|Config{" . --include="*.go"
 grep -r "[a-zA-Z_][a-zA-Z0-9_]*{" . --include="*.go"  # Struct initialization
 
 # Check for inconsistent naming (limit output to 100 matches)
-grep -roh "\b[a-z_]*config[a-z_]*\b" . | sort -u | head -100
-grep -roh "\b[a-z_]*state[a-z_]*\b" . | sort -u | head -100
-grep -roh "\b[a-z_]*key[a-z_]*\b" . | sort -u | head -100
+grep -Eroh '\<[a-z_]*config[a-z_]*\>' . | sort -u | head -100
+grep -Eroh '\<[a-z_]*state[a-z_]*\>' . | sort -u | head -100
+grep -Eroh '\<[a-z_]*key[a-z_]*\>' . | sort -u | head -100
 ```
 
 **Output:** Write cross-file consistency issues to bots/review-consistency.md
@@ -114,7 +114,7 @@ Verify documentation matches implementation.
 **Validation commands to run:**
 ```bash
 # Extract code examples from docs
-find . -name "*.md" -exec grep -A20 '\`\`\`' {} \;
+find . -name "*.md" -exec grep -A20 '```' {} \;
 grep -A10 "// Example:" . -r --include="*.go"
 
 # Find function signatures to compare
@@ -128,7 +128,7 @@ grep -r "^func " . --include="*.go"
 ## Common Semantic Error Patterns to Watch For
 
 ### Pattern 1: Config-Code Mismatch
-❌ Config defines \"retry_count\" but code uses cfg.RetryAttempts
+❌ Config defines "retry_count" but code uses cfg.RetryAttempts
 ✅ Names should match exactly
 
 ### Pattern 2: Missing Required Fields
@@ -136,11 +136,11 @@ grep -r "^func " . --include="*.go"
 ✅ All required parameters must be provided
 
 ### Pattern 3: Invalid References
-❌ switch case uses \"COMPLETE\" but enum only defines \"COMPLETED\"
+❌ switch case uses "COMPLETE" but enum only defines "COMPLETED"
 ✅ References must match definitions exactly
 
 ### Pattern 4: State Inconsistency
-❌ store.Set(\"user_id\") but retrieve with store.Get(\"userId\")
+❌ store.Set("user_id") but retrieve with store.Get("userId")
 ✅ Keys must be consistent (same spelling, case, format)
 
 ### Pattern 5: Documentation Mismatch
@@ -195,7 +195,7 @@ Consolidate ALL findings from all 3 passes into bots/review.md with this format:
 ```
 
 If NO issues found in any pass, create empty bots/review.md file."
-```
+~~~
 
 ### 2. Wait for Review
 Let subagent complete its work.

@@ -1,0 +1,15 @@
+{
+  "id": "task-1",
+  "title": "Create web UI for viewing Bob state and workflows",
+  "description": "Create a web UI for viewing Bob's state, workflows, and tasks.\n\n**Requirements:**\n- Must be a separate command/binary (NOT part of the MCP server)\n- Should read from ~/.bob folder to access state\n- Display current workflows and their progress\n- Show active tasks and their status\n- Should NOT run when Bob is serving as MCP server (since multiple instances can spawn)\n\n**Implementation approach:**\n- Create new cmd (e.g., `cmd/bob-ui/` or `bob ui` subcommand)\n- Read from ~/.bob/state/db.sql database\n- Display workflows, tasks, and session state\n- Consider a simple HTTP server with HTML/JS frontend\n- Allow viewing workflow progress, task dependencies, and active sessions",
+  "type": "feature",
+  "priority": "medium",
+  "state": "pending",
+  "tags": [
+    "enhancement",
+    "ui",
+    "web"
+  ],
+  "createdAt": "2026-02-09T09:58:59.834995525-05:00",
+  "updatedAt": "2026-02-09T09:58:59.834995629-05:00"
+}

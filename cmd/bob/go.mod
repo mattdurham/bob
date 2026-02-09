@@ -1,4 +1,4 @@
-module github.com/mattdurham/personal/cmd/bpb
+module github.com/mattdurham/personal/cmd/bob
 
 go 1.23.0
 

@@ -21,6 +21,9 @@ var templatesFS embed.FS
 //go:embed static/*
 var staticFS embed.FS
 
+// workflowIDPattern validates workflow IDs (format: repo/name or repo-name)
+var workflowIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_/-]+$`)
+
 // StartUIServer starts the web UI server
 func StartUIServer(host, port string) error {
 	addr := fmt.Sprintf("%s:%s", host, port)
@@ -112,24 +115,22 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 	}
 
 	// Validate workflow ID format (prevent path traversal)
-	if strings.Contains(workflowID, "..") ||
-		strings.Contains(workflowID, "/") ||
-		strings.Contains(workflowID, "\\") {
+	// Allow "/" for workflow IDs like "bob/codex-integration", but block path traversal
+	if strings.Contains(workflowID, "..") || strings.Contains(workflowID, "\\") {
 		http.Error(w, "Invalid workflow ID", http.StatusBadRequest)
 		return
 	}
 
-	// Additional validation: must match expected format
-	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, workflowID)
-	if err != nil || !matched {
+	// Additional validation: must match expected format (alphanumeric, underscore, hyphen, forward slash)
+	if !workflowIDPattern.MatchString(workflowID) {
 		http.Error(w, "Invalid workflow ID format", http.StatusBadRequest)
 		return
 	}
 
 	data := WorkflowDetailData{}
 
-	// Load workflow details
-	workflow, err := loadWorkflowDetail(workflowID)
+	// Load workflow details (convert "/" to "-" for filename, as state_manager.go does)
+	workflow, err := loadWorkflowDetail(strings.ReplaceAll(workflowID, "/", "-"))
 	if err != nil {
 		data.Error = fmt.Sprintf("Error loading workflow: %v", err)
 	} else {

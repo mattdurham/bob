@@ -31,11 +31,11 @@ codex mcp add bob -- ~/.bob/bob --serve
 ```toml
 [[mcp_servers]]
 name = "bob"
-command = "~/.bob/bob"  # Or use full path: /home/username/.bob/bob
+command = "/home/username/.bob/bob"  # Replace 'username' with your actual username
 args = ["--serve"]
 ```
 
-Note: Expand `~` to your home directory or use the full path from `make install-mcp` output.
+Note: Use the full path from `make install-mcp` output, or replace `/home/username` with your home directory path. Some config parsers may not expand `~`.
 
 **Verify Installation:**
 ```bash

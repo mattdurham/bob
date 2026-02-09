@@ -10,7 +10,7 @@ help:
 	@echo "  make run                      - Run Bob as MCP server"
 	@echo "  make build                    - Build Bob binary"
 	@echo "  make install-deps             - Install Go dependencies"
-	@echo "  make install-mcp              - Install Bob as MCP server in Claude CLI"
+	@echo "  make install-mcp              - Install Bob as MCP server in Claude and Codex"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run tests"

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -110,6 +111,21 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 		return
 	}
 
+	// Validate workflow ID format (prevent path traversal)
+	if strings.Contains(workflowID, "..") ||
+		strings.Contains(workflowID, "/") ||
+		strings.Contains(workflowID, "\\") {
+		http.Error(w, "Invalid workflow ID", http.StatusBadRequest)
+		return
+	}
+
+	// Additional validation: must match expected format
+	matched, err := regexp.MatchString(`^[a-zA-Z0-9_-]+$`, workflowID)
+	if err != nil || !matched {
+		http.Error(w, "Invalid workflow ID format", http.StatusBadRequest)
+		return
+	}
+
 	data := WorkflowDetailData{}
 
 	// Load workflow details
@@ -130,7 +146,9 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 
 func handleTasks(w http.ResponseWriter, r *http.Request, tmpl *template.Template) {
 	// TODO: Implement task listing
-	fmt.Fprintf(w, "Tasks page - Coming soon!")
+	if _, err := fmt.Fprintf(w, "Tasks page - Coming soon!"); err != nil {
+		log.Printf("Warning: failed to write response: %v", err)
+	}
 }
 
 // loadWorkflows loads all workflow summaries from ~/.bob/state/

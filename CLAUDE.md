@@ -40,6 +40,14 @@ Bob gives Claude access to:
 - **State** - Persistent JSON state files shared across all Claude sessions
 - **Guidance** - Step-by-step prompts for each workflow phase
 
+## Platform Compatibility
+
+Bob works with both **Claude** and **Codex**. The `make install-mcp` command automatically registers Bob with both platforms (if their CLIs are available).
+
+- **For Claude users**: This document contains Claude-specific configuration and usage
+- **For Codex users**: See [CODEX.md](CODEX.md) for Codex-specific documentation
+- **Shared state**: Workflows and tasks are shared across both platforms, so you can start work in Claude and continue in Codex, or vice versa
+
 ## Available MCP Tools
 
 ### Workflow Management
@@ -66,7 +74,7 @@ See AGENTS.md for detailed workflow descriptions.
 
 ## Storage
 
-Bob stores all state in `~/.bob/~/.bob/state/`:
+Bob stores all state in `~/.bob/state/`:
 - All Claude sessions share this state
 - Workflows and tasks persist across sessions
 - Updates from any Claude session appear everywhere
@@ -91,9 +99,9 @@ See AGENTS.md for custom workflow format.
 3. Verify Go dependencies: `cd ~/source/bob/cmd/bob && go mod download`
 
 ### State issues
-1. Database location: `~/.bob/~/.bob/state/`
+1. Database location: `~/.bob/state/`
 2. Check permissions: `ls -la ~/.bob/state/`
-3. Reset state: `rm ~/.bob/~/.bob/state/` (will recreate)
+3. Reset state: `rm -rf ~/.bob/state/` (will recreate)
 
 ## Building Bob
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -121,11 +122,15 @@ Answer:`, findings)
 	if err != nil {
 		return false, fmt.Errorf("failed to call Claude API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if closeErr := resp.Body.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close response body: %v", closeErr)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
-		return false, fmt.Errorf("Claude API error (status %d): %s", resp.StatusCode, string(body))
+		return false, fmt.Errorf("API error from Claude (status %d): %s", resp.StatusCode, string(body))
 	}
 
 	var claudeResp ClaudeResponse

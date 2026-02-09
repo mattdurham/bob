@@ -1,0 +1,10 @@
+{
+  "id": "task-5",
+  "title": "Auto-assume yes for continuation prompts, only ask for decision input",
+  "description": "Modify Claude's behavior so that when generating prompts that only ask the user to continue (e.g., \"Should I proceed?\", \"Ready to continue?\"), automatically assume yes and proceed without asking. Only prompt the user when actual decision input is needed (e.g., choosing between approaches, clarifying requirements, confirming risky actions).\n\nThis will reduce friction and unnecessary back-and-forth for simple continuation confirmations while preserving user control over meaningful decisions.",
+  "type": "feature",
+  "priority": "medium",
+  "state": "pending",
+  "createdAt": "2026-02-09T14:01:06.684964542-05:00",
+  "updatedAt": "2026-02-09T14:01:06.684964597-05:00"
+}

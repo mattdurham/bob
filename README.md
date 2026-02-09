@@ -25,7 +25,7 @@ Bob is an MCP (Model Context Protocol) server that orchestrates AI agent workflo
 
 - 🎯 **Workflow Orchestration** - Multi-step workflows with loop-back rules
 - 📊 **Task Management** - Git-backed task tracking with dependencies
-- 🔌 **MCP Server** - Claude integration via stdio protocol
+- 🔌 **MCP Server** - Works with both Claude and Codex via stdio protocol
 - 💾 **Persistent State** - JSON state shared across all sessions
 - 🔄 **Agent Self-Reporting** - Agents track and report their own progress
 - 🌐 **Web UI** - Browser-based dashboard for viewing workflows and tasks
@@ -74,20 +74,36 @@ Then open your browser to http://127.0.0.1:8080 (or your configured port)
 
 ### MCP Configuration
 
-Add Bob to your MCP configuration:
+Bob works with both **Claude** and **Codex**. Install for both with one command:
 
+```bash
+make install-mcp
+```
+
+This automatically detects and configures both platforms (if their CLIs are available).
+
+**Manual Configuration:**
+
+For Claude, add to your MCP configuration:
 ```json
 {
   "mcpServers": {
     "bob": {
-      "command": "/path/to/bob/cmd/bob/bob",
+      "command": "/home/your-username/.bob/bob",
       "args": ["--serve"]
     }
   }
 }
 ```
 
-See [CLAUDE.md](CLAUDE.md) for detailed configuration instructions.
+For Codex, use:
+```bash
+codex mcp add bob -- ~/.bob/bob --serve
+```
+
+**Platform-Specific Documentation:**
+- [CLAUDE.md](CLAUDE.md) - Claude configuration and usage
+- [CODEX.md](CODEX.md) - Codex configuration and usage
 
 ## Built-in Workflows
 
@@ -230,7 +246,7 @@ Create custom workflows in `.bob/workflows/*.json`:
 
 **How it works:**
 - Each Claude session runs `bob --serve` as an MCP server
-- All sessions write to `~/.bob/~/.bob/state/` (shared JSON state)
+- All sessions write to `~/.bob/state/` (shared JSON state)
 - Workflows and tasks persist across all sessions
 - Updates from any session appear in all sessions
 

@@ -10,7 +10,7 @@ help:
 	@echo "  make run                      - Run Bob as MCP server"
 	@echo "  make build                    - Build Bob binary"
 	@echo "  make install-deps             - Install Go dependencies"
-	@echo "  make install-mcp              - Install Bob as MCP server in Claude CLI"
+	@echo "  make install-mcp              - Install Bob as MCP server in Claude and Codex"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run tests"
@@ -66,23 +66,84 @@ install-guidance:
 	@echo "These files configure the repo to use Bob MCP server."
 	@echo "Commit them to your repo so Claude knows to use Bob!"
 
-# Install Bob as MCP server in Claude CLI
+# Install Bob as MCP server in Claude and Codex
 install-mcp: build
 	@echo "🏴‍☠️ Installing Bob as MCP server..."
-	@BOB_INSTALL_DIR="$$HOME/.bob"; \
-	BOB_PATH="$$BOB_INSTALL_DIR/bob"; \
-	mkdir -p "$$BOB_INSTALL_DIR"; \
-	echo "🛑 Stopping any running Bob processes..."; \
-	killall bob 2>/dev/null || true; \
-	sleep 1; \
-	cp cmd/bob/bob "$$BOB_PATH"; \
-	chmod +x "$$BOB_PATH"; \
-	echo "✅ Installed Bob to $$BOB_PATH"; \
+	@if [ -z "$$HOME" ]; then \
+		echo "❌ Error: HOME environment variable not set"; \
+		exit 1; \
+	fi; \
+	BOB_INSTALL_DIR="$${HOME}/.bob"; \
+	BOB_PATH="$${BOB_INSTALL_DIR}/bob"; \
+	mkdir -p "$${BOB_INSTALL_DIR}"; \
+	echo "🛑 Stopping any running Bob MCP server processes..."; \
+	BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+	if [ -n "$${BOB_PIDS}" ]; then \
+		echo "   Found Bob MCP server processes: $${BOB_PIDS}"; \
+		kill $${BOB_PIDS} 2>/dev/null || true; \
+		for i in 1 2 3 4 5; do \
+			BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+			if [ -z "$${BOB_PIDS}" ]; then break; fi; \
+			sleep 1; \
+		done; \
+		BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+		if [ -n "$${BOB_PIDS}" ]; then \
+			echo "⚠️  Warning: Some Bob MCP server processes still running: $${BOB_PIDS}"; \
+			echo "   You may need to manually kill them: kill -9 $${BOB_PIDS}"; \
+		fi; \
+	fi; \
+	if ! cp cmd/bob/bob "$${BOB_PATH}"; then \
+		echo "❌ Error: Failed to copy Bob binary to $${BOB_PATH}"; \
+		echo "   Check disk space and permissions"; \
+		exit 1; \
+	fi; \
+	if ! chmod +x "$${BOB_PATH}"; then \
+		echo "❌ Error: Failed to make Bob executable"; \
+		exit 1; \
+	fi; \
+	echo "✅ Installed Bob to $${BOB_PATH}"; \
 	echo ""; \
-	echo "📦 Configuring Bob in Claude CLI..."; \
-	claude mcp remove bob 2>/dev/null || true; \
-	claude mcp add bob -- "$$BOB_PATH" --serve; \
+	CONFIGURED=0; \
+	echo "📦 Configuring Bob as MCP server..."; \
 	echo ""; \
-	echo "✅ Bob configured as MCP server"; \
+	if command -v claude > /dev/null 2>&1 && [ -x "$$(command -v claude)" ]; then \
+		echo "🔧 Registering with Claude..."; \
+		claude mcp remove bob 2>/dev/null || true; \
+		if claude mcp add bob -- "$${BOB_PATH}" --serve 2>&1; then \
+			echo "   ✅ Bob registered with Claude"; \
+			CONFIGURED=1; \
+		else \
+			EXIT_CODE=$$?; \
+			echo "   ❌ Failed to register with Claude (exit code: $${EXIT_CODE})"; \
+			echo "   Try manually: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+	else \
+		echo "   ⚠️  Claude CLI not found - skipping Claude registration"; \
+	fi; \
 	echo ""; \
-	echo "🔄 Restart Claude CLI or start new session to activate Bob"
+	if command -v codex > /dev/null 2>&1 && [ -x "$$(command -v codex)" ]; then \
+		echo "🔧 Registering with Codex..."; \
+		codex mcp remove bob 2>/dev/null || true; \
+		if codex mcp add bob -- "$${BOB_PATH}" --serve 2>&1; then \
+			echo "   ✅ Bob registered with Codex"; \
+			CONFIGURED=1; \
+		else \
+			EXIT_CODE=$$?; \
+			echo "   ❌ Failed to register with Codex (exit code: $${EXIT_CODE})"; \
+			echo "   Try manually: codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+	else \
+		echo "   ⚠️  Codex CLI not found - skipping Codex registration"; \
+	fi; \
+	echo ""; \
+	if [ $${CONFIGURED} -eq 1 ]; then \
+		echo "✅ Bob configured successfully"; \
+		echo ""; \
+		echo "🔄 Restart your CLI or start a new session to activate Bob"; \
+	else \
+		echo "⚠️  No MCP clients configured. Install Claude or Codex CLI and run 'make install-mcp' again."; \
+		echo ""; \
+		echo "Manual configuration:"; \
+		echo "  Claude: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		echo "  Codex:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+	fi

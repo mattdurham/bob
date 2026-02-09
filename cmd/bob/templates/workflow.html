@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #333; margin-bottom: 10px; }
+        .breadcrumb { color: #666; margin-bottom: 30px; }
+        .breadcrumb a { color: #007bff; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        .layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .section { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .section h2 { color: #333; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        .mermaid { text-align: center; padding: 20px; }
+        .step-list { list-style: none; }
+        .step-item { padding: 12px; border-bottom: 1px solid #eee; cursor: pointer; transition: background 0.2s; }
+        .step-item:hover { background: #f8f8f8; }
+        .step-item.active { background: #90EE90; font-weight: bold; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; }
+        .modal.show { display: flex; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 800px; max-height: 80vh; overflow-y: auto; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .modal-header h3 { color: #333; }
+        .close { font-size: 28px; cursor: pointer; color: #999; }
+        .close:hover { color: #333; }
+        pre { background: #f8f8f8; padding: 15px; border-radius: 4px; overflow-x: auto; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; margin-left: 10px; }
+        .badge-active { background: #90EE90; color: #2E8B57; }
+        .active-states { margin-top: 20px; }
+        .state-card { background: #f8f8f8; padding: 12px; border-radius: 4px; margin-bottom: 10px; }
+        .state-card strong { color: #333; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="/">Dashboard</a> / Workflow
+        </div>
+
+        <h1>{{.Workflow.Name}}</h1>
+        <p style="color: #666; margin-bottom: 30px;">Keyword: <strong>{{.Workflow.Keyword}}</strong></p>
+
+        <div class="layout">
+            <div class="section">
+                <h2>Workflow Diagram</h2>
+                <div class="mermaid">
+                    {{.Mermaid}}
+                </div>
+            </div>
+
+            <div>
+                <div class="section">
+                    <h2>Workflow Steps</h2>
+                    <ul class="step-list">
+                        {{range $index, $step := .Workflow.Steps}}
+                        <li class="step-item" onclick="showPrompt('{{$step.Name}}', '{{$step.Description}}')">
+                            {{$step.Name}}
+                            {{range $.ActiveStates}}
+                                {{if eq .CurrentStep $step.Name}}
+                                    <span class="badge badge-active">ACTIVE</span>
+                                {{end}}
+                            {{end}}
+                        </li>
+                        {{end}}
+                    </ul>
+                </div>
+
+                {{if .ActiveStates}}
+                <div class="section active-states">
+                    <h2>Active Sessions</h2>
+                    {{range .ActiveStates}}
+                    <div class="state-card">
+                        <strong>{{.CurrentStep}}</strong><br>
+                        <small>Progress: {{len .ProgressHistory}} steps | Loops: {{.LoopCount}}</small>
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    <div id="promptModal" class="modal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3 id="promptTitle">Step Details</h3>
+                <span class="close" onclick="closeModal()">&times;</span>
+            </div>
+            <div id="promptContent"></div>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'default' });
+
+        function showPrompt(stepName, description) {
+            document.getElementById('promptTitle').textContent = stepName;
+            document.getElementById('promptContent').innerHTML =
+                '<p><strong>Description:</strong> ' + description + '</p>' +
+                '<p style="margin-top: 20px; color: #666;"><em>Full prompt file: prompts/' +
+                '{{.Workflow.Keyword}}/' + stepName.toLowerCase() + '.md</em></p>';
+            document.getElementById('promptModal').classList.add('show');
+        }
+
+        function closeModal(event) {
+            if (!event || event.target.id === 'promptModal') {
+                document.getElementById('promptModal').classList.remove('show');
+            }
+        }
+
+        // Keyboard shortcut
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>

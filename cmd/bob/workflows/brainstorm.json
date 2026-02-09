@@ -1,0 +1,72 @@
+{
+  "keyword": "brainstorm",
+  "name": "Brainstorm Development Workflow",
+  "description": "Full development workflow: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE",
+  "steps": [
+    {
+      "name": "INIT",
+      "description": "Initial state - need to create worktree",
+      "requirements": ["git_repo"]
+    },
+    {
+      "name": "WORKTREE",
+      "description": "Worktree created and ready"
+    },
+    {
+      "name": "BRAINSTORM",
+      "description": "Explore approaches and clarify requirements"
+    },
+    {
+      "name": "PLAN",
+      "description": "Create detailed implementation plan"
+    },
+    {
+      "name": "EXECUTE",
+      "description": "Implement the planned changes"
+    },
+    {
+      "name": "TEST",
+      "description": "Run all tests and checks",
+      "requirements": ["tests_pass", "linting_clean"]
+    },
+    {
+      "name": "REVIEW",
+      "description": "Code review phase",
+      "canLoopTo": ["PLAN"]
+    },
+    {
+      "name": "COMMIT",
+      "description": "Commit changes",
+      "requirements": ["no_review_issues"]
+    },
+    {
+      "name": "MONITOR",
+      "description": "Monitor CI/PR checks",
+      "canLoopTo": ["REVIEW"]
+    },
+    {
+      "name": "COMPLETE",
+      "description": "Workflow complete"
+    }
+  ],
+  "loopRules": [
+    {
+      "fromStep": "REVIEW",
+      "toStep": "PLAN",
+      "condition": "issues_found",
+      "description": "Issues found during review require replanning"
+    },
+    {
+      "fromStep": "MONITOR",
+      "toStep": "REVIEW",
+      "condition": "ci_failed_or_feedback",
+      "description": "Always review locally before fixing CI issues"
+    },
+    {
+      "fromStep": "TEST",
+      "toStep": "EXECUTE",
+      "condition": "tests_failed",
+      "description": "Test failures require code fixes"
+    }
+  ]
+}

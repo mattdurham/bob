@@ -1,0 +1,24 @@
+{
+  "keyword": "explore",
+  "name": "Read-Only Exploration",
+  "description": "Explore and understand codebase without changes: DISCOVER → ANALYZE → DOCUMENT → COMPLETE (NO worktree, NO file changes)",
+  "steps": [
+    {
+      "name": "DISCOVER",
+      "description": "Discover codebase structure (read-only)"
+    },
+    {
+      "name": "ANALYZE",
+      "description": "Deeply analyze what was found (read-only)"
+    },
+    {
+      "name": "DOCUMENT",
+      "description": "Document findings in bots/explore.md"
+    },
+    {
+      "name": "COMPLETE",
+      "description": "Finish exploration"
+    }
+  ],
+  "loopRules": []
+}

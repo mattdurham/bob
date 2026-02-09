@@ -1,0 +1,57 @@
+{
+  "keyword": "code-review",
+  "name": "Code Review & Fix Cycle",
+  "description": "Review code, fix issues, test, and iterate until clean: INIT → REVIEW → FIX → TEST → REVIEW (loop) → COMMIT → MONITOR → COMPLETE",
+  "steps": [
+    {
+      "name": "INIT",
+      "description": "Create worktree for code review"
+    },
+    {
+      "name": "REVIEW",
+      "description": "Perform code review with subagent",
+      "canLoopTo": ["FIX"]
+    },
+    {
+      "name": "FIX",
+      "description": "Fix issues found in review"
+    },
+    {
+      "name": "TEST",
+      "description": "Run all tests and checks"
+    },
+    {
+      "name": "COMMIT",
+      "description": "Commit fixes"
+    },
+    {
+      "name": "MONITOR",
+      "description": "Monitor PR/CI",
+      "canLoopTo": ["REVIEW"]
+    },
+    {
+      "name": "COMPLETE",
+      "description": "Cleanup and finish"
+    }
+  ],
+  "loopRules": [
+    {
+      "fromStep": "REVIEW",
+      "toStep": "FIX",
+      "condition": "issues_found",
+      "description": "Issues found require fixes"
+    },
+    {
+      "fromStep": "TEST",
+      "toStep": "REVIEW",
+      "condition": "tests_pass",
+      "description": "After fixes, re-review to verify clean"
+    },
+    {
+      "fromStep": "MONITOR",
+      "toStep": "REVIEW",
+      "condition": "ci_failed_or_feedback",
+      "description": "Always review locally before fixing issues"
+    }
+  ]
+}

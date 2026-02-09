@@ -70,5 +70,3 @@ After implementing optimizations:
    )
    ```
 
-## Next Phase
-Move to **VERIFY** to measure performance improvements.

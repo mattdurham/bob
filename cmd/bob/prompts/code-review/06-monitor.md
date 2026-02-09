@@ -93,5 +93,3 @@ git branch -d review-fix-<timestamp>
    )
    ```
 
-## Next Phase
-Move to **COMPLETE** after successful merge.

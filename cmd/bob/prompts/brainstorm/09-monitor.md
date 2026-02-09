@@ -145,5 +145,3 @@ git branch -d <branch-name>
    )
    ```
 
-## Next Phase
-After merge, you'll move to **COMPLETE** phase and clean up the worktree.

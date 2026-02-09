@@ -50,5 +50,3 @@ Once verified:
    )
    ```
 
-## Next Phase
-After reporting progress, you'll move to **BRAINSTORM** phase to explore the problem space.

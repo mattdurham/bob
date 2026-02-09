@@ -68,5 +68,3 @@ Once the worktree is created and you're in the worktree directory:
    )
    ```
 
-## Next Phase
-After reporting progress, you'll move to **WORKTREE** phase for verification.

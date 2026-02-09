@@ -68,5 +68,3 @@ After committing:
    )
    ```
 
-## Next Phase
-Move to **MONITOR** after user approval.

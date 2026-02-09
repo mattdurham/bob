@@ -83,5 +83,3 @@ Once you've gathered information:
    )
    ```
 
-## Next Phase
-After reporting, move to **ANALYZE** to deeply understand what you found.

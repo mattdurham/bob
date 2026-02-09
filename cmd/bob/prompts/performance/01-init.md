@@ -47,5 +47,3 @@ mkdir -p bots
    )
    ```
 
-## Next Phase
-Move to **BENCHMARK** to establish baseline performance.

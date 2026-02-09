@@ -76,5 +76,3 @@ gh pr merge --auto --squash
 ### If Issues:
 Loop back to OPTIMIZE.
 
-## Next Phase
-Move to **COMPLETE**.

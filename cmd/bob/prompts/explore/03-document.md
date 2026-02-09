@@ -102,5 +102,3 @@ After documentation is complete:
    )
    ```
 
-## Next Phase
-After reporting, move to **COMPLETE** - exploration finished!

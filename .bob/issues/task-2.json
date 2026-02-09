@@ -1,0 +1,15 @@
+{
+  "id": "task-2",
+  "title": "Add configurable prompt additions per workflow/state",
+  "description": "## Overview\nAllow repositories to configure custom additions to workflow prompts that are specific to their project. These additions should be stored in `.bob/additions/\u003cworkflow_name\u003e/\u003cstate\u003e.md` on the bob branch and appended to prompts sent by Bob.\n\n## Requirements\n\n### File Structure\n- Additions stored at: `.bob/additions/\u003cworkflow_name\u003e/\u003cstate\u003e.md`\n- Files live on the bob branch (same as tasks in `.bob/issues/`)\n- Example: `.bob/additions/code-review/review.md` would append content to the \"review\" step of code-review workflow\n\n### Loading Behavior\n- Load all additions at server startup\n- Cache in memory (no periodic reloading needed)\n- If `.bob/additions/` directory doesn't exist, skip silently (feature is optional)\n\n### Integration\n- When `workflow_get_guidance` is called, check if additions exist for current workflow + state\n- If found, append the markdown content to the guidance prompt\n- Format: Add a separator like `\\n\\n---\\n\\n### Project-Specific Guidance\\n\\n` before appending\n\n### Implementation Tasks\n1. Add loader function to read `.bob/additions/**/*.md` files at startup\n2. Store in memory structure like `map[workflow][state]string`\n3. Modify `workflow_get_guidance` handler to append additions if present\n4. Handle missing files/directories gracefully (no errors if not present)\n5. Update documentation explaining this feature\n\n### Example Use Case\nA project might create `.bob/additions/code-review/review.md` with:\n```markdown\n## Project Standards\n- Always use our custom error type from pkg/errors\n- Follow the logging patterns in docs/logging.md\n- Check that all database queries use parameterized statements\n```\n\nThis would automatically append to code-review workflow's review step guidance.\n\n### Testing\n- Test with additions present\n- Test with additions missing (should work fine)\n- Test with partial additions (some workflows have them, others don't)\n- Verify content is properly appended with clear formatting",
+  "type": "feature",
+  "priority": "medium",
+  "state": "pending",
+  "tags": [
+    "enhancement",
+    "workflows",
+    "customization"
+  ],
+  "createdAt": "2026-02-09T11:05:24.355111116-05:00",
+  "updatedAt": "2026-02-09T11:05:24.355111142-05:00"
+}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -393,9 +394,18 @@ func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
 	return false
 }
 
+// workflowIDToFilename converts a workflow ID to a safe, collision-free filename
+// Uses URL encoding to ensure reversibility and avoid collisions like:
+// - "foo/bar-baz" and "foo-bar/baz" both mapping to "foo-bar-baz.json"
+func workflowIDToFilename(workflowID string) string {
+	// URL encode the workflow ID to make it filesystem-safe
+	// This handles /, \, and other special characters
+	return url.PathEscape(workflowID) + ".json"
+}
+
 // loadState loads workflow state from disk
 func (sm *StateManager) loadState(workflowID string) (*WorkflowState, error) {
-	filename := strings.ReplaceAll(workflowID, "/", "-") + ".json"
+	filename := workflowIDToFilename(workflowID)
 	path := filepath.Join(sm.stateDir, filename)
 
 	data, err := os.ReadFile(path)
@@ -413,7 +423,7 @@ func (sm *StateManager) loadState(workflowID string) (*WorkflowState, error) {
 
 // saveState saves workflow state to disk
 func (sm *StateManager) saveState(state *WorkflowState) error {
-	filename := strings.ReplaceAll(state.WorkflowID, "/", "-") + ".json"
+	filename := workflowIDToFilename(state.WorkflowID)
 	path := filepath.Join(sm.stateDir, filename)
 
 	data, err := json.MarshalIndent(state, "", "  ")

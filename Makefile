@@ -76,16 +76,20 @@ install-mcp: build
 	BOB_INSTALL_DIR="$${HOME}/.bob"; \
 	BOB_PATH="$${BOB_INSTALL_DIR}/bob"; \
 	mkdir -p "$${BOB_INSTALL_DIR}"; \
-	echo "🛑 Stopping any running Bob processes..."; \
-	if pgrep -x bob > /dev/null 2>&1; then \
-		killall bob 2>/dev/null || true; \
+	echo "🛑 Stopping any running Bob MCP server processes..."; \
+	BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+	if [ -n "$${BOB_PIDS}" ]; then \
+		echo "   Found Bob processes: $${BOB_PIDS}"; \
+		kill $${BOB_PIDS} 2>/dev/null || true; \
 		for i in 1 2 3 4 5; do \
-			if ! pgrep -x bob > /dev/null 2>&1; then break; fi; \
+			BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+			if [ -z "$${BOB_PIDS}" ]; then break; fi; \
 			sleep 1; \
 		done; \
-		if pgrep -x bob > /dev/null 2>&1; then \
-			echo "⚠️  Warning: Some Bob processes still running"; \
-			echo "   You may need to manually kill them: killall -9 bob"; \
+		BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+		if [ -n "$${BOB_PIDS}" ]; then \
+			echo "⚠️  Warning: Some Bob processes still running: $${BOB_PIDS}"; \
+			echo "   You may need to manually kill them: kill -9 $${BOB_PIDS}"; \
 		fi; \
 	fi; \
 	if ! cp cmd/bob/bob "$${BOB_PATH}"; then \
@@ -111,7 +115,7 @@ install-mcp: build
 		else \
 			EXIT_CODE=$$?; \
 			echo "   ❌ Failed to register with Claude (exit code: $${EXIT_CODE})"; \
-			echo "   Try manually: claude mcp add bob -- $${BOB_PATH} --serve"; \
+			echo "   Try manually: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
 		fi; \
 	else \
 		echo "   ⚠️  Claude CLI not found - skipping Claude registration"; \
@@ -126,7 +130,7 @@ install-mcp: build
 		else \
 			EXIT_CODE=$$?; \
 			echo "   ❌ Failed to register with Codex (exit code: $${EXIT_CODE})"; \
-			echo "   Try manually: codex mcp add bob -- $${BOB_PATH} --serve"; \
+			echo "   Try manually: codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
 		fi; \
 	else \
 		echo "   ⚠️  Codex CLI not found - skipping Codex registration"; \
@@ -140,6 +144,6 @@ install-mcp: build
 		echo "⚠️  No MCP clients configured. Install Claude or Codex CLI and run 'make install-mcp' again."; \
 		echo ""; \
 		echo "Manual configuration:"; \
-		echo "  Claude: claude mcp add bob -- $${BOB_PATH} --serve"; \
-		echo "  Codex:  codex mcp add bob -- $${BOB_PATH} --serve"; \
+		echo "  Claude: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		echo "  Codex:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
 	fi

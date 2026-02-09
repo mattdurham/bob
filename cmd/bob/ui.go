@@ -129,8 +129,12 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 
 	data := WorkflowDetailData{}
 
-	// Load workflow details (convert "/" to "-" for filename, as state_manager.go does)
-	workflow, err := loadWorkflowDetail(strings.ReplaceAll(workflowID, "/", "-"))
+	// Load workflow details using safe filename encoding (prevents collisions)
+	// workflowIDToFilename() is defined in state_manager.go
+	safeFilename := workflowIDToFilename(workflowID)
+	// Remove the .json extension for loadWorkflowDetail
+	safeFilename = strings.TrimSuffix(safeFilename, ".json")
+	workflow, err := loadWorkflowDetail(safeFilename)
 	if err != nil {
 		data.Error = fmt.Sprintf("Error loading workflow: %v", err)
 	} else {

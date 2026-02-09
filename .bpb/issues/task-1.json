@@ -1,0 +1,15 @@
+{
+  "id": "task-1",
+  "title": "Security: Use environment variables for GitHub token instead of storing in config",
+  "description": "Currently the GitHub token might be stored directly in the claude_desktop_config.json file. This is a security risk as:\n\n1. Config files are often committed to repos or backed up\n2. Tokens in plain text files can be accidentally exposed\n3. Token rotation requires editing config files\n\n**Goal:** \nModify Bob to accept GitHub token from environment variable (e.g., GITHUB_TOKEN, GH_TOKEN) instead of requiring it in the config file.\n\n**Acceptance Criteria:**\n- Bob checks environment variables for GitHub token\n- Config file only needs token variable name reference (or nothing at all)\n- Clear documentation on which env vars are supported\n- Fallback behavior if no token found (graceful error)\n- Example configuration in README/docs\n\n**Security Benefits:**\n- Tokens never written to disk in config files\n- Easier token rotation\n- Follows 12-factor app principles\n- Compatible with secret management systems",
+  "type": "feature",
+  "priority": "high",
+  "state": "pending",
+  "tags": [
+    "security",
+    "enhancement",
+    "github-integration"
+  ],
+  "createdAt": "2026-02-09T10:19:57.37733034-05:00",
+  "updatedAt": "2026-02-09T10:19:57.377330366-05:00"
+}

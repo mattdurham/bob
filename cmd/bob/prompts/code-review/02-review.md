@@ -60,13 +60,13 @@ Focus on catching logical errors that span multiple files.
 **Validation commands to run:**
 ```bash
 # Find cross-file references
-grep -r "config\..*\|Config{" . --include="*.go"
-grep -r "[a-zA-Z_][a-zA-Z0-9_]*{" . --include="*.go"  # Struct initialization
+grep -Er "config\..*|Config\{" . --include="*.go"
+grep -Er "[a-zA-Z_][a-zA-Z0-9_]*\{" . --include="*.go"  # Struct initialization
 
 # Check for inconsistent naming (limit output to 100 matches)
-grep -Eroh '\<[a-z_]*config[a-z_]*\>' . | sort -u | head -100
-grep -Eroh '\<[a-z_]*state[a-z_]*\>' . | sort -u | head -100
-grep -Eroh '\<[a-z_]*key[a-z_]*\>' . | sort -u | head -100
+grep -Eroh '\<[a-z_]*config[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
+grep -Eroh '\<[a-z_]*state[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
+grep -Eroh '\<[a-z_]*key[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
 ```
 
 **Output:** Write cross-file consistency issues to bots/review-consistency.md
@@ -113,12 +113,12 @@ Verify documentation matches implementation.
 
 **Validation commands to run:**
 ```bash
-# Extract code examples from docs
-find . -name "*.md" -exec grep -A20 '```' {} \;
-grep -A10 "// Example:" . -r --include="*.go"
+# Extract code examples from docs (exclude generated/working directories)
+find . -name "*.md" -not -path "./bots/*" -not -path "./.git/*" -exec grep -A20 '```' {} \;
+grep -A10 "// Example:" . -r --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 
 # Find function signatures to compare
-grep -r "^func " . --include="*.go"
+grep -r "^func " . --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 ```
 
 **Output:** Write documentation issues to bots/review-docs.md

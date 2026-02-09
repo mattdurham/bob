@@ -12,6 +12,22 @@ You are currently in the **INIT** phase of the workflow.
 ## Your Goal
 Create a git worktree for isolated development.
 
+## Continuation Behavior
+
+**IMPORTANT:** Do NOT ask continuation questions like:
+- "Should I proceed?"
+- "Ready to continue?"
+- "Shall I move to the next step?"
+- "Done. Continue?"
+
+**AUTOMATICALLY PROCEED** after completing your tasks.
+
+**ONLY ASK THE USER** when:
+- Choosing between multiple approaches/solutions
+- Clarifying unclear requirements
+- Confirming potentially risky/destructive actions (deletes, force pushes, etc.)
+- Making architectural or design decisions
+
 ## What To Do
 
 ### 1. Pull Latest Changes

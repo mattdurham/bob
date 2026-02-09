@@ -5,6 +5,22 @@ You are currently in the **MONITOR** phase of the code review workflow.
 ## Your Goal
 Push PR and monitor until merge.
 
+## Continuation Behavior
+
+**IMPORTANT:** Do NOT ask continuation questions like:
+- "Should I proceed?"
+- "Ready to continue?"
+- "Shall I move to the next step?"
+- "Done. Continue?"
+
+**AUTOMATICALLY PROCEED** after completing your tasks.
+
+**ONLY ASK THE USER** when:
+- Choosing between multiple approaches/solutions
+- Clarifying unclear requirements
+- Confirming potentially risky/destructive actions (deletes, force pushes, etc.)
+- Making architectural or design decisions
+
 ## ⚠️ CRITICAL: Require User Permission
 
 **DO NOT push or create PR automatically!**

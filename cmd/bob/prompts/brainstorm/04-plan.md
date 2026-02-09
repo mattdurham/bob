@@ -5,6 +5,22 @@ You are currently in the **PLAN** phase of the workflow.
 ## Your Goal
 Create a detailed, actionable implementation plan based on your brainstorming.
 
+## Continuation Behavior
+
+**IMPORTANT:** Do NOT ask continuation questions like:
+- "Should I proceed?"
+- "Ready to continue?"
+- "Shall I move to the next step?"
+- "Done. Continue?"
+
+**AUTOMATICALLY PROCEED** after completing your tasks.
+
+**ONLY ASK THE USER** when:
+- Choosing between multiple approaches/solutions
+- Clarifying unclear requirements
+- Confirming potentially risky/destructive actions (deletes, force pushes, etc.)
+- Making architectural or design decisions
+
 ## What To Do
 
 ### 1. Break Down Into Tasks
@@ -87,8 +103,7 @@ Write your plan to `bots/plan.md`:
 Once you have a clear, detailed plan:
 
 1. Share the plan with the user
-2. Ask if they want any changes to the approach
-3. Only after user approves or acknowledges, report your progress:
+2. Report your progress:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",

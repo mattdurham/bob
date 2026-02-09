@@ -5,6 +5,22 @@ You are currently in the **COMPLETE** phase of the test-bob workflow.
 ## Your Goal
 Test complete - Claude API successfully classified a TRUE statement!
 
+## Continuation Behavior
+
+**IMPORTANT:** Do NOT ask continuation questions like:
+- "Should I proceed?"
+- "Ready to continue?"
+- "Shall I move to the next step?"
+- "Done. Continue?"
+
+**AUTOMATICALLY PROCEED** after completing your tasks.
+
+**ONLY ASK THE USER** when:
+- Choosing between multiple approaches/solutions
+- Clarifying unclear requirements
+- Confirming potentially risky/destructive actions (deletes, force pushes, etc.)
+- Making architectural or design decisions
+
 ## What To Do
 
 Tell user:

@@ -49,10 +49,10 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 	// workflow_get_definition
 	s.AddTool(
 		mcp.NewTool("workflow_get_definition",
-			mcp.WithDescription("Get the full definition of a workflow by keyword (e.g., 'brainstorm'). Checks for custom workflows in .bob/workflows/ if repoPath provided."),
+			mcp.WithDescription("Get the full definition of a workflow by keyword (e.g., 'work'). Checks for custom workflows in .bob/workflows/ if repoPath provided."),
 			mcp.WithString("workflow",
 				mcp.Required(),
-				mcp.Description("Workflow keyword (e.g., 'brainstorm', 'code-review', 'performance')"),
+				mcp.Description("Workflow keyword (e.g., 'work', 'code-review', 'performance')"),
 			),
 			mcp.WithString("repoPath",
 				mcp.Description("Optional: Git repository path to check for custom workflows"),
@@ -87,7 +87,7 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			mcp.WithDescription("Register a new workflow session. If worktreePath points to main repo, automatically creates a worktree using featureName."),
 			mcp.WithString("workflow",
 				mcp.Required(),
-				mcp.Description("Workflow keyword (e.g., 'brainstorm', 'code-review', 'performance')"),
+				mcp.Description("Workflow keyword (e.g., 'work', 'code-review', 'performance')"),
 			),
 			mcp.WithString("worktreePath",
 				mcp.Required(),

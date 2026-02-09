@@ -71,7 +71,7 @@ After thorough analysis:
 3. Report progress:
    ```
    workflow_report_progress(
-       worktreePath: "<current-directory>",
+       worktreePath: "<worktree-path>",
        currentStep: "DOCUMENT",
        metadata: {
            "componentsAnalyzed": 5,

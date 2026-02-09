@@ -4,12 +4,13 @@
   "description": "Enhance workflow system to handle rejoining workflows gracefully:\n\n**Current Problem:**\n- When a workflow is already registered, attempts to start a new workflow fail\n- No way to rejoin a completed workflow at a specific step\n- No way to reset workflow progress with new task description\n\n**Requirements:**\n1. Allow rejoining workflows at any specified step (even if complete)\n2. Reset all subsequent steps to default/pending state when rejoining\n3. Allow updating task description when rejoining\n4. Maintain workflow history/audit trail of resets\n5. Handle edge cases: invalid step names, dependencies between steps\n\n**Proposed Solution:**\n- Add `workflow_rejoin` MCP tool with parameters: worktreePath, step, taskDescription\n- Add `workflow_reset` MCP tool to clear workflow and start fresh\n- Modify `workflow_register` to accept `force` or `reset` flag\n- Store rejoin events in workflow history with timestamps\n\n**Files to Modify:**\n- internal/workflow/manager.go - Add rejoin logic\n- internal/workflow/state.go - Track rejoin history\n- internal/mcp/server.go - Add new MCP tools\n- cmd/bob/main.go - Wire up new commands\n\n**Testing:**\n- Test rejoining at each step of brainstorm workflow\n- Test rejoining completed workflow\n- Test invalid step names\n- Test concurrent rejoins\n- Test workflow history tracking",
   "type": "feature",
   "priority": "high",
-  "state": "pending",
+  "state": "completed",
   "tags": [
     "enhancement",
     "workflow",
     "resilience"
   ],
   "createdAt": "2026-02-09T17:33:10.283931091-05:00",
-  "updatedAt": "2026-02-09T17:33:10.283931141-05:00"
+  "updatedAt": "2026-02-09T17:44:03.736727344-05:00",
+  "completedAt": "2026-02-09T17:44:03.736727288-05:00"
 }

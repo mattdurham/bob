@@ -87,7 +87,7 @@ After thorough analysis:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "OPTIMIZE",
+       currentStep: "ANALYZE",
        metadata: {
            "bottlenecksFound": X,
            "expectedImprovement": "50%"

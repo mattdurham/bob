@@ -65,7 +65,7 @@ After fixing all issues:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "TEST",
+       currentStep: "FIX",
        metadata: {
            "issuesFixed": X,
            "testsAdded": Y

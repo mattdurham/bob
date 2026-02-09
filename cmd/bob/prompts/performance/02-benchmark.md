@@ -90,7 +90,7 @@ After establishing baseline:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "ANALYZE",
+       currentStep: "BENCHMARK",
        metadata: {
            "baselineOpsPerSec": X,
            "baselineNsPerOp": Y

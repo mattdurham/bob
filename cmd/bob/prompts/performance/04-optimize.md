@@ -79,7 +79,7 @@ After implementing optimizations:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "VERIFY",
+       currentStep: "OPTIMIZE",
        metadata: {
            "optimizationsApplied": X
        }

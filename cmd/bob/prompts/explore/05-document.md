@@ -110,7 +110,7 @@ After documentation is complete:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "COMPLETE",
+       currentStep: "DOCUMENT",
        metadata: {
            "documentationComplete": true,
            "questionsAnswered": 5

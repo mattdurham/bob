@@ -38,7 +38,7 @@ Ready to test!
    ```
    workflow_report_progress(
        worktreePath: "<worktreePath>",
-       currentStep: "PROMPT",
+       currentStep: "INIT",
        metadata: {
            "testStarted": true
        }

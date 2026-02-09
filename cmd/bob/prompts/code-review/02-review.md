@@ -58,16 +58,15 @@ Focus on catching logical errors that span multiple files.
   - Map keys use same naming pattern throughout
 
 **Validation commands to run:**
-```bash
-# Find cross-file references
-grep -Er "config\..*|Config\{" . --include="*.go"
-grep -Er "[a-zA-Z_][a-zA-Z0-9_]*\{" . --include="*.go"  # Struct initialization
 
-# Check for inconsistent naming (limit output to 100 matches)
-grep -Eroh '\<[a-z_]*config[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
-grep -Eroh '\<[a-z_]*state[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
-grep -Eroh '\<[a-z_]*key[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
-```
+    # Find cross-file references
+    grep -Er "config\..*|Config\{" . --include="*.go"
+    grep -Er "[a-zA-Z_][a-zA-Z0-9_]*\{" . --include="*.go"  # Struct initialization
+
+    # Check for inconsistent naming (limit output to 100 matches)
+    grep -Eroh '\<[a-z_]*config[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
+    grep -Eroh '\<[a-z_]*state[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
+    grep -Eroh '\<[a-z_]*key[a-z_]*\>' . --include="*.go" --exclude-dir=".git" --exclude-dir="bots" | sort -u | head -100
 
 **Output:** Write cross-file consistency issues to bots/review-consistency.md
 
@@ -112,14 +111,13 @@ Verify documentation matches implementation.
   - Error conditions documented accurately
 
 **Validation commands to run:**
-```bash
-# Extract code examples from docs (exclude generated/working directories)
-find . -name "*.md" -not -path "./bots/*" -not -path "./.git/*" -exec grep -A20 '```' {} \;
-grep -A10 "// Example:" . -r --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 
-# Find function signatures to compare
-grep -r "^func " . --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
-```
+    # Extract code examples from docs (exclude generated/working directories)
+    find . -name "*.md" -not -path "./bots/*" -not -path "./.git/*" -exec grep -A20 '```' {} \;
+    grep -A10 "// Example:" . -r --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
+
+    # Find function signatures to compare
+    grep -r "^func " . --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 
 **Output:** Write documentation issues to bots/review-docs.md
 
@@ -144,7 +142,7 @@ grep -r "^func " . --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 ✅ Keys must be consistent (same spelling, case, format)
 
 ### Pattern 5: Documentation Mismatch
-❌ Comment says \"Returns nil on success\" but code returns error
+❌ Comment says "Returns nil on success" but code returns error
 ✅ Documentation must match actual behavior
 
 ---
@@ -153,46 +151,44 @@ grep -r "^func " . --include="*.go" --exclude-dir="bots" --exclude-dir=".git"
 
 Consolidate ALL findings from all 3 passes into bots/review.md with this format:
 
-```markdown
-## Cross-File Consistency Issues
+    ## Cross-File Consistency Issues
 
-### Issue 1: Config-Code Mismatch
-**Severity:** HIGH
-**Files:** config.json:12, server.go:45
-**Description:** Config option \"log_level\" defined but not handled in code
-**Impact:** Configuration option silently ignored
-**Fix:** Add LogLevel field to Config struct and handle in initialization
+    ### Issue 1: Config-Code Mismatch
+    **Severity:** HIGH
+    **Files:** config.json:12, server.go:45
+    **Description:** Config option "log_level" defined but not handled in code
+    **Impact:** Configuration option silently ignored
+    **Fix:** Add LogLevel field to Config struct and handle in initialization
 
-## Code Quality Issues
+    ## Code Quality Issues
 
-### Issue 2: Missing Error Handling
-**Severity:** MEDIUM
-**Files:** client.go:89
-**Description:** HTTP request error not checked
-**Impact:** Silent failures, no error reporting
-**Fix:** Check err and return/log appropriately
+    ### Issue 2: Missing Error Handling
+    **Severity:** MEDIUM
+    **Files:** client.go:89
+    **Description:** HTTP request error not checked
+    **Impact:** Silent failures, no error reporting
+    **Fix:** Check err and return/log appropriately
 
-## Documentation Issues
+    ## Documentation Issues
 
-### Issue 3: Invalid Example Code
-**Severity:** LOW
-**Files:** README.md:45
-**Description:** Example missing required 'opts' parameter
-**Impact:** Users will copy broken code
-**Fix:** Update example to include Options parameter
+    ### Issue 3: Invalid Example Code
+    **Severity:** LOW
+    **Files:** README.md:45
+    **Description:** Example missing required 'opts' parameter
+    **Impact:** Users will copy broken code
+    **Fix:** Update example to include Options parameter
 
-[... continue for all findings ...]
+    [... continue for all findings ...]
 
-## Summary
+    ## Summary
 
-**Total Issues:** 5
-- **CRITICAL:** 0
-- **HIGH:** 1
-- **MEDIUM:** 2
-- **LOW:** 2
+    **Total Issues:** 5
+    - **CRITICAL:** 0
+    - **HIGH:** 1
+    - **MEDIUM:** 2
+    - **LOW:** 2
 
-**Recommendation:** Address all CRITICAL/HIGH issues before proceeding. Review MEDIUM issues for potential impact.
-```
+    **Recommendation:** Address all CRITICAL/HIGH issues before proceeding. Review MEDIUM issues for potential impact.
 
 If NO issues found in any pass, create empty bots/review.md file."
 ~~~
@@ -201,9 +197,8 @@ If NO issues found in any pass, create empty bots/review.md file."
 Let subagent complete its work.
 
 ### 3. Check Results
-```bash
-cat bots/review.md
-```
+
+    cat bots/review.md
 
 ### 4. Parse and Structure Findings
 
@@ -220,9 +215,8 @@ Parse bots/review.md into structured JSON format:
 ### 5. Read Findings Content
 
 Read the full content of bots/review.md:
-```bash
-cat bots/review.md
-```
+
+    cat bots/review.md
 
 Store this content to pass in metadata (even if empty).
 

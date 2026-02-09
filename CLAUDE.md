@@ -4,13 +4,7 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration via MCP (Mo
 
 ## MCP Server Configuration
 
-Add Bob to your Claude Desktop configuration:
-
-**Location:** `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS)
-or `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
-or `~/.config/Claude/claude_desktop_config.json` (Linux)
-
-**Configuration:**
+Add Bob to your MCP configuration:
 
 ```json
 {
@@ -43,7 +37,7 @@ Bob gives Claude access to:
 
 - **Workflows** - Multi-step orchestrated workflows (brainstorm, code-review, performance, explore)
 - **Tasks** - Git-backed task management with dependencies
-- **State** - Persistent SQLite database shared across all Claude sessions
+- **State** - Persistent JSON state files shared across all Claude sessions
 - **Guidance** - Step-by-step prompts for each workflow phase
 
 ## Available MCP Tools
@@ -72,8 +66,8 @@ See AGENTS.md for detailed workflow descriptions.
 
 ## Storage
 
-Bob stores all state in `~/.bob/state/db.sql`:
-- All Claude sessions share this database
+Bob stores all state in `~/.bob/~/.bob/state/`:
+- All Claude sessions share this state
 - Workflows and tasks persist across sessions
 - Updates from any Claude session appear everywhere
 
@@ -86,21 +80,20 @@ See AGENTS.md for custom workflow format.
 
 ## Troubleshooting
 
-### Bob not appearing in Claude
-1. Check Claude Desktop config file location
-2. Verify Bob path is correct
-3. Restart Claude Desktop
-4. Check Bob builds: `cd ~/source/bob && make build`
+### Bob not appearing
+1. Verify Bob path is correct in MCP configuration
+2. Check Bob builds: `cd ~/source/bob && make build`
+3. Restart your MCP client
 
 ### MCP server errors
 1. Test Bob directly: `cd ~/source/bob/cmd/bob && ./bob --serve`
-2. Check logs in Claude Desktop (Help → Show Logs)
+2. Check MCP client logs
 3. Verify Go dependencies: `cd ~/source/bob/cmd/bob && go mod download`
 
-### Database issues
-1. Database location: `~/.bob/state/db.sql`
+### State issues
+1. Database location: `~/.bob/~/.bob/state/`
 2. Check permissions: `ls -la ~/.bob/state/`
-3. Reset database: `rm ~/.bob/state/db.sql` (will recreate)
+3. Reset state: `rm ~/.bob/~/.bob/state/` (will recreate)
 
 ## Building Bob
 

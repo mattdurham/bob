@@ -23,17 +23,10 @@ func main() {
 		return
 	}
 
-	// MCP server mode (stdio) - writes to shared database
+	// MCP server mode (stdio)
 	if *serve {
-		// Open database connection
-		db, err := NewDatabase()
-		if err != nil {
-			log.Fatalf("Failed to open database: %v", err)
-		}
-		defer db.Close()
-
-		// Create MCP server with database
-		s := CreateMCPServerWithDB(db)
+		// Create MCP server
+		s := CreateMCPServer()
 		if err := server.ServeStdio(s); err != nil {
 			log.Fatalf("MCP server error: %v", err)
 		}
@@ -47,6 +40,6 @@ func main() {
 	fmt.Printf("  bob --version         Show version\n\n")
 	fmt.Printf("Architecture:\n")
 	fmt.Printf("  • Each Claude session runs 'bob --serve' (MCP stdio mode)\n")
-	fmt.Printf("  • All sessions write to ~/.bob/state/db.sql (shared SQLite)\n")
+	fmt.Printf("  • All sessions write to ~/.bob/state/ (JSON state files)\n")
 	fmt.Printf("  • Bob orchestrates workflows and manages tasks across sessions\n")
 }

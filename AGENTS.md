@@ -10,7 +10,7 @@ Bob is an MCP server that gives Claude access to:
 
 1. **Workflow Orchestration** - Multi-step workflows with loop-back rules
 2. **Task Management** - Git-backed task tracking with dependencies
-3. **State Persistence** - Shared SQLite database across all sessions
+3. **State Persistence** - Shared JSON state across all sessions
 4. **Workflow Guidance** - Step-by-step prompts for each workflow phase
 
 ## Available Workflows
@@ -110,8 +110,8 @@ bob.task_update({
 ## Bob Storage
 
 Bob stores state in `~/.bob/`:
-- `state/db.sql` - SQLite database with all workflows and tasks
-- All Claude sessions share this database
+- `~/.bob/state/` - JSON state with all workflows and tasks
+- All Claude sessions share this state
 - Updates from any session appear everywhere
 
 ## Custom Workflows
@@ -142,6 +142,20 @@ Create custom workflows in `.bob/workflows/*.json` in your repo:
 ```
 
 Bob will automatically discover custom workflows in `.bob/workflows/`.
+
+## Planning Documents
+
+All planning documents, brainstorming notes, and workflow artifacts should be stored in the `bots/` folder at the root of your repository. This folder is ignored by git and provides a clean workspace for agent-generated planning materials.
+
+```
+your-repo/
+├── bots/              # All planning docs go here (git ignored)
+│   ├── plans/
+│   ├── notes/
+│   └── research/
+├── .bob/              # Bob configuration and custom workflows
+└── src/               # Your source code
+```
 
 ## Workflow Principles
 

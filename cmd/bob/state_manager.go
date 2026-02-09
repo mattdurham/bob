@@ -46,13 +46,12 @@ type Issue struct {
 // StateManager manages workflow states
 type StateManager struct {
 	stateDir string
-	db       *Database
 }
 
 // NewStateManager creates a new state manager
 func NewStateManager() *StateManager {
 	homeDir, _ := os.UserHomeDir()
-	stateDir := filepath.Join(homeDir, ".claude", "workflows")
+	stateDir := filepath.Join(homeDir, ".bob", "state")
 	_ = os.MkdirAll(stateDir, 0755)
 
 	return &StateManager{
@@ -60,17 +59,6 @@ func NewStateManager() *StateManager {
 	}
 }
 
-// NewStateManagerWithDB creates a new state manager with database
-func NewStateManagerWithDB(db *Database) *StateManager {
-	homeDir, _ := os.UserHomeDir()
-	stateDir := filepath.Join(homeDir, ".claude", "workflows")
-	_ = os.MkdirAll(stateDir, 0755)
-
-	return &StateManager{
-		stateDir: stateDir,
-		db:       db,
-	}
-}
 
 // Register registers a new workflow instance
 func (sm *StateManager) Register(workflow, worktreePath, taskDescription string, sessionID, agentID string) (map[string]interface{}, error) {
@@ -357,22 +345,7 @@ func (sm *StateManager) saveState(state *WorkflowState) error {
 	}
 
 	// Write to file
-	if err := os.WriteFile(path, data, 0644); err != nil {
-		return err
-	}
-
-	// Also write to database if available
-	if sm.db != nil {
-		return sm.db.SaveWorkflow(
-			state.WorkflowID,
-			state.Workflow,
-			state.CurrentStep,
-			state.TaskDescription,
-			state.LoopCount,
-		)
-	}
-
-	return nil
+	return os.WriteFile(path, data, 0644)
 }
 
 // ListAgents lists all agents, optionally filtered by session or worktree

@@ -68,7 +68,6 @@ type TaskManager struct {
 	branchName string
 	issuesDir  string
 	client     *http.Client
-	db         *Database
 }
 
 // NewTaskManager creates a new task manager
@@ -80,15 +79,6 @@ func NewTaskManager() *TaskManager {
 	}
 }
 
-// NewTaskManagerWithDB creates a new task manager with database
-func NewTaskManagerWithDB(db *Database) *TaskManager {
-	return &TaskManager{
-		branchName: "bob",
-		issuesDir:  ".bob/issues",
-		client:     &http.Client{Timeout: 30 * time.Second},
-		db:         db,
-	}
-}
 
 // getRepoPath returns the git repository root path
 func (tm *TaskManager) getRepoPath(repoPath string) (string, error) {
@@ -443,16 +433,7 @@ func (tm *TaskManager) writeTaskFile(repo *GitHubRepo, task *Task, sha string) e
 	}
 
 	// Write to GitHub
-	if err := tm.writeFileToGitHub(repo, path, data, message, sha); err != nil {
-		return err
-	}
-
-	// Also write to database if available
-	if tm.db != nil {
-		return tm.db.SaveTask(*task)
-	}
-
-	return nil
+	return tm.writeFileToGitHub(repo, path, data, message, sha)
 }
 
 // deleteTaskFile deletes a single task file from GitHub

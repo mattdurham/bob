@@ -8,12 +8,12 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// CreateMCPServerWithDB creates and configures the MCP server with database
-func CreateMCPServerWithDB(db *Database) *server.MCPServer {
+// CreateMCPServer creates and configures the MCP server
+func CreateMCPServer() *server.MCPServer {
 	s := server.NewMCPServer("bob", version)
 
-	stateManager := NewStateManagerWithDB(db)
-	taskManager := NewTaskManagerWithDB(db)
+	stateManager := NewStateManager()
+	taskManager := NewTaskManager()
 
 	// Workflow tools
 	registerWorkflowTools(s, stateManager, taskManager)

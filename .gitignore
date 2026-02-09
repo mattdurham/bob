@@ -31,3 +31,6 @@ Thumbs.db
 
 # Local state
 .bob/
+
+# Planning documents
+bots/

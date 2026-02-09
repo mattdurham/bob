@@ -26,7 +26,7 @@ func LoadPrompt(workflow, step string) (string, error) {
 func stepToFilename(workflow, step string) string {
 	// Workflow-specific step mappings
 	workflowSteps := map[string]map[string]string{
-		"brainstorm": {
+		"work": {
 			"INIT":       "01-init",
 			"WORKTREE":   "02-worktree",
 			"BRAINSTORM": "03-brainstorm",

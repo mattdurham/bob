@@ -28,6 +28,7 @@ Bob is an MCP (Model Context Protocol) server that orchestrates AI agent workflo
 - 🔌 **MCP Server** - Claude integration via stdio protocol
 - 💾 **Persistent State** - JSON state shared across all sessions
 - 🔄 **Agent Self-Reporting** - Agents track and report their own progress
+- 🌐 **Web UI** - Browser-based dashboard for viewing workflows and tasks
 - 🏴‍☠️ **Captain of Your Agents** - Keep your AI workflows in line!
 
 ## Quick Start
@@ -45,8 +46,9 @@ make build
 
 ### Running Bob
 
-Bob runs as an MCP server using stdio protocol for Claude integration:
+Bob can run in two modes:
 
+**MCP Server Mode** (for Claude integration):
 ```bash
 # Run Bob as MCP server
 cd cmd/bob
@@ -55,6 +57,20 @@ cd cmd/bob
 # Or use make
 make run
 ```
+
+**Web UI Mode** (for viewing workflows in browser):
+```bash
+# Start web UI server (default: http://127.0.0.1:8080)
+./bob --ui
+
+# Custom port
+./bob --ui --port 8081
+
+# Custom host (use with caution)
+./bob --ui --host 0.0.0.0 --port 8080
+```
+
+Then open your browser to http://127.0.0.1:8080 (or your configured port)
 
 ### MCP Configuration
 
@@ -108,6 +124,43 @@ DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 ```
 
 See [AGENTS.md](AGENTS.md) for detailed workflow documentation.
+
+## Web UI
+
+Bob includes a built-in web UI for monitoring workflows and tasks:
+
+### Features
+- **Dashboard** - View all active workflows at a glance
+- **Workflow Details** - See complete workflow history and progress
+- **Progress Timeline** - Visual timeline of workflow steps
+- **Issue Tracking** - View issues found during workflow execution
+- **Metadata Display** - See all collected workflow metadata
+
+### Usage
+
+Start the web UI server:
+```bash
+./bob --ui
+```
+
+Open http://127.0.0.1:8080 in your browser to see:
+- Active workflows with current step
+- Workflow statistics (loops, issues, updates)
+- Detailed workflow progress history
+- Task counts (coming soon)
+
+### Security
+
+The UI defaults to `127.0.0.1` (localhost only) for security. Only use `--host 0.0.0.0` on trusted networks.
+
+### Implementation
+
+The web UI:
+- Runs independently of the MCP server (separate process)
+- Reads workflow state from `~/.claude/workflows/`
+- Uses embedded Go templates (no external files needed)
+- Single binary with all assets included
+- Refreshes on page load (no WebSocket yet)
 
 ## Task Management
 

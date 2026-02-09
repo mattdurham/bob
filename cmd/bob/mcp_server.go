@@ -82,17 +82,20 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 	// workflow_register
 	s.AddTool(
 		mcp.NewTool("workflow_register",
-			mcp.WithDescription("Register a new workflow session in a git worktree. Creates workflow state and initializes tracking."),
+			mcp.WithDescription("Register a new workflow session. If worktreePath points to main repo, automatically creates a worktree using featureName."),
 			mcp.WithString("workflow",
 				mcp.Required(),
 				mcp.Description("Workflow keyword (e.g., 'brainstorm', 'code-review', 'performance')"),
 			),
 			mcp.WithString("worktreePath",
 				mcp.Required(),
-				mcp.Description("Absolute path to the git worktree where workflow will run"),
+				mcp.Description("Absolute path to git worktree or main repo. If main repo, featureName is required to auto-create worktree."),
 			),
 			mcp.WithString("taskDescription",
 				mcp.Description("Optional: Description of the specific task to be prefixed to initial guidance"),
+			),
+			mcp.WithString("featureName",
+				mcp.Description("Optional: Feature name for auto-creating worktree if on main (e.g., 'workflow-resilience'). Creates worktree at <repo>-worktrees/<featureName> with branch feature/<featureName>."),
 			),
 			mcp.WithString("sessionID",
 				mcp.Description("Optional: Session identifier for tracking"),
@@ -105,10 +108,11 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			workflow, _ := request.RequireString("workflow")
 			worktreePath, _ := request.RequireString("worktreePath")
 			taskDescription := request.GetString("taskDescription", "")
+			featureName := request.GetString("featureName", "")
 			sessionID := request.GetString("sessionID", "")
 			agentID := request.GetString("agentID", "")
 
-			result, err := stateManager.Register(workflow, worktreePath, taskDescription, sessionID, agentID)
+			result, err := stateManager.Register(workflow, worktreePath, taskDescription, featureName, sessionID, agentID)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -313,6 +317,88 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			sessionID, _ := request.RequireString("sessionID")
 
 			result, err := stateManager.GetSessionStatus(sessionID)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			data, _ := json.Marshal(result)
+			return mcp.NewToolResultText(string(data)), nil
+		},
+	)
+
+	// workflow_rejoin
+	s.AddTool(
+		mcp.NewTool("workflow_rejoin",
+			mcp.WithDescription("Rejoin existing workflow at specified step with optional state reset. Allows resuming workflows at any point."),
+			mcp.WithString("worktreePath",
+				mcp.Required(),
+				mcp.Description("Absolute path to the git worktree"),
+			),
+			mcp.WithString("step",
+				mcp.Description("Optional: Step name to rejoin at (default: continue from current step)"),
+			),
+			mcp.WithString("taskDescription",
+				mcp.Description("Optional: Updated task description (preserves existing if omitted)"),
+			),
+			mcp.WithString("resetSubsequent",
+				mcp.Description("Reset progress for steps after rejoining step (default: true, accepts: 'true', 'false')"),
+			),
+			mcp.WithString("sessionID",
+				mcp.Description("Optional: Session identifier"),
+			),
+			mcp.WithString("agentID",
+				mcp.Description("Optional: Agent identifier"),
+			),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			worktreePath, _ := request.RequireString("worktreePath")
+			step := request.GetString("step", "")
+			taskDescription := request.GetString("taskDescription", "")
+			resetSubsequentStr := request.GetString("resetSubsequent", "true")
+			sessionID := request.GetString("sessionID", "")
+			agentID := request.GetString("agentID", "")
+
+			// Parse boolean
+			resetSubsequent := resetSubsequentStr != "false"
+
+			result, err := stateManager.Rejoin(worktreePath, step, taskDescription, resetSubsequent, sessionID, agentID)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			data, _ := json.Marshal(result)
+			return mcp.NewToolResultText(string(data)), nil
+		},
+	)
+
+	// workflow_reset
+	s.AddTool(
+		mcp.NewTool("workflow_reset",
+			mcp.WithDescription("Clear workflow state for worktree (optionally archive before reset). Use this to start completely fresh."),
+			mcp.WithString("worktreePath",
+				mcp.Required(),
+				mcp.Description("Absolute path to the git worktree"),
+			),
+			mcp.WithString("archive",
+				mcp.Description("Archive state before clearing (default: true, accepts: 'true', 'false')"),
+			),
+			mcp.WithString("sessionID",
+				mcp.Description("Optional: Session identifier"),
+			),
+			mcp.WithString("agentID",
+				mcp.Description("Optional: Agent identifier"),
+			),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			worktreePath, _ := request.RequireString("worktreePath")
+			archiveStr := request.GetString("archive", "true")
+			sessionID := request.GetString("sessionID", "")
+			agentID := request.GetString("agentID", "")
+
+			// Parse boolean
+			archive := archiveStr != "false"
+
+			result, err := stateManager.Reset(worktreePath, archive, sessionID, agentID)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}

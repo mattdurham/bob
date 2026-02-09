@@ -22,9 +22,9 @@ run:
 
 # Build Bob binary
 build: install-deps
-	@echo "🔨 Building Bob..."
+	@echo "🔨 Building Bob from: $$(pwd)/cmd/bob"
 	@cd cmd/bob && go build -o bob
-	@echo "✅ Bob built: cmd/bob/bob"
+	@echo "✅ Bob built: $$(pwd)/cmd/bob/bob"
 	@echo ""
 	@echo "Run: ./cmd/bob/bob --serve"
 
@@ -72,6 +72,9 @@ install-mcp: build
 	@BOB_INSTALL_DIR="$$HOME/.bob"; \
 	BOB_PATH="$$BOB_INSTALL_DIR/bob"; \
 	mkdir -p "$$BOB_INSTALL_DIR"; \
+	echo "🛑 Stopping any running Bob processes..."; \
+	killall bob 2>/dev/null || true; \
+	sleep 1; \
 	cp cmd/bob/bob "$$BOB_PATH"; \
 	chmod +x "$$BOB_PATH"; \
 	echo "✅ Installed Bob to $$BOB_PATH"; \

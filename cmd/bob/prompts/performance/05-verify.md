@@ -102,6 +102,3 @@ Func-8    512B ± 0%     256B ± 0%  -50.00%  (p=0.000 n=5+5)
    )
    ```
 
-## Next Phase
-- **If targets met**: Move to COMMIT
-- **If targets not met**: Loop back to ANALYZE

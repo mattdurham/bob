@@ -5,6 +5,17 @@ You are currently in the **MONITOR** phase of the workflow.
 ## Your Goal
 Push the branch, create a PR, and actively monitor it until merge.
 
+## ⚠️ CRITICAL: Require User Permission
+
+**DO NOT push or create PR automatically!**
+
+Before proceeding with ANY of the steps below:
+1. Tell user: "Ready to push and create PR?"
+2. **WAIT for explicit user approval**
+3. Only proceed after user says yes
+
+This is a safety measure - never push to remote or create PRs without permission.
+
 ## What To Do
 
 ### 1. Push Branch
@@ -145,5 +156,3 @@ git branch -d <branch-name>
    )
    ```
 
-## Next Phase
-After merge, you'll move to **COMPLETE** phase and clean up the worktree.

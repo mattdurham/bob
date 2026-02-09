@@ -106,5 +106,3 @@ If you loop back from REVIEW or MONITOR phases:
 - Update this plan to address the issues
 - Document what changed and why
 
-## Next Phase
-After reporting progress, you'll move to **EXECUTE** phase to implement the plan.

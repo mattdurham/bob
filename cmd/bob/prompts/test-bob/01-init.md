@@ -29,5 +29,3 @@ Ready to test!
    )
    ```
 
-## Next Phase
-Move to **PROMPT** phase to ask user for a statement.

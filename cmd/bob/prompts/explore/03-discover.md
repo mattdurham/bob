@@ -74,7 +74,7 @@ Once you've gathered information:
 3. Report progress:
    ```
    workflow_report_progress(
-       worktreePath: "<current-directory>",
+       worktreePath: "<worktree-path>",
        currentStep: "ANALYZE",
        metadata: {
            "filesExplored": 10,
@@ -83,5 +83,3 @@ Once you've gathered information:
    )
    ```
 
-## Next Phase
-After reporting, move to **ANALYZE** to deeply understand what you found.

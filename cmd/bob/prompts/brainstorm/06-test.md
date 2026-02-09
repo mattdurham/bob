@@ -123,5 +123,3 @@ go build ./...
    )
    ```
 
-## Next Phase
-After reporting progress with all checks passing, you'll move to **REVIEW** phase for code review.

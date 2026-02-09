@@ -50,5 +50,3 @@ Once worktree is created:
    )
    ```
 
-## Next Phase
-Move to **REVIEW** to start code review cycle.

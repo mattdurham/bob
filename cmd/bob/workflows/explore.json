@@ -1,8 +1,17 @@
 {
   "keyword": "explore",
   "name": "Read-Only Exploration",
-  "description": "Explore and understand codebase without changes: DISCOVER → ANALYZE → DOCUMENT → COMPLETE (NO worktree, NO file changes)",
+  "description": "Explore and understand codebase without changes: INIT → WORKTREE → DISCOVER → ANALYZE → DOCUMENT → COMPLETE (read-only, no code changes)",
   "steps": [
+    {
+      "name": "INIT",
+      "description": "Initial state - create worktree for exploration",
+      "requirements": ["git_repo"]
+    },
+    {
+      "name": "WORKTREE",
+      "description": "Worktree created and ready for exploration"
+    },
     {
       "name": "DISCOVER",
       "description": "Discover codebase structure (read-only)"

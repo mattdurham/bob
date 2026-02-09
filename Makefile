@@ -77,18 +77,18 @@ install-mcp: build
 	BOB_PATH="$${BOB_INSTALL_DIR}/bob"; \
 	mkdir -p "$${BOB_INSTALL_DIR}"; \
 	echo "🛑 Stopping any running Bob MCP server processes..."; \
-	BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+	BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
 	if [ -n "$${BOB_PIDS}" ]; then \
-		echo "   Found Bob processes: $${BOB_PIDS}"; \
+		echo "   Found Bob MCP server processes: $${BOB_PIDS}"; \
 		kill $${BOB_PIDS} 2>/dev/null || true; \
 		for i in 1 2 3 4 5; do \
-			BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+			BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
 			if [ -z "$${BOB_PIDS}" ]; then break; fi; \
 			sleep 1; \
 		done; \
-		BOB_PIDS=$$(pgrep -f "$${BOB_PATH}" 2>/dev/null || true); \
+		BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
 		if [ -n "$${BOB_PIDS}" ]; then \
-			echo "⚠️  Warning: Some Bob processes still running: $${BOB_PIDS}"; \
+			echo "⚠️  Warning: Some Bob MCP server processes still running: $${BOB_PIDS}"; \
 			echo "   You may need to manually kill them: kill -9 $${BOB_PIDS}"; \
 		fi; \
 	fi; \

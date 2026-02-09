@@ -22,7 +22,8 @@ var templatesFS embed.FS
 var staticFS embed.FS
 
 // workflowIDPattern validates workflow IDs (format: repo/name or repo-name)
-var workflowIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_/-]+$`)
+// Allows alphanumeric, underscore, hyphen, forward slash, and dot (for directory names)
+var workflowIDPattern = regexp.MustCompile(`^[a-zA-Z0-9_/.-]+$`)
 
 // StartUIServer starts the web UI server
 func StartUIServer(host, port string) error {
@@ -129,12 +130,8 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 
 	data := WorkflowDetailData{}
 
-	// Load workflow details using safe filename encoding (prevents collisions)
-	// workflowIDToFilename() is defined in state_manager.go
-	safeFilename := workflowIDToFilename(workflowID)
-	// Remove the .json extension for loadWorkflowDetail
-	safeFilename = strings.TrimSuffix(safeFilename, ".json")
-	workflow, err := loadWorkflowDetail(safeFilename)
+	// Load workflow details - loadWorkflowDetail handles safe filename encoding internally
+	workflow, err := loadWorkflowDetail(workflowID)
 	if err != nil {
 		data.Error = fmt.Sprintf("Error loading workflow: %v", err)
 	} else {
@@ -213,15 +210,18 @@ func loadWorkflows() ([]WorkflowSummary, error) {
 }
 
 // loadWorkflowDetail loads full details for a specific workflow
+// Takes the real workflow ID and handles safe filename encoding internally
 func loadWorkflowDetail(workflowID string) (*WorkflowDetailData, error) {
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, err
 	}
 
-	// Find the workflow file
+	// Find the workflow file using safe filename encoding (prevents collisions)
 	workflowsDir := filepath.Join(homeDir, ".bob", "state")
-	filePath := filepath.Join(workflowsDir, workflowID+".json")
+	// Use workflowIDToFilename() to get the safe encoded filename
+	safeFilename := workflowIDToFilename(workflowID)
+	filePath := filepath.Join(workflowsDir, safeFilename)
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {

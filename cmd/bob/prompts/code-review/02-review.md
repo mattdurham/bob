@@ -51,31 +51,14 @@ Parse bots/review.md into structured JSON format:
 - Count by severity
 - Include file paths and line numbers
 
-### 5. Prepare Findings JSON
+### 5. Read Findings Content
 
-Create a JSON blob in this exact format:
-```json
-{
-  "findings": [
-    {
-      "severity": "high",
-      "description": "Missing error handling in X",
-      "file": "path/to/file.go",
-      "line": 123,
-      "suggestedFix": "Add error check"
-    }
-  ],
-  "summary": {
-    "total": 5,
-    "critical": 1,
-    "high": 2,
-    "medium": 2,
-    "low": 0
-  }
-}
+Read the full content of bots/review.md:
+```bash
+cat bots/review.md
 ```
 
-**If no issues:** Return `{"findings": []}`
+Store this content to pass in metadata (even if empty).
 
 ## DO NOT
 - ❌ Do not skip review subagent
@@ -83,23 +66,23 @@ Create a JSON blob in this exact format:
 - ❌ Do not commit yet
 
 ## CRITICAL RULES
-- ✅ **ALWAYS return findings as JSON blob**
-- ✅ **Empty findings = workflow proceeds forward**
-- ✅ **Non-empty findings = workflow decides next step**
-- ✅ Let the workflow orchestration handle transitions
+- ✅ **ALWAYS include findings text in metadata**
+- ✅ Pass full content of bots/review.md (empty string if no issues)
+- ✅ Workflow orchestration will classify and route automatically
 - ✅ Your job is to find and report issues, not route the workflow
+- ✅ Let Claude API determine if issues exist
 
 ## When You're Done
 
 ### Report Findings
 
-**Use workflow_report_progress with findings JSON:**
+**Use workflow_report_progress with findings text:**
 ```
 workflow_report_progress(
     worktreePath: "<worktree-path>",
     currentStep: "REVIEW",
     metadata: {
-        "findings": { /* JSON blob from step 5 */ },
+        "findings": "<full content of bots/review.md>",
         "reviewCompleted": true
     }
 )
@@ -107,23 +90,14 @@ workflow_report_progress(
 
 ### Tell User
 
-**If findings array is empty:**
 ```
-✅ Code review complete - no issues found!
-```
-
-**If findings array has items:**
-```
-📋 Code review complete - found X issues:
-- Critical: Y
-- High: Z
-- Medium: N
-
-Workflow will automatically handle next steps.
+📋 Code review complete - findings recorded.
+Workflow will analyze and route automatically.
 ```
 
 ## Important
 - DO NOT tell user what phase comes next
 - DO NOT call workflow_report_progress to another step
-- ONLY report progress on current step (REVIEW) with findings
-- Workflow orchestration will decide routing based on findings JSON
+- ONLY report progress on current step (REVIEW) with findings text
+- Claude API will classify findings and orchestration will route
+- Pass findings even if empty (empty string = no issues)

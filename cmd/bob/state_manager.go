@@ -131,30 +131,43 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 	nextStep := currentStep
 
 	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
-	// check findings and automatically determine next step
-	if currentStep == previousStep {
-		// Check for findings in metadata
-		if findings, ok := metadata["findings"].(map[string]interface{}); ok {
-			findingsArray, hasArray := findings["findings"].([]interface{})
+	// check if this is a checkpoint phase and classify findings
+	if currentStep == previousStep && sm.isCheckpointPhase(state.Workflow, currentStep) {
+		// Check for findings text in metadata
+		if findingsText, ok := metadata["findings"].(string); ok {
+			// Use Claude API to classify if findings contain issues
+			claudeClient := NewClaudeClient()
+			hasIssues, err := claudeClient.ClassifyFindings(findingsText)
 
-			// If findings array exists and is empty, advance forward
-			if hasArray && len(findingsArray) == 0 {
-				// Advance to next step
-				nextStepName, err := GetNextStep(state.Workflow, currentStep)
-				if err == nil {
-					nextStep = nextStepName
-				}
-			} else if hasArray && len(findingsArray) > 0 {
-				// Findings exist - loop back to fix them
-				def, err := GetWorkflowDefinition(state.Workflow)
-				if err == nil {
-					// Find current step's canLoopTo
-					for _, step := range def.Steps {
-						if step.Name == currentStep && len(step.CanLoopTo) > 0 {
-							// Loop to first available target
-							nextStep = step.CanLoopTo[0]
-							break
+			if err == nil {
+				if hasIssues {
+					// Issues found - loop back to fix them
+					def, err := GetWorkflowDefinition(state.Workflow)
+					if err == nil {
+						// Find current step's canLoopTo
+						for _, step := range def.Steps {
+							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+								// Loop to first available target
+								nextStep = step.CanLoopTo[0]
+								break
+							}
 						}
+					}
+				} else {
+					// No issues - advance forward
+					nextStepName, err := GetNextStep(state.Workflow, currentStep)
+					if err == nil {
+						nextStep = nextStepName
+					}
+				}
+			} else {
+				// If classification fails, log error but don't fail the workflow
+				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+				// Fall back to checking findings length
+				if len(strings.TrimSpace(findingsText)) < 10 {
+					nextStepName, err := GetNextStep(state.Workflow, currentStep)
+					if err == nil {
+						nextStep = nextStepName
 					}
 				}
 			}
@@ -348,6 +361,20 @@ func (sm *StateManager) isLoopBack(workflow, prevStep, currentStep string) bool 
 
 	// Loop back if moving to earlier step
 	return currentPos < prevPos
+}
+
+// isCheckpointPhase checks if a step is a checkpoint that requires Claude classification
+func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
+	// Checkpoint phases that require findings classification
+	checkpointPhases := []string{"REVIEW", "TEST", "MONITOR"}
+
+	for _, phase := range checkpointPhases {
+		if stepName == phase {
+			return true
+		}
+	}
+
+	return false
 }
 
 // loadState loads workflow state from disk

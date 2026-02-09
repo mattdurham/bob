@@ -1,0 +1,10 @@
+{
+  "id": "task-3",
+  "title": "Have this work with codex",
+  "description": "Integrate Bob workflow orchestration system with Codex to enable seamless interaction and functionality between the two systems.",
+  "type": "feature",
+  "priority": "high",
+  "state": "pending",
+  "createdAt": "2026-02-09T12:08:39.120677072-05:00",
+  "updatedAt": "2026-02-09T12:08:39.120677124-05:00"
+}

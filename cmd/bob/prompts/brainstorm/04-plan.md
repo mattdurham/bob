@@ -121,3 +121,6 @@ If you loop back from REVIEW or MONITOR phases:
 - Update this plan to address the issues
 - Document what changed and why
 
+
+## End Step
+Ask bob what to do next based on the metadata you provided with bob_workflow_get_guidance.

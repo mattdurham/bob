@@ -265,3 +265,7 @@ Workflow will analyze and route automatically.
 - ONLY report progress on current step (REVIEW) with findings text
 - Claude API will classify findings and orchestration will route
 - Pass findings even if empty (empty string = no issues)
+
+## End Step
+Ask bob what to do next based on the metadata you provided with bob_workflow_get_guidance.
+Ask bob what to do next based on the metadata you provided.

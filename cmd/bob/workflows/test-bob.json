@@ -1,0 +1,28 @@
+{
+  "keyword": "test-bob",
+  "name": "Test Bob Classification",
+  "description": "Test workflow to verify Claude API classification: INIT → PROMPT → COMPLETE (loops on false)",
+  "steps": [
+    {
+      "name": "INIT",
+      "description": "Initialize test workflow"
+    },
+    {
+      "name": "PROMPT",
+      "description": "Prompt user for true/false statement",
+      "canLoopTo": ["PROMPT"]
+    },
+    {
+      "name": "COMPLETE",
+      "description": "Test complete"
+    }
+  ],
+  "loopRules": [
+    {
+      "fromStep": "PROMPT",
+      "toStep": "PROMPT",
+      "condition": "statement_is_false",
+      "description": "Loop back if statement is false"
+    }
+  ]
+}

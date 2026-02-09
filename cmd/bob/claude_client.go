@@ -68,7 +68,20 @@ func (c *ClaudeClient) ClassifyFindings(findings string) (bool, error) {
 	}
 
 	// Construct the classification prompt
-	prompt := fmt.Sprintf(`You are a binary classifier. Analyze the following code review findings and determine if there are any actual issues that need to be fixed.
+	// Detect if this is a test-bob statement or code review findings
+	var prompt string
+	if strings.Contains(findings, "Statement:") && strings.Contains(findings, "classified as true or false") {
+		// test-bob workflow: classify true/false statements
+		prompt = fmt.Sprintf(`You are a binary classifier. Analyze the following statement and determine if it is factually TRUE or FALSE.
+
+%s
+
+Answer with ONLY one word: "yes" if the statement is FALSE (issues exist), or "no" if the statement is TRUE (no issues).
+
+Answer:`, findings)
+	} else {
+		// Regular code review findings
+		prompt = fmt.Sprintf(`You are a binary classifier. Analyze the following code review findings and determine if there are any actual issues that need to be fixed.
 
 Code Review Findings:
 %s
@@ -76,6 +89,7 @@ Code Review Findings:
 Answer with ONLY one word: "yes" if there are issues that need fixing, or "no" if there are no issues (empty findings, or just comments with no actionable items).
 
 Answer:`, findings)
+	}
 
 	// Make the API call
 	req := ClaudeRequest{

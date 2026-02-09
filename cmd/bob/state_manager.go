@@ -366,7 +366,7 @@ func (sm *StateManager) isLoopBack(workflow, prevStep, currentStep string) bool 
 // isCheckpointPhase checks if a step is a checkpoint that requires Claude classification
 func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
 	// Checkpoint phases that require findings classification
-	checkpointPhases := []string{"REVIEW", "TEST", "MONITOR"}
+	checkpointPhases := []string{"REVIEW", "TEST", "MONITOR", "PROMPT"}
 
 	for _, phase := range checkpointPhases {
 		if stepName == phase {

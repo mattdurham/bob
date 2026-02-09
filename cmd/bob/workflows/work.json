@@ -1,6 +1,6 @@
 {
-  "keyword": "brainstorm",
-  "name": "Brainstorm Development Workflow",
+  "keyword": "work",
+  "name": "Work Development Workflow",
   "description": "Full development workflow: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE",
   "steps": [
     {

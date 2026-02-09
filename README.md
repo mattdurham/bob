@@ -109,7 +109,7 @@ codex mcp add bob -- ~/.bob/bob --serve
 
 Bob includes four production-ready workflows:
 
-### 1. brainstorm
+### 1. work
 Full development workflow with planning and iteration:
 ```
 INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
@@ -136,7 +136,7 @@ INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR �
 ### 4. explore
 Read-only codebase exploration:
 ```
-DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+INIT → WORKTREE → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 ```
 
 See [AGENTS.md](AGENTS.md) for detailed workflow documentation.
@@ -183,7 +183,7 @@ The web UI:
 Bob manages tasks in `.bob/issues/` with git branch integration:
 
 ```bash
-# Tasks are stored in git on the 'bob' or 'bob' branch
+# Tasks are stored in git on the 'bob' branch
 # Each task is a JSON file: .bob/issues/<id>.json
 ```
 

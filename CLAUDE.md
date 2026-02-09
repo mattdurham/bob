@@ -35,7 +35,7 @@ Add Bob to your MCP configuration:
 
 Bob gives Claude access to:
 
-- **Workflows** - Multi-step orchestrated workflows (brainstorm, code-review, performance, explore)
+- **Workflows** - Multi-step orchestrated workflows (work, code-review, performance, explore)
 - **Tasks** - Git-backed task management with dependencies
 - **State** - Persistent JSON state files shared across all Claude sessions
 - **Guidance** - Step-by-step prompts for each workflow phase
@@ -65,7 +65,7 @@ Bob works with both **Claude** and **Codex**. The `make install-mcp` command aut
 
 ## Workflows Available
 
-1. **brainstorm** - Full development workflow with planning
+1. **work** - Full development workflow with planning
 2. **code-review** - Review, fix, and iterate until clean
 3. **performance** - Benchmark, analyze, and optimize
 4. **explore** - Read-only codebase exploration

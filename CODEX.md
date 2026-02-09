@@ -47,7 +47,7 @@ codex mcp list
 
 Bob gives Codex access to:
 
-- **Workflows** - Multi-step orchestrated workflows (brainstorm, code-review, performance, explore)
+- **Workflows** - Multi-step orchestrated workflows (work, code-review, performance, explore)
 - **Tasks** - Git-backed task management with dependencies
 - **State** - Persistent JSON state files shared across all Bob sessions
 - **Guidance** - Step-by-step prompts for each workflow phase
@@ -79,7 +79,7 @@ Bob gives Codex access to:
 
 ## Workflows Available
 
-1. **brainstorm** - Full development workflow with planning
+1. **work** - Full development workflow with planning
    - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
    - Loops back from REVIEW and MONITOR if issues found
 
@@ -104,10 +104,10 @@ See [AGENTS.md](AGENTS.md) for detailed workflow descriptions.
 From Codex, you can start Bob workflows:
 
 ```
-You: Start a brainstorm workflow for adding user authentication
+You: Start a work workflow for adding user authentication
 
 Codex will use Bob tools:
-1. bob.workflow_register(workflow="brainstorm", ...)
+1. bob.workflow_register(workflow="work", ...)
 2. bob.workflow_get_guidance(...)
 3. Follow the workflow steps
 ```

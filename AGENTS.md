@@ -15,7 +15,7 @@ Bob is an MCP server that gives Claude access to:
 
 ## Available Workflows
 
-### brainstorm
+### work
 Full development workflow with planning and iteration:
 ```
 INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
@@ -66,11 +66,11 @@ Bob will guide you through workflows using these MCP tools:
 bob.workflow_list()
 
 // Get workflow definition
-bob.workflow_get({ keyword: "brainstorm" })
+bob.workflow_get({ keyword: "work" })
 
 // Create workflow instance
 bob.workflow_create({
-  workflowKeyword: "brainstorm",
+  workflowKeyword: "work",
   repoPath: "/path/to/repo",
   taskDescription: "Add user authentication"
 })

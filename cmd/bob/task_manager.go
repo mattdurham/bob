@@ -436,7 +436,6 @@ func (tm *TaskManager) writeTaskFile(repo *GitHubRepo, task *Task, sha string) e
 }
 
 // deleteTaskFile deletes a single task file from GitHub
-// nolint:unused // Reserved for future delete task functionality
 func (tm *TaskManager) deleteTaskFile(repo *GitHubRepo, taskID string, sha string) error {
 	filename := fmt.Sprintf("%s.json", taskID)
 	path := fmt.Sprintf("%s/%s", tm.issuesDir, filename)
@@ -744,6 +743,107 @@ func (tm *TaskManager) UpdateTask(repoPath, taskID string, updates map[string]in
 		"task":    *task,
 		"message": fmt.Sprintf("Updated task %s", taskID),
 	}, nil
+}
+
+// DeleteTask deletes a task and cleans up dependencies in related tasks
+func (tm *TaskManager) DeleteTask(repoPath, taskID string) (map[string]interface{}, error) {
+	repoRoot, err := tm.getRepoPath(repoPath)
+	if err != nil {
+		return nil, err
+	}
+
+	repo, err := tm.getGitHubRepo(repoRoot)
+	if err != nil {
+		return nil, err
+	}
+
+	// Read the task to get its SHA and validate it exists
+	filename := fmt.Sprintf("%s.json", taskID)
+	task, sha, err := tm.readTaskFile(repo, filename)
+	if err != nil {
+		return nil, err
+	}
+	if task == nil {
+		return nil, fmt.Errorf("task not found: %s", taskID)
+	}
+
+	// Clean up dependencies: load all tasks and remove references
+	allTasks, err := tm.loadTasks(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tasks for dependency cleanup: %w", err)
+	}
+
+	// Track tasks that need updating
+	var tasksToUpdate []struct {
+		task *Task
+		sha  string
+	}
+
+	// Find tasks that reference the deleted task
+	for i := range allTasks {
+		t := &allTasks[i]
+		if t.ID == taskID {
+			continue // Skip the task being deleted
+		}
+
+		modified := false
+
+		// Remove from Blocks list
+		if contains(t.Blocks, taskID) {
+			t.Blocks = removeFromSlice(t.Blocks, taskID)
+			modified = true
+		}
+
+		// Remove from BlockedBy list
+		if contains(t.BlockedBy, taskID) {
+			t.BlockedBy = removeFromSlice(t.BlockedBy, taskID)
+			modified = true
+		}
+
+		if modified {
+			// Read the task file to get current SHA
+			taskFilename := fmt.Sprintf("%s.json", t.ID)
+			_, taskSHA, err := tm.readTaskFile(repo, taskFilename)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read task %s for update: %w", t.ID, err)
+			}
+			t.UpdatedAt = time.Now()
+			tasksToUpdate = append(tasksToUpdate, struct {
+				task *Task
+				sha  string
+			}{t, taskSHA})
+		}
+	}
+
+	// Update all affected tasks first (before deleting)
+	for _, tu := range tasksToUpdate {
+		if err := tm.writeTaskFile(repo, tu.task, tu.sha); err != nil {
+			return nil, fmt.Errorf("failed to update task %s during dependency cleanup: %w", tu.task.ID, err)
+		}
+	}
+
+	// Now delete the task file
+	if err := tm.deleteTaskFile(repo, taskID, sha); err != nil {
+		return nil, fmt.Errorf("failed to delete task file: %w", err)
+	}
+
+	return map[string]interface{}{
+		"taskId":                taskID,
+		"title":                 task.Title,
+		"message":               fmt.Sprintf("Deleted task %s and cleaned up %d dependent task(s)", taskID, len(tasksToUpdate)),
+		"dependenciesCleanedUp": len(tasksToUpdate),
+	}, nil
+}
+
+// removeFromSlice removes an item from a string slice and returns the new slice
+func removeFromSlice(slice []string, item string) []string {
+	result := make([]string, 0, len(slice))
+	for _, s := range slice {
+		if s != item {
+			result = append(result, s)
+		}
+	}
+	return result
 }
 
 // AddDependency adds a dependency between tasks

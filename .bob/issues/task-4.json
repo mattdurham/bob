@@ -1,0 +1,15 @@
+{
+  "id": "task-4",
+  "title": "Add PR validation checks to MONITOR phase",
+  "description": "Update the MONITOR prompt (cmd/bob/prompts/code-review/06-monitor.md) to include Go code that validates PR readiness before allowing merge.\n\nRequirements:\n1. Add Go code that checks GitHub Actions status using `gh pr checks --json`\n2. Add Go code that verifies all conversations are resolved using `gh pr view --json reviewThreads`\n3. Implement logic to generate structured feedback if any checks fail or conversations are unresolved\n4. Add decision logic that loops back to REVIEW phase if validation fails\n5. Only allow proceeding to merge when ALL checks pass AND all conversations are resolved\n6. Update the workflow_report_progress examples to include validation metadata\n\nThe code should:\n- Parse JSON output from gh CLI commands\n- Track failed checks by name and status\n- Track unresolved conversation threads by file:line\n- Generate actionable feedback for the agent\n- Make it clear when to loop back vs when to proceed",
+  "type": "feature",
+  "priority": "medium",
+  "state": "pending",
+  "tags": [
+    "enhancement",
+    "workflow",
+    "validation"
+  ],
+  "createdAt": "2026-02-09T13:24:17.687209727-05:00",
+  "updatedAt": "2026-02-09T13:24:17.687209774-05:00"
+}

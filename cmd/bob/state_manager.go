@@ -127,17 +127,50 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		return nil, fmt.Errorf("workflow not found (did you register it first?): %w", err)
 	}
 
-	// Check if this is a loop back
 	previousStep := state.CurrentStep
-	if sm.isLoopBack(state.Workflow, previousStep, currentStep) {
+	nextStep := currentStep
+
+	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
+	// check findings and automatically determine next step
+	if currentStep == previousStep {
+		// Check for findings in metadata
+		if findings, ok := metadata["findings"].(map[string]interface{}); ok {
+			findingsArray, hasArray := findings["findings"].([]interface{})
+
+			// If findings array exists and is empty, advance forward
+			if hasArray && len(findingsArray) == 0 {
+				// Advance to next step
+				nextStepName, err := GetNextStep(state.Workflow, currentStep)
+				if err == nil {
+					nextStep = nextStepName
+				}
+			} else if hasArray && len(findingsArray) > 0 {
+				// Findings exist - loop back to fix them
+				def, err := GetWorkflowDefinition(state.Workflow)
+				if err == nil {
+					// Find current step's canLoopTo
+					for _, step := range def.Steps {
+						if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+							// Loop to first available target
+							nextStep = step.CanLoopTo[0]
+							break
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Check if this is a loop back
+	if sm.isLoopBack(state.Workflow, previousStep, nextStep) {
 		state.LoopCount++
 	}
 
 	// Update state
-	state.CurrentStep = currentStep
+	state.CurrentStep = nextStep
 	state.UpdatedAt = time.Now()
 	state.ProgressHistory = append(state.ProgressHistory, ProgressEntry{
-		Step:      currentStep,
+		Step:      nextStep,
 		Timestamp: time.Now(),
 		Metadata:  metadata,
 	})
@@ -156,6 +189,7 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		"previousStep": previousStep,
 		"loopCount":    state.LoopCount,
 		"timestamp":    state.UpdatedAt,
+		"autoRouted":   currentStep == previousStep, // Indicate if auto-routing was used
 	}, nil
 }
 

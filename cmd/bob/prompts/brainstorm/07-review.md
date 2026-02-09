@@ -40,77 +40,93 @@ If no issues found, create empty bots/review.md file."
 cat bots/review.md
 ```
 
-### 4. Analyze Findings
+### 4. Parse and Structure Findings
+
+Parse bots/review.md into structured JSON format:
 
 **If file is empty or < 10 bytes:**
-- No issues found
-- Ready to proceed to COMMIT
+- Create empty findings JSON: `{"findings": []}`
 
 **If issues found:**
-- Count critical/high severity issues
-- Determine if issues require code changes
-- Decide whether to loop back to PLAN
+- Parse all issues into structured JSON
+- Count by severity
+- Include file paths and line numbers
 
-### 5. Use workflow_record_issues Tool
-Record the issues found:
-```
-workflow_record_issues(
-    worktreePath: "<worktree-path>",
-    step: "REVIEW",
-    issues: [
-        {
-            severity: "high",
-            description: "Missing error handling in X",
-            file: "path/to/file.go",
-            line: 123
-        },
-        // ... more issues
-    ]
-)
+### 5. Prepare Findings JSON
+
+Create a JSON blob in this exact format:
+```json
+{
+  "findings": [
+    {
+      "severity": "high",
+      "description": "Missing error handling in X",
+      "file": "path/to/file.go",
+      "line": 123,
+      "suggestedFix": "Add error check"
+    }
+  ],
+  "summary": {
+    "total": 5,
+    "critical": 1,
+    "high": 2,
+    "medium": 2,
+    "low": 0
+  }
+}
 ```
 
-This will tell you if you should loop back.
+**If no issues:** Return `{"findings": []}`
 
 ## DO NOT
 - ❌ Do not skip the review subagent
 - ❌ Do not review code yourself without subagent
 - ❌ Do not declare work complete without reviewing
-- ❌ Do not automatically move forward if issues exist
+- ❌ Do not decide which phase to go to next
 - ❌ Do not commit anything yet
+
+## CRITICAL RULES
+- ✅ **ALWAYS return findings as JSON blob**
+- ✅ **Empty findings = workflow proceeds forward**
+- ✅ **Non-empty findings = workflow decides next step**
+- ✅ Let the workflow orchestration handle transitions
+- ✅ Your job is to find and report issues, not route the workflow
 
 ## When You're Done
 
-### Scenario A: No Issues Found
-1. Tell user: "Code review complete - no issues found! ✓"
-2. Report progress to COMMIT:
-   ```
-   workflow_report_progress(
-       worktreePath: "<worktree-path>",
-       currentStep: "COMMIT",
-       metadata: {
-           "reviewClean": true
-       }
-   )
-   ```
+### Report Findings
 
-### Scenario B: Issues Found
-1. Tell user: "Found X issues during review (Y critical, Z high severity)"
-2. Show preview of issues from bots/review.md
-3. Record issues (use workflow_record_issues tool)
-4. Tell user: "Looping back to PLAN to address issues"
-5. Report progress back to PLAN:
-   ```
-   workflow_report_progress(
-       worktreePath: "<worktree-path>",
-       currentStep: "PLAN",
-       metadata: {
-           "loopReason": "review issues",
-           "issueCount": X,
-           "iteration": 2
-       }
-   )
-   ```
+**Use workflow_report_progress with findings JSON:**
+```
+workflow_report_progress(
+    worktreePath: "<worktree-path>",
+    currentStep: "REVIEW",
+    metadata: {
+        "findings": { /* JSON blob from step 5 */ },
+        "reviewCompleted": true
+    }
+)
+```
 
-## Next Phase
-- **If clean**: Move to COMMIT phase
-- **If issues**: Loop back to PLAN phase to address them
+### Tell User
+
+**If findings array is empty:**
+```
+✅ Code review complete - no issues found!
+```
+
+**If findings array has items:**
+```
+📋 Code review complete - found X issues:
+- Critical: Y
+- High: Z
+- Medium: N
+
+Workflow will automatically handle next steps.
+```
+
+## Important
+- DO NOT tell user what phase comes next
+- DO NOT call workflow_report_progress to another step
+- ONLY report progress on current step (REVIEW) with findings
+- Workflow orchestration will decide routing based on findings JSON

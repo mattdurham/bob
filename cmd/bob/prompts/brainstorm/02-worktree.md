@@ -45,7 +45,7 @@ Once verified:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "BRAINSTORM",
+       currentStep: "WORKTREE",
        metadata: { "verified": true }
    )
    ```

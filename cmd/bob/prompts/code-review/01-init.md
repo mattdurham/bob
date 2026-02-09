@@ -45,7 +45,7 @@ Once worktree is created:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "REVIEW",
+       currentStep: "INIT",
        metadata: { "worktreeCreated": true }
    )
    ```

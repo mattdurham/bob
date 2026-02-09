@@ -74,7 +74,7 @@ Once implementation is complete:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "TEST",
+       currentStep: "EXECUTE",
        metadata: {
            "executionComplete": true,
            "filesModified": ["file1.go", "file2.go"]

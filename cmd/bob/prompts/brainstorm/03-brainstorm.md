@@ -81,7 +81,7 @@ Once you have thoroughly explored the problem space and documented your findings
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "PLAN",
+       currentStep: "BRAINSTORM",
        metadata: {
            "brainstormComplete": true,
            "approachesConsidered": 3

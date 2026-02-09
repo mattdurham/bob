@@ -10,7 +10,7 @@ help:
 	@echo "  make run                      - Run Bob as MCP server"
 	@echo "  make build                    - Build Bob binary"
 	@echo "  make install-deps             - Install Go dependencies"
-	@echo "  make install-mcp              - Install Bob as MCP server in Claude and Codex"
+	@echo "  make install-mcp              - Install Bob + Filesystem MCP servers in Claude and Codex"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run tests"
@@ -103,8 +103,25 @@ install-mcp: build
 	fi; \
 	echo "✅ Installed Bob to $${BOB_PATH}"; \
 	echo ""; \
+	echo "📦 Installing filesystem MCP server..."; \
+	if ! go install github.com/mark3labs/mcp-filesystem-server@latest 2>&1; then \
+		echo "   ⚠️  Failed to install filesystem server"; \
+		echo "   Make sure Go is installed and $$GOPATH/bin is in PATH"; \
+		FILESYSTEM_INSTALLED=0; \
+	else \
+		FILESYSTEM_PATH=$$(command -v mcp-filesystem-server 2>/dev/null); \
+		if [ -n "$${FILESYSTEM_PATH}" ]; then \
+			echo "   ✅ Filesystem server installed: $${FILESYSTEM_PATH}"; \
+			FILESYSTEM_INSTALLED=1; \
+		else \
+			echo "   ⚠️  Filesystem server installed but not in PATH"; \
+			echo "   Add $$HOME/go/bin to your PATH"; \
+			FILESYSTEM_INSTALLED=0; \
+		fi; \
+	fi; \
+	echo ""; \
 	CONFIGURED=0; \
-	echo "📦 Configuring Bob as MCP server..."; \
+	echo "📦 Configuring MCP servers..."; \
 	echo ""; \
 	if command -v claude > /dev/null 2>&1 && [ -x "$$(command -v claude)" ]; then \
 		echo "🔧 Registering with Claude..."; \
@@ -114,8 +131,19 @@ install-mcp: build
 			CONFIGURED=1; \
 		else \
 			EXIT_CODE=$$?; \
-			echo "   ❌ Failed to register with Claude (exit code: $${EXIT_CODE})"; \
+			echo "   ❌ Failed to register Bob with Claude (exit code: $${EXIT_CODE})"; \
 			echo "   Try manually: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			claude mcp remove filesystem 2>/dev/null || true; \
+			if claude mcp add filesystem -- mcp-filesystem-server "$$HOME/source" /tmp 2>&1; then \
+				echo "   ✅ Filesystem server registered with Claude"; \
+				CONFIGURED=1; \
+			else \
+				EXIT_CODE=$$?; \
+				echo "   ❌ Failed to register filesystem with Claude (exit code: $${EXIT_CODE})"; \
+				echo "   Try manually: claude mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+			fi; \
 		fi; \
 	else \
 		echo "   ⚠️  Claude CLI not found - skipping Claude registration"; \
@@ -129,21 +157,40 @@ install-mcp: build
 			CONFIGURED=1; \
 		else \
 			EXIT_CODE=$$?; \
-			echo "   ❌ Failed to register with Codex (exit code: $${EXIT_CODE})"; \
+			echo "   ❌ Failed to register Bob with Codex (exit code: $${EXIT_CODE})"; \
 			echo "   Try manually: codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			codex mcp remove filesystem 2>/dev/null || true; \
+			if codex mcp add filesystem -- mcp-filesystem-server "$$HOME/source" /tmp 2>&1; then \
+				echo "   ✅ Filesystem server registered with Codex"; \
+				CONFIGURED=1; \
+			else \
+				EXIT_CODE=$$?; \
+				echo "   ❌ Failed to register filesystem with Codex (exit code: $${EXIT_CODE})"; \
+				echo "   Try manually: codex mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+			fi; \
 		fi; \
 	else \
 		echo "   ⚠️  Codex CLI not found - skipping Codex registration"; \
 	fi; \
 	echo ""; \
 	if [ $${CONFIGURED} -eq 1 ]; then \
-		echo "✅ Bob configured successfully"; \
+		echo "✅ MCP servers configured successfully"; \
+		echo "   - Bob workflow orchestrator"; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			echo "   - Filesystem server (allowed: $$HOME/source, /tmp)"; \
+		fi; \
 		echo ""; \
-		echo "🔄 Restart your CLI or start a new session to activate Bob"; \
+		echo "🔄 Restart your CLI or start a new session to activate MCP servers"; \
 	else \
 		echo "⚠️  No MCP clients configured. Install Claude or Codex CLI and run 'make install-mcp' again."; \
 		echo ""; \
 		echo "Manual configuration:"; \
-		echo "  Claude: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
-		echo "  Codex:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		echo "  Claude Bob: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		echo "  Codex Bob:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			echo "  Claude Filesystem: claude mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+			echo "  Codex Filesystem:  codex mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+		fi; \
 	fi

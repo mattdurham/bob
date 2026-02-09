@@ -79,7 +79,6 @@ func NewTaskManager() *TaskManager {
 	}
 }
 
-
 // getRepoPath returns the git repository root path
 func (tm *TaskManager) getRepoPath(repoPath string) (string, error) {
 	if repoPath == "" {

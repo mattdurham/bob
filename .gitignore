@@ -29,8 +29,10 @@ go.work
 .DS_Store
 Thumbs.db
 
-# Local state
-.bob/
+# Local state (but allow .bob/issues/ and .bob/additions/ to be tracked)
+.bob/*
+!.bob/issues/
+!.bob/additions/
 
 # Planning documents
 bots/

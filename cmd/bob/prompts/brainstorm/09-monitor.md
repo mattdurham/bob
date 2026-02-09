@@ -39,65 +39,195 @@ gh pr view --web
 ```
 Save the PR URL and share with user.
 
-### 4. ACTIVELY MONITOR (Continuous Loop)
+### 4. Automated PR Validation Check
+
+Run this Go code to validate the PR is ready:
+
+```go
+package main
+
+import (
+    "encoding/json"
+    "fmt"
+    "os/exec"
+    "strings"
+)
+
+type PRCheck struct {
+    AllChecksPassed          bool
+    AllConversationsResolved bool
+    FailedChecks             []string
+    UnresolvedThreads        []string
+    Feedback                 string
+}
+
+func ValidatePR(prNumber string) (*PRCheck, error) {
+    result := &PRCheck{
+        AllChecksPassed:          true,
+        AllConversationsResolved: true,
+        FailedChecks:             []string{},
+        UnresolvedThreads:        []string{},
+    }
+
+    // Check GitHub Actions status
+    checksCmd := exec.Command("gh", "pr", "checks", prNumber, "--json", "name,conclusion")
+    checksOut, err := checksCmd.Output()
+    if err != nil {
+        return nil, fmt.Errorf("failed to get PR checks: %w", err)
+    }
+
+    var checks []struct {
+        Name       string `json:"name"`
+        Conclusion string `json:"conclusion"`
+    }
+    if err := json.Unmarshal(checksOut, &checks); err != nil {
+        return nil, fmt.Errorf("failed to parse checks: %w", err)
+    }
+
+    for _, check := range checks {
+        if check.Conclusion != "SUCCESS" && check.Conclusion != "SKIPPED" {
+            result.AllChecksPassed = false
+            result.FailedChecks = append(result.FailedChecks,
+                fmt.Sprintf("%s: %s", check.Name, check.Conclusion))
+        }
+    }
+
+    // Check for unresolved conversations
+    reviewsCmd := exec.Command("gh", "pr", "view", prNumber, "--json", "reviewThreads")
+    reviewsOut, err := reviewsCmd.Output()
+    if err != nil {
+        return nil, fmt.Errorf("failed to get PR reviews: %w", err)
+    }
+
+    var prData struct {
+        ReviewThreads []struct {
+            IsResolved bool   `json:"isResolved"`
+            Path       string `json:"path"`
+            Line       int    `json:"line"`
+        } `json:"reviewThreads"`
+    }
+    if err := json.Unmarshal(reviewsOut, &prData); err != nil {
+        return nil, fmt.Errorf("failed to parse reviews: %w", err)
+    }
+
+    for _, thread := range prData.ReviewThreads {
+        if !thread.IsResolved {
+            result.AllConversationsResolved = false
+            result.UnresolvedThreads = append(result.UnresolvedThreads,
+                fmt.Sprintf("%s:%d", thread.Path, thread.Line))
+        }
+    }
+
+    // Generate feedback if issues found
+    if !result.AllChecksPassed || !result.AllConversationsResolved {
+        var feedbackParts []string
+
+        if !result.AllChecksPassed {
+            feedbackParts = append(feedbackParts,
+                fmt.Sprintf("❌ Failed checks:\n%s", strings.Join(result.FailedChecks, "\n")))
+        }
+
+        if !result.AllConversationsResolved {
+            feedbackParts = append(feedbackParts,
+                fmt.Sprintf("💬 Unresolved conversations:\n%s", strings.Join(result.UnresolvedThreads, "\n")))
+        }
+
+        result.Feedback = strings.Join(feedbackParts, "\n\n")
+    }
+
+    return result, nil
+}
+
+func main() {
+    // Get PR number from command line or git branch
+    cmd := exec.Command("gh", "pr", "view", "--json", "number")
+    out, err := cmd.Output()
+    if err != nil {
+        fmt.Printf("Failed to get PR: %v\n", err)
+        return
+    }
+
+    var pr struct {
+        Number int `json:"number"`
+    }
+    if err := json.Unmarshal(out, &pr); err != nil {
+        fmt.Printf("Failed to parse PR: %v\n", err)
+        return
+    }
+
+    prNumber := fmt.Sprintf("%d", pr.Number)
+    check, err := ValidatePR(prNumber)
+    if err != nil {
+        fmt.Printf("Validation failed: %v\n", err)
+        return
+    }
+
+    if check.AllChecksPassed && check.AllConversationsResolved {
+        fmt.Println("✅ PR is ready to merge!")
+        return
+    }
+
+    fmt.Println("⚠️  PR not ready. Issues found:")
+    fmt.Println(check.Feedback)
+    fmt.Println("\n🔄 Looping back to PLAN phase...")
+}
+```
+
+### 5. ACTIVELY MONITOR (Continuous Loop)
 **This is critical - you must stay engaged until merge:**
 
-#### Every 2-3 minutes:
+Use the validation code above, or manually check every 2-3 minutes:
 ```bash
 # Check CI/Actions status
 gh pr checks
 
 # Check for comments
-gh pr view
+gh pr view --json reviewThreads
 
 # Check PR status
 gh pr status
 ```
 
 #### Watch For:
-- ❌ **CI failures** - investigate immediately
-- 💬 **Comments** - respond to feedback
-- ✅ **Approvals** - note when received
+- ❌ **CI failures** - loop back to PLAN
+- 💬 **Unresolved conversations** - loop back to PLAN
+- ✅ **All checks passed + conversations resolved** - proceed to merge
 - ⚠️ **Change requests** - address feedback
 
-### 5. Respond to Feedback
+### 6. Decision Logic
 
-**If CI fails:**
-1. Check logs: `gh pr checks --watch`
-2. Identify the issue
-3. Tell user: "CI failed: <reason>"
-4. Record issues:
-   ```
-   workflow_record_issues(
-       worktreePath: "<worktree-path>",
-       step: "MONITOR",
-       issues: [{ severity: "high", description: "CI failure: <details>" }]
-   )
-   ```
-5. Loop back to PLAN/EXECUTE to fix
-6. Push fix, continue monitoring
+**If ANY of these are true, loop back to PLAN:**
+- GitHub Actions checks fail
+- Conversations are unresolved
+- Change requests from reviewers
 
-**If reviewer comments:**
-1. Read comments: `gh pr view`
-2. Address each comment
-3. Make necessary changes
-4. Commit and push
-5. Reply to comments: `gh pr comment <number> --body "Fixed in <commit>"`
-6. Continue monitoring
+**Report progress to loop back:**
+```
+workflow_report_progress(
+    worktreePath: "<worktree-path>",
+    currentStep: "MONITOR",
+    metadata: {
+        "loopReason": "validation_failed",
+        "failedChecks": [...],
+        "unresolvedThreads": [...],
+        "iteration": 3
+    }
+)
+```
 
-### 6. Auto-Merge When Ready
-**Requirements for merge:**
+**If ALL are true, proceed to merge:**
 - ✅ All CI checks passing (green)
 - ✅ At least one approval
 - ✅ No pending change requests
 - ✅ No unresolved comments
 
-**When all requirements met:**
+### 7. Auto-Merge When Ready
+**When validation passes:**
 ```bash
 gh pr merge --auto --squash
 ```
 
-### 7. After Merge
+### 8. After Merge
 ```bash
 # Verify merge
 gh pr status
@@ -113,10 +243,12 @@ git branch -d <branch-name>
 - ❌ Do not merge with failing checks
 - ❌ Do not ignore comments or feedback
 - ❌ Do not wait to be asked - proactively check status
+- ❌ Do not merge with unresolved conversations
+- ❌ Do not skip validation checks
 
 ## When You're Done
 
-### If Merge Successful:
+### If Validation Passes and Merged:
 1. Tell user: "PR merged successfully! ✓"
 2. Report progress to COMPLETE:
    ```
@@ -125,25 +257,29 @@ git branch -d <branch-name>
        currentStep: "COMPLETE",
        metadata: {
            "merged": true,
+           "allChecksPassed": true,
+           "allConversationsResolved": true,
            "prUrl": "<url>"
        }
    )
    ```
 
-### If CI Fails or Changes Needed:
+### If Validation Fails (CI/Conversations):
 1. Tell user: "Issues found during CI/review"
-2. Record issues (use workflow_record_issues)
-3. Loop back to PLAN:
+2. Loop back to PLAN phase:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "PLAN",
+       currentStep: "MONITOR",
        metadata: {
-           "loopReason": "CI failures / review feedback",
+           "loopReason": "validation_failed",
+           "failedChecks": ["check1", "check2"],
+           "unresolvedThreads": ["file.go:123"],
            "iteration": 3
        }
    )
    ```
 
 ## Next Phase
-After merge, you'll move to **COMPLETE** phase and clean up the worktree.
+- Move to **PLAN** if validation fails (loop back)
+- Move to **COMPLETE** after successful merge

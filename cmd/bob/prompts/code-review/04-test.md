@@ -43,6 +43,27 @@ go build ./...
 - ❌ Do not proceed if tests fail
 - ❌ Do not commit failing code
 
+## CRITICAL: TESTS CANNOT BE SKIPPED, REMOVED, OR AVOIDED
+
+**ABSOLUTE REQUIREMENTS:**
+- ⛔ **NEVER skip tests** - Tests must always run, no exceptions
+- ⛔ **NEVER remove failing tests** - Fix the code or the test, never delete tests
+- ⛔ **NEVER disable tests** - Do not use skip flags, build tags, or comments to avoid tests
+- ⛔ **NEVER bypass test phase** - Even if "no code changed", all tests must pass
+- ⛔ **ALL tests must pass** - 100% pass rate required, no skipped or failing tests allowed
+- ⛔ **Tests are MANDATORY** - Testing is not optional, negotiable, or skippable
+
+**If tests fail:**
+1. Fix the code that broke the tests
+2. Fix the test if it's incorrect
+3. Loop back to FIX to make corrections
+4. NEVER remove, skip, or disable the failing test
+
+**Even if you made no code changes:**
+- All tests still must be run
+- All tests still must pass
+- No shortcuts or assumptions
+
 ## When You're Done
 
 ### If ALL Checks Pass:

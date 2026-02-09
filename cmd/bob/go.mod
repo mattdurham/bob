@@ -4,10 +4,7 @@ go 1.23.0
 
 toolchain go1.24.4
 
-require (
-	github.com/mark3labs/mcp-go v0.43.2
-	github.com/mattn/go-sqlite3 v1.14.33
-)
+require github.com/mark3labs/mcp-go v0.43.2
 
 require (
 	github.com/bahlo/generic-list-go v0.2.0 // indirect

@@ -39,50 +39,65 @@ Let subagent complete its work.
 cat bots/review.md
 ```
 
-### 4. Analyze Findings
-- If file is empty or < 10 bytes: No issues, proceed to COMMIT
-- If issues found: Record them and loop to FIX
+### 4. Parse and Structure Findings
+
+Parse bots/review.md into structured JSON format:
+
+**If file is empty or < 10 bytes:**
+- Create empty findings JSON: `{"findings": []}`
+
+**If issues found:**
+- Parse all issues into structured JSON
+- Count by severity
+- Include file paths and line numbers
+
+### 5. Read Findings Content
+
+Read the full content of bots/review.md:
+```bash
+cat bots/review.md
+```
+
+Store this content to pass in metadata (even if empty).
 
 ## DO NOT
 - ❌ Do not skip review subagent
-- ❌ Do not proceed if critical issues found
+- ❌ Do not decide which phase to go to next
 - ❌ Do not commit yet
+
+## CRITICAL RULES
+- ✅ **ALWAYS include findings text in metadata**
+- ✅ Pass full content of bots/review.md (empty string if no issues)
+- ✅ Workflow orchestration will classify and route automatically
+- ✅ Your job is to find and report issues, not route the workflow
+- ✅ Let Claude API determine if issues exist
 
 ## When You're Done
 
-### If NO Issues:
-1. Tell user: "Code review complete - no issues found!"
-2. Report progress:
-   ```
-   workflow_report_progress(
-       worktreePath: "<worktree-path>",
-       currentStep: "COMMIT",
-       metadata: { "reviewClean": true }
-   )
-   ```
+### Report Findings
 
-### If Issues Found:
-1. Tell user: "Found X issues (Y critical, Z high severity)"
-2. Record issues:
-   ```
-   workflow_record_issues(
-       worktreePath: "<worktree-path>",
-       step: "REVIEW",
-       issues: [/* issues from review.md */]
-   )
-   ```
-3. Report progress to FIX:
-   ```
-   workflow_report_progress(
-       worktreePath: "<worktree-path>",
-       currentStep: "FIX",
-       metadata: {
-           "issuesFound": X,
-           "iteration": 1
-       }
-   )
-   ```
+**Use workflow_report_progress with findings text:**
+```
+workflow_report_progress(
+    worktreePath: "<worktree-path>",
+    currentStep: "REVIEW",
+    metadata: {
+        "findings": "<full content of bots/review.md>",
+        "reviewCompleted": true
+    }
+)
+```
 
-## Next Phase
-- **If clean**: Move to COMMIT
-- **If issues**: Loop to FIX phase
+### Tell User
+
+```
+📋 Code review complete - findings recorded.
+Workflow will analyze and route automatically.
+```
+
+## Important
+- DO NOT tell user what phase comes next
+- DO NOT call workflow_report_progress to another step
+- ONLY report progress on current step (REVIEW) with findings text
+- Claude API will classify findings and orchestration will route
+- Pass findings even if empty (empty string = no issues)

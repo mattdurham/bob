@@ -127,17 +127,63 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		return nil, fmt.Errorf("workflow not found (did you register it first?): %w", err)
 	}
 
-	// Check if this is a loop back
 	previousStep := state.CurrentStep
-	if sm.isLoopBack(state.Workflow, previousStep, currentStep) {
+	nextStep := currentStep
+
+	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
+	// check if this is a checkpoint phase and classify findings
+	if currentStep == previousStep && sm.isCheckpointPhase(state.Workflow, currentStep) {
+		// Check for findings text in metadata
+		if findingsText, ok := metadata["findings"].(string); ok {
+			// Use Claude API to classify if findings contain issues
+			claudeClient := NewClaudeClient()
+			hasIssues, err := claudeClient.ClassifyFindings(findingsText)
+
+			if err == nil {
+				if hasIssues {
+					// Issues found - loop back to fix them
+					def, err := GetWorkflowDefinition(state.Workflow)
+					if err == nil {
+						// Find current step's canLoopTo
+						for _, step := range def.Steps {
+							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+								// Loop to first available target
+								nextStep = step.CanLoopTo[0]
+								break
+							}
+						}
+					}
+				} else {
+					// No issues - advance forward
+					nextStepName, err := GetNextStep(state.Workflow, currentStep)
+					if err == nil {
+						nextStep = nextStepName
+					}
+				}
+			} else {
+				// If classification fails, log error but don't fail the workflow
+				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+				// Fall back to checking findings length
+				if len(strings.TrimSpace(findingsText)) < 10 {
+					nextStepName, err := GetNextStep(state.Workflow, currentStep)
+					if err == nil {
+						nextStep = nextStepName
+					}
+				}
+			}
+		}
+	}
+
+	// Check if this is a loop back
+	if sm.isLoopBack(state.Workflow, previousStep, nextStep) {
 		state.LoopCount++
 	}
 
 	// Update state
-	state.CurrentStep = currentStep
+	state.CurrentStep = nextStep
 	state.UpdatedAt = time.Now()
 	state.ProgressHistory = append(state.ProgressHistory, ProgressEntry{
-		Step:      currentStep,
+		Step:      nextStep,
 		Timestamp: time.Now(),
 		Metadata:  metadata,
 	})
@@ -156,6 +202,7 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		"previousStep": previousStep,
 		"loopCount":    state.LoopCount,
 		"timestamp":    state.UpdatedAt,
+		"autoRouted":   currentStep == previousStep, // Indicate if auto-routing was used
 	}, nil
 }
 
@@ -314,6 +361,20 @@ func (sm *StateManager) isLoopBack(workflow, prevStep, currentStep string) bool 
 
 	// Loop back if moving to earlier step
 	return currentPos < prevPos
+}
+
+// isCheckpointPhase checks if a step is a checkpoint that requires Claude classification
+func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
+	// Checkpoint phases that require findings classification
+	checkpointPhases := []string{"REVIEW", "TEST", "MONITOR", "PROMPT"}
+
+	for _, phase := range checkpointPhases {
+		if stepName == phase {
+			return true
+		}
+	}
+
+	return false
 }
 
 // loadState loads workflow state from disk

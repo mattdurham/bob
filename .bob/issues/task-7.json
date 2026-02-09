@@ -1,0 +1,15 @@
+{
+  "id": "task-7",
+  "title": "Add GitHub-optional mode with install-mcp-no-github target",
+  "description": "## Problem\nCurrently Bob assumes GitHub is available and required. This causes issues when:\n- Users don't have GitHub CLI installed\n- Users don't want GitHub integration\n- MONITOR phase tries to create PRs when GitHub isn't needed\n\n## Goals\nMake GitHub completely optional with a flag or build target that:\n1. Disables task/issue GitHub integration\n2. Short-circuits MONITOR phase (skips push/PR creation)\n3. Allows Bob to work purely locally\n\n## Implementation Tasks\n\n### 1. Add Makefile Target\nCreate `install-mcp-no-github` target that:\n- Builds Bob with a GitHub-disabled flag/tag\n- Installs to `~/.bob/bob`\n- Registers with Claude MCP without GitHub features\n\n### 2. MONITOR Phase Short-Circuit\nModify MONITOR phase guidance to:\n- Check if GitHub is enabled\n- If disabled, skip push/PR steps\n- Move directly to COMPLETE phase\n- Provide message: \"GitHub disabled - workflow complete locally\"\n\n### 3. Task/Issue System Changes\nWhen GitHub disabled:\n- Task system works purely with local `.bob/issues/` files\n- No GitHub sync operations\n- No PR/issue linking\n\n### 4. Configuration\nAdd configuration option (environment variable or config file):\n- `BOB_GITHUB_ENABLED=false` OR\n- `.bob/config.json`: `{\"github\": {\"enabled\": false}}`\n\n## Files to Modify\n- `Makefile` - Add install-mcp-no-github target\n- `cmd/bob/prompts/*/monitor.md` - Add GitHub check\n- `cmd/bob/state_manager.go` - Check GitHub flag in MONITOR routing\n- `cmd/bob/task_manager.go` - Disable GitHub sync when flag is off\n- `README.md` - Document GitHub-optional mode\n\n## Success Criteria\n- `make install-mcp-no-github` successfully installs Bob\n- MONITOR phase skips GitHub operations when disabled\n- All local workflows work without GitHub CLI\n- Task system works purely locally\n- Clear error messages if user tries GitHub operations when disabled\n\n## Edge Cases\n- User has GitHub CLI but wants local-only mode\n- User switches between GitHub-enabled and GitHub-disabled modes\n- Existing workflows in progress when mode changes\n\n## Related\nThis addresses the underlying issue where Bob workflows assume GitHub is always available and required.",
+  "type": "feature",
+  "priority": "high",
+  "state": "pending",
+  "tags": [
+    "enhancement",
+    "github",
+    "configuration"
+  ],
+  "createdAt": "2026-02-09T17:09:17.567119405-05:00",
+  "updatedAt": "2026-02-09T17:09:17.567119436-05:00"
+}

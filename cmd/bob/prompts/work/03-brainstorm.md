@@ -89,3 +89,7 @@ Once you have thoroughly explored the problem space and documented your findings
    )
    ```
 
+
+## End Step
+
+Ask bob what to do next based on the metadata you provided with bob_workflow_get_guidance.

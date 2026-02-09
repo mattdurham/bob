@@ -25,10 +25,11 @@ Bob is an MCP (Model Context Protocol) server that orchestrates AI agent workflo
 
 - 🎯 **Workflow Orchestration** - Multi-step workflows with loop-back rules
 - 📊 **Task Management** - Git-backed task tracking with dependencies
-- 🔌 **MCP Server** - Works with both Claude and Codex via stdio protocol
+- 🔌 **MCP Servers** - Bob workflow orchestrator + filesystem operations
 - 💾 **Persistent State** - JSON state shared across all sessions
 - 🔄 **Agent Self-Reporting** - Agents track and report their own progress
 - 🌐 **Web UI** - Browser-based dashboard for viewing workflows and tasks
+- 📁 **Filesystem Access** - Secure file operations in allowed directories
 - 🏴‍☠️ **Captain of Your Agents** - Keep your AI workflows in line!
 
 ## Quick Start
@@ -74,23 +75,31 @@ Then open your browser to http://127.0.0.1:8080 (or your configured port)
 
 ### MCP Configuration
 
-Bob works with both **Claude** and **Codex**. Install for both with one command:
+Bob provides two MCP servers (workflow orchestrator + filesystem operations). Install both with one command:
 
 ```bash
 make install-mcp
 ```
 
-This automatically detects and configures both platforms (if their CLIs are available).
+This installs:
+- **Bob** - Workflow orchestration and task management
+- **Filesystem server** - Secure file operations (restricted to `$HOME/source` and `/tmp`)
+
+The command automatically detects and configures both Claude and Codex (if their CLIs are available).
 
 **Manual Configuration:**
 
-For Claude, add to your MCP configuration:
+For Claude, add both servers to your MCP configuration:
 ```json
 {
   "mcpServers": {
     "bob": {
-      "command": "/home/your-username/.bob/bob",
+      "command": "$HOME/.bob/bob",
       "args": ["--serve"]
+    },
+    "filesystem": {
+      "command": "mcp-filesystem-server",
+      "args": ["$HOME/source", "/tmp"]
     }
   }
 }
@@ -99,6 +108,7 @@ For Claude, add to your MCP configuration:
 For Codex, use:
 ```bash
 codex mcp add bob -- ~/.bob/bob --serve
+codex mcp add filesystem -- mcp-filesystem-server "$HOME/source" /tmp
 ```
 
 **Platform-Specific Documentation:**
@@ -289,6 +299,22 @@ make clean
 - `bob_task_add_dependency` - Add task dependency
 - `bob_task_add_comment` - Add comment to task
 - `bob_task_get_ready` - Get ready-to-work tasks
+
+### Filesystem Operations (mark3labs/mcp-filesystem-server)
+- `filesystem_read_file` - Read file contents
+- `filesystem_write_file` - Write or create files
+- `filesystem_list_directory` - List directory contents
+- `filesystem_create_directory` - Create directories
+- `filesystem_search_files` - Search by filename pattern
+- `filesystem_search_within_files` - Search file contents
+- `filesystem_get_file_info` - Get file metadata
+- `filesystem_copy_file` - Copy files
+- `filesystem_move_file` - Move/rename files
+- `filesystem_delete_file` - Delete files
+- `filesystem_tree` - Get directory tree structure
+- `filesystem_read_multiple_files` - Read multiple files at once
+
+**Security**: Filesystem access restricted to `$HOME/source` and `/tmp`
 
 ## Development Principles
 

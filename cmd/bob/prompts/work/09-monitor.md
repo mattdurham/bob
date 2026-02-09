@@ -308,7 +308,4 @@ git branch -d <branch-name>
        }
    )
    ```
-
-## Next Phase
-- Move to **REVIEW** if validation fails (loop back)
-- Move to **COMPLETE** after successful merge
+Ask bob what to do next based on the metadata you provided with bob_workflow_get_guidance.

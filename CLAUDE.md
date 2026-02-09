@@ -4,32 +4,30 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration via MCP (Mo
 
 ## MCP Server Configuration
 
-Add Bob to your MCP configuration:
+Bob provides two MCP servers that work together:
+1. **Bob** - Workflow orchestration, task management, and workflow guidance
+2. **Filesystem** - Secure filesystem operations (read/write files, search, etc.)
+
+### Complete Configuration
+
+After running `make install-mcp`, your MCP configuration will include both servers:
 
 ```json
 {
   "mcpServers": {
     "bob": {
-      "command": "/home/matt/source/bob/cmd/bob/bob",
-      "args": ["--serve"],
-      "env": {}
-    }
-  }
-}
-```
-
-**Or if Bob is in your PATH:**
-
-```json
-{
-  "mcpServers": {
-    "bob": {
-      "command": "bob",
+      "command": "$HOME/.bob/bob",
       "args": ["--serve"]
+    },
+    "filesystem": {
+      "command": "mcp-filesystem-server",
+      "args": ["$HOME/source", "/tmp"]
     }
   }
 }
 ```
+
+Both servers run independently and can be used simultaneously in your Claude sessions.
 
 ## What Bob Provides
 
@@ -39,6 +37,7 @@ Bob gives Claude access to:
 - **Tasks** - Git-backed task management with dependencies
 - **State** - Persistent JSON state files shared across all Claude sessions
 - **Guidance** - Step-by-step prompts for each workflow phase
+- **Filesystem** - Secure file operations (read, write, search) in allowed directories
 
 ## Platform Compatibility
 
@@ -62,6 +61,24 @@ Bob works with both **Claude** and **Codex**. The `make install-mcp` command aut
 - `bob.task_get` - Get task by ID
 - `bob.task_list` - List all tasks with optional filters
 - `bob.task_update` - Update task properties
+
+### Filesystem Operations
+- `filesystem.read_file` - Read file contents
+- `filesystem.write_file` - Write or create files
+- `filesystem.list_directory` - List directory contents
+- `filesystem.create_directory` - Create new directory
+- `filesystem.search_files` - Search files by name pattern
+- `filesystem.search_within_files` - Search file contents
+- `filesystem.get_file_info` - Get file metadata
+- `filesystem.copy_file` - Copy files
+- `filesystem.move_file` - Move/rename files
+- `filesystem.delete_file` - Delete files
+- `filesystem.tree` - Get directory tree structure
+- `filesystem.read_multiple_files` - Read multiple files at once
+
+**Allowed Directories**: `$HOME/source`, `/tmp`
+
+**Security**: Filesystem server only allows access to explicitly allowed directories. Directory traversal attempts are blocked.
 
 ## Workflows Available
 

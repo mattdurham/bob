@@ -179,6 +179,14 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		}
 	}
 
+	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
+	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
+		nextStepName, err := GetNextStep(state.Workflow, currentStep)
+		if err == nil {
+			nextStep = nextStepName
+		}
+	}
+
 	// Check if this is a loop back
 	if sm.isLoopBack(state.Workflow, previousStep, nextStep) {
 		state.LoopCount++

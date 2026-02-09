@@ -63,7 +63,7 @@ Once the worktree is created and you're in the worktree directory:
    ```
    workflow_report_progress(
        worktreePath: "<full-worktree-path>",
-       currentStep: "WORKTREE",
+       currentStep: "INIT",
        metadata: { "branch": "<branch-name>" }
    )
    ```

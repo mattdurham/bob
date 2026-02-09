@@ -72,7 +72,7 @@ After thorough analysis:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "DOCUMENT",
+       currentStep: "ANALYZE",
        metadata: {
            "componentsAnalyzed": 5,
            "codePathsTraced": 3

@@ -75,7 +75,7 @@ Once you've gathered information:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "ANALYZE",
+       currentStep: "DISCOVER",
        metadata: {
            "filesExplored": 10,
            "patternsFound": 3

@@ -69,7 +69,7 @@ Func-8    512B ± 0%     256B ± 0%  -50.00%  (p=0.000 n=5+5)
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "COMMIT",
+       currentStep: "VERIFY",
        metadata: {
            "improvementPct": 50,
            "targetsAchieved": true

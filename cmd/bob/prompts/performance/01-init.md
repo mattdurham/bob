@@ -42,7 +42,7 @@ mkdir -p bots
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "BENCHMARK",
+       currentStep: "INIT",
        metadata: { "worktreeCreated": true }
    )
    ```

@@ -92,7 +92,7 @@ Once you have a clear, detailed plan:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "EXECUTE",
+       currentStep: "PLAN",
        metadata: {
            "planComplete": true,
            "filesAffected": 5

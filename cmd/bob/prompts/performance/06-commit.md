@@ -60,7 +60,7 @@ After committing:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "MONITOR",
+       currentStep: "COMMIT",
        metadata: {
            "committed": true,
            "improvementPct": 50

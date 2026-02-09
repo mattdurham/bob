@@ -100,7 +100,7 @@ go build ./...
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "REVIEW",
+       currentStep: "TEST",
        metadata: {
            "allTestsPass": true,
            "coverage": "85%",

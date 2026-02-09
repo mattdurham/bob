@@ -138,8 +138,9 @@ When `archive=false`:
 - Use `workflow_register` to create a new workflow
 
 ### Concurrent Access
-- State is loaded and saved atomically
-- Latest state wins in case of concurrent modifications
+- State is loaded and saved as a whole file, but writes are not guaranteed to be atomic across processes
+- Concurrent writes from multiple processes are not supported; if they occur, the last completed write may overwrite previous state and can, in failure scenarios, result in a corrupted state file
+- For single-process use (typical), state management is reliable
 
 ## Examples
 

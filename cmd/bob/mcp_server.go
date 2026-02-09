@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strconv"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
@@ -358,8 +360,11 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			sessionID := request.GetString("sessionID", "")
 			agentID := request.GetString("agentID", "")
 
-			// Parse boolean
-			resetSubsequent := resetSubsequentStr != "false"
+			// Parse boolean with strict validation
+			resetSubsequent, err := strconv.ParseBool(resetSubsequentStr)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("invalid resetSubsequent value '%s': must be 'true' or 'false'", resetSubsequentStr)), nil
+			}
 
 			result, err := stateManager.Rejoin(worktreePath, step, taskDescription, resetSubsequent, sessionID, agentID)
 			if err != nil {
@@ -395,8 +400,11 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			sessionID := request.GetString("sessionID", "")
 			agentID := request.GetString("agentID", "")
 
-			// Parse boolean
-			archive := archiveStr != "false"
+			// Parse boolean with strict validation
+			archive, err := strconv.ParseBool(archiveStr)
+			if err != nil {
+				return mcp.NewToolResultError(fmt.Sprintf("invalid archive value '%s': must be 'true' or 'false'", archiveStr)), nil
+			}
 
 			result, err := stateManager.Reset(worktreePath, archive, sessionID, agentID)
 			if err != nil {

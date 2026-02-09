@@ -2,28 +2,85 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
 )
 
-func TestRejoin(t *testing.T) {
-	// Create temporary state directory
+// setupTestGitRepo creates a temporary git repo with a worktree for testing
+func setupTestGitRepo(t *testing.T) (tmpDir string, worktreePath string, sm *StateManager) {
 	tmpDir, err := os.MkdirTemp("", "bob-test-*")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
 
-	sm := &StateManager{
-		stateDir:       tmpDir,
+	// Create a real git repo
+	repoDir := filepath.Join(tmpDir, "test-repo")
+	if err := os.MkdirAll(repoDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init", "-b", "main")
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create initial commit
+	testFile := filepath.Join(repoDir, "README.md")
+	if err := os.WriteFile(testFile, []byte("# Test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = repoDir
+	_ = cmd.Run()
+
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = repoDir
+	_ = cmd.Run()
+
+	cmd = exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = repoDir
+	_ = cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a worktree
+	worktreePath = filepath.Join(tmpDir, "test-worktree")
+	cmd = exec.Command("git", "worktree", "add", "-b", "test-branch", worktreePath)
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create state manager
+	stateDir := filepath.Join(tmpDir, "state")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	sm = &StateManager{
+		stateDir:       stateDir,
 		additionsCache: make(map[string]*AdditionsCache),
 	}
 
-	worktreePath := "/test/worktree"
+	return tmpDir, worktreePath, sm
+}
+
+func TestRejoin(t *testing.T) {
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
+	defer os.RemoveAll(tmpDir)
 
 	// Register initial workflow
-	_, err = sm.Register("brainstorm", worktreePath, "Initial task description", "", "", "")
+	_, err := sm.Register("brainstorm", worktreePath, "Initial task description", "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}
@@ -123,19 +180,9 @@ func TestRejoin(t *testing.T) {
 }
 
 func TestReset(t *testing.T) {
-	// Create temporary state directory
-	tmpDir, err := os.MkdirTemp("", "bob-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
 	defer os.RemoveAll(tmpDir)
-
-	sm := &StateManager{
-		stateDir:       tmpDir,
-		additionsCache: make(map[string]*AdditionsCache),
-	}
-
-	worktreePath := "/test/worktree"
 
 	// Test 1: Reset with archive
 	t.Run("ResetWithArchive", func(t *testing.T) {
@@ -212,24 +259,14 @@ func TestReset(t *testing.T) {
 }
 
 func TestRejoinWithSessionAndAgent(t *testing.T) {
-	// Create temporary state directory
-	tmpDir, err := os.MkdirTemp("", "bob-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
 	defer os.RemoveAll(tmpDir)
-
-	sm := &StateManager{
-		stateDir:       tmpDir,
-		additionsCache: make(map[string]*AdditionsCache),
-	}
-
-	worktreePath := "/test/worktree"
 	sessionID := "test-session"
 	agentID := "test-agent"
 
 	// Register workflow with session and agent IDs
-	_, err = sm.Register("brainstorm", worktreePath, "Test task", "", sessionID, agentID)
+	_, err := sm.Register("brainstorm", worktreePath, "Test task", "", sessionID, agentID)
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}
@@ -252,22 +289,12 @@ func TestRejoinWithSessionAndAgent(t *testing.T) {
 }
 
 func TestRejoinTimestamps(t *testing.T) {
-	// Create temporary state directory
-	tmpDir, err := os.MkdirTemp("", "bob-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
 	defer os.RemoveAll(tmpDir)
 
-	sm := &StateManager{
-		stateDir:       tmpDir,
-		additionsCache: make(map[string]*AdditionsCache),
-	}
-
-	worktreePath := "/test/worktree"
-
 	// Register workflow
-	_, err = sm.Register("brainstorm", worktreePath, "Test task", "", "", "")
+	_, err := sm.Register("brainstorm", worktreePath, "Test task", "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}

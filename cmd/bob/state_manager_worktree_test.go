@@ -16,14 +16,14 @@ func TestAutoWorktreeCreation(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Initialize git repo
+	// Initialize git repo with explicit main branch
 	repoDir := filepath.Join(tmpDir, "test-repo")
 	if err := os.MkdirAll(repoDir, 0755); err != nil {
 		t.Fatal(err)
 	}
 
-	// Init git
-	cmd := exec.Command("git", "init")
+	// Init git with main branch
+	cmd := exec.Command("git", "init", "-b", "main")
 	cmd.Dir = repoDir
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
@@ -55,8 +55,11 @@ func TestAutoWorktreeCreation(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Create state manager
+	// Create state manager with state directory
 	stateDir := filepath.Join(tmpDir, "state")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 	sm := &StateManager{
 		stateDir:       stateDir,
 		additionsCache: make(map[string]*AdditionsCache),
@@ -163,15 +166,46 @@ func TestIsMainRepo(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Init git
-	cmd := exec.Command("git", "init")
+	// Init git with main branch
+	cmd := exec.Command("git", "init", "-b", "main")
 	cmd.Dir = repoDir
 	if err := cmd.Run(); err != nil {
 		t.Fatal(err)
 	}
 
+	// Create initial commit so worktrees can be created
+	testFile := filepath.Join(repoDir, "README.md")
+	if err := os.WriteFile(testFile, []byte("# Test"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command("git", "add", ".")
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd = exec.Command("git", "config", "user.email", "test@example.com")
+	cmd.Dir = repoDir
+	_ = cmd.Run()
+
+	cmd = exec.Command("git", "config", "user.name", "Test User")
+	cmd.Dir = repoDir
+	_ = cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "Initial commit")
+	cmd.Dir = repoDir
+	if err := cmd.Run(); err != nil {
+		t.Fatal(err)
+	}
+
+	stateDir := filepath.Join(tmpDir, "state")
+	if err := os.MkdirAll(stateDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
 	sm := &StateManager{
-		stateDir:       tmpDir,
+		stateDir:       stateDir,
 		additionsCache: make(map[string]*AdditionsCache),
 	}
 
@@ -189,12 +223,12 @@ func TestIsMainRepo(t *testing.T) {
 
 	// Test 2: Worktree should be detected
 	t.Run("DetectWorktree", func(t *testing.T) {
-		// Create a worktree
+		// Create a worktree (repo now has initial commit, so this will work)
 		worktreeDir := filepath.Join(tmpDir, "test-worktree")
 		cmd := exec.Command("git", "worktree", "add", "-b", "test-branch", worktreeDir)
 		cmd.Dir = repoDir
 		if err := cmd.Run(); err != nil {
-			t.Skip("Cannot create worktree:", err)
+			t.Fatalf("Failed to create worktree: %v", err)
 		}
 
 		isMain, _, err := sm.isMainRepo(worktreeDir)

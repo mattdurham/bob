@@ -722,7 +722,11 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 
 	// Reset subsequent steps if requested
 	if resetSubsequent && step != "" {
-		def, _ := GetWorkflowDefinition(state.Workflow)
+		// Reuse the already-loaded definition from validation above
+		def, err := GetWorkflowDefinition(state.Workflow)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load workflow definition for reset: %w", err)
+		}
 
 		// Find step position
 		stepPos := -1
@@ -825,7 +829,9 @@ func (sm *StateManager) Reset(worktreePath string, archive bool, sessionID, agen
 		baseFilename := strings.TrimSuffix(workflowIDToFilename(workflowID), ".json")
 		archiveFilename := fmt.Sprintf("%s-archived-%s.json", baseFilename, timestamp)
 		archivePath = filepath.Join(sm.stateDir, "archive")
-		_ = os.MkdirAll(archivePath, 0755)
+		if err := os.MkdirAll(archivePath, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create archive directory: %w", err)
+		}
 
 		archiveFullPath := filepath.Join(archivePath, archiveFilename)
 
@@ -916,23 +922,43 @@ func (sm *StateManager) createWorktree(repoPath, featureName string) (string, st
 	// Create branch name
 	branchName := "feature/" + featureName
 
-	// Ensure we're on main and up to date
-	cmd := exec.Command("git", "-C", repoPath, "checkout", "main")
-	if err := cmd.Run(); err != nil {
-		return "", "", fmt.Errorf("failed to checkout main: %w", err)
+	// Detect the default branch (main or master) without changing current branch
+	var baseBranch string
+	cmd := exec.Command("git", "-C", repoPath, "symbolic-ref", "refs/remotes/origin/HEAD")
+	output, err := cmd.Output()
+	if err == nil {
+		// Parse "refs/remotes/origin/main" -> "main"
+		ref := strings.TrimSpace(string(output))
+		baseBranch = strings.TrimPrefix(ref, "refs/remotes/origin/")
+	} else {
+		// Fallback: check if main or master exists locally
+		cmd = exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "main")
+		if cmd.Run() == nil {
+			baseBranch = "main"
+		} else {
+			cmd = exec.Command("git", "-C", repoPath, "rev-parse", "--verify", "master")
+			if cmd.Run() == nil {
+				baseBranch = "master"
+			} else {
+				// Last resort: use current HEAD
+				cmd = exec.Command("git", "-C", repoPath, "rev-parse", "--abbrev-ref", "HEAD")
+				output, err = cmd.Output()
+				if err != nil {
+					return "", "", fmt.Errorf("failed to determine base branch: %w", err)
+				}
+				baseBranch = strings.TrimSpace(string(output))
+			}
+		}
 	}
-
-	cmd = exec.Command("git", "-C", repoPath, "pull", "origin", "main")
-	_ = cmd.Run() // Don't fail if no remote or already up to date
 
 	// Create worktrees directory if it doesn't exist
 	if err := os.MkdirAll(worktreesDir, 0755); err != nil {
 		return "", "", fmt.Errorf("failed to create worktrees directory: %w", err)
 	}
 
-	// Create the worktree
-	cmd = exec.Command("git", "-C", repoPath, "worktree", "add", "-b", branchName, worktreePath)
-	output, err := cmd.CombinedOutput()
+	// Create the worktree from base branch (without modifying current working tree)
+	cmd = exec.Command("git", "-C", repoPath, "worktree", "add", "-b", branchName, worktreePath, baseBranch)
+	output, err = cmd.CombinedOutput()
 	if err != nil {
 		return "", "", fmt.Errorf("failed to create worktree: %w\nOutput: %s", err, string(output))
 	}
@@ -940,6 +966,9 @@ func (sm *StateManager) createWorktree(repoPath, featureName string) (string, st
 	// Create bots/ directory in the new worktree
 	botsDir := filepath.Join(worktreePath, "bots")
 	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		// Cleanup: remove the partially-created worktree
+		_ = exec.Command("git", "-C", repoPath, "worktree", "remove", worktreePath, "--force").Run()
+		_ = exec.Command("git", "-C", repoPath, "branch", "-D", branchName).Run()
 		return "", "", fmt.Errorf("failed to create bots directory: %w", err)
 	}
 

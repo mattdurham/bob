@@ -136,7 +136,7 @@ func ValidatePR(prNumber string) (*PRCheck, error) {
 }
 
 func main() {
-    // Get PR number from command line or git branch
+    // Get current PR number
     cmd := exec.Command("gh", "pr", "view", "--json", "number")
     out, err := cmd.Output()
     if err != nil {
@@ -198,6 +198,7 @@ workflow_report_progress(
     currentStep: "MONITOR",
     metadata: {
         "loopReason": "validation_failed",
+        "findings": "Validation failed: CI checks or conversations unresolved",
         "failedChecks": [...],
         "unresolvedThreads": [...],
         "iteration": 3
@@ -255,6 +256,7 @@ git branch -d review-fix-<timestamp>
        currentStep: "MONITOR",
        metadata: {
            "loopReason": "validation_failed",
+           "findings": "Validation failed: CI checks or conversations unresolved",
            "failedChecks": ["check1", "check2"],
            "unresolvedThreads": ["file.go:123"],
            "iteration": 3

@@ -143,7 +143,7 @@ func ValidatePR(prNumber string) (*PRCheck, error) {
 }
 
 func main() {
-    // Get PR number from command line or git branch
+    // Get current PR number
     cmd := exec.Command("gh", "pr", "view", "--json", "number")
     out, err := cmd.Output()
     if err != nil {
@@ -173,7 +173,7 @@ func main() {
 
     fmt.Println("⚠️  PR not ready. Issues found:")
     fmt.Println(check.Feedback)
-    fmt.Println("\n🔄 Looping back to OPTIMIZE phase...")
+    fmt.Println("\n🔄 Looping back to ANALYZE phase...")
 }
 ```
 
@@ -187,14 +187,14 @@ gh pr status
 ```
 
 Watch for:
-- ❌ CI failures → loop back to OPTIMIZE
-- ❌ Benchmark regressions → loop back to OPTIMIZE
-- 💬 Unresolved conversations → loop back to OPTIMIZE
+- ❌ CI failures → loop back to ANALYZE
+- ❌ Benchmark regressions → loop back to ANALYZE
+- 💬 Unresolved conversations → loop back to ANALYZE
 - ✅ All checks passed + conversations resolved → proceed to merge
 
 ### 5. Decision Logic
 
-**If ANY of these are true, loop back to OPTIMIZE:**
+**If ANY of these are true, loop back to ANALYZE:**
 - GitHub Actions checks fail
 - Benchmark regressions detected
 - Conversations are unresolved
@@ -206,6 +206,7 @@ workflow_report_progress(
     currentStep: "MONITOR",
     metadata: {
         "loopReason": "validation_failed",
+        "findings": "Validation failed: CI checks or conversations unresolved",
         "failedChecks": [...],
         "unresolvedThreads": [...],
         "benchmarkRegression": false
@@ -250,13 +251,14 @@ gh pr merge --auto --squash
 
 ### If Validation Fails (CI/Benchmarks/Conversations):
 1. Tell user: "Issues found during validation"
-2. Loop back to OPTIMIZE phase:
+2. Loop back to ANALYZE phase:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
        currentStep: "MONITOR",
        metadata: {
            "loopReason": "validation_failed",
+           "findings": "Validation failed: CI checks or conversations unresolved",
            "failedChecks": ["check1"],
            "unresolvedThreads": ["file.go:123"],
            "benchmarkRegression": false
@@ -265,5 +267,5 @@ gh pr merge --auto --squash
    ```
 
 ## Next Phase
-- Move to **OPTIMIZE** if validation fails (loop back)
+- Move to **ANALYZE** if validation fails (loop back)
 - Move to **COMPLETE** after successful merge

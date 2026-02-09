@@ -139,7 +139,7 @@ func ValidatePR(prNumber string) (*PRCheck, error) {
 }
 
 func main() {
-    // Get PR number from command line or git branch
+    // Get current PR number
     cmd := exec.Command("gh", "pr", "view", "--json", "number")
     out, err := cmd.Output()
     if err != nil {
@@ -169,7 +169,7 @@ func main() {
 
     fmt.Println("⚠️  PR not ready. Issues found:")
     fmt.Println(check.Feedback)
-    fmt.Println("\n🔄 Looping back to PLAN phase...")
+    fmt.Println("\n🔄 Looping back to REVIEW phase...")
 }
 ```
 
@@ -189,14 +189,14 @@ gh pr status
 ```
 
 #### Watch For:
-- ❌ **CI failures** - loop back to PLAN
-- 💬 **Unresolved conversations** - loop back to PLAN
+- ❌ **CI failures** - loop back to REVIEW
+- 💬 **Unresolved conversations** - loop back to REVIEW
 - ✅ **All checks passed + conversations resolved** - proceed to merge
 - ⚠️ **Change requests** - address feedback
 
 ### 6. Decision Logic
 
-**If ANY of these are true, loop back to PLAN:**
+**If ANY of these are true, loop back to REVIEW:**
 - GitHub Actions checks fail
 - Conversations are unresolved
 - Change requests from reviewers
@@ -208,6 +208,7 @@ workflow_report_progress(
     currentStep: "MONITOR",
     metadata: {
         "loopReason": "validation_failed",
+        "findings": "Validation failed: CI checks or conversations unresolved",
         "failedChecks": [...],
         "unresolvedThreads": [...],
         "iteration": 3
@@ -266,13 +267,14 @@ git branch -d <branch-name>
 
 ### If Validation Fails (CI/Conversations):
 1. Tell user: "Issues found during CI/review"
-2. Loop back to PLAN phase:
+2. Loop back to REVIEW phase:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
        currentStep: "MONITOR",
        metadata: {
            "loopReason": "validation_failed",
+           "findings": "Validation failed: CI checks or conversations unresolved",
            "failedChecks": ["check1", "check2"],
            "unresolvedThreads": ["file.go:123"],
            "iteration": 3
@@ -281,5 +283,5 @@ git branch -d <branch-name>
    ```
 
 ## Next Phase
-- Move to **PLAN** if validation fails (loop back)
+- Move to **REVIEW** if validation fails (loop back)
 - Move to **COMPLETE** after successful merge

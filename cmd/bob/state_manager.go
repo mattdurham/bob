@@ -4,9 +4,12 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -45,7 +48,9 @@ type Issue struct {
 
 // StateManager manages workflow states
 type StateManager struct {
-	stateDir string
+	stateDir       string
+	additionsCache map[string]*AdditionsCache // Cache per repo path
+	cacheMutex     sync.RWMutex               // Protects additionsCache map
 }
 
 // NewStateManager creates a new state manager
@@ -55,10 +60,10 @@ func NewStateManager() *StateManager {
 	_ = os.MkdirAll(stateDir, 0755)
 
 	return &StateManager{
-		stateDir: stateDir,
+		stateDir:       stateDir,
+		additionsCache: make(map[string]*AdditionsCache),
 	}
 }
-
 
 // Register registers a new workflow instance
 func (sm *StateManager) Register(workflow, worktreePath, taskDescription string, sessionID, agentID string) (map[string]interface{}, error) {
@@ -223,6 +228,17 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 	// Prepend task description if this is the initial step and description exists
 	if state.TaskDescription != "" && len(state.ProgressHistory) == 0 {
 		prompt = fmt.Sprintf("## Task Context\n\n%s\n\n---\n\n%s", state.TaskDescription, prompt)
+	}
+
+	// Append project-specific additions if they exist
+	repoPath, err := sm.getRepoPath(worktreePath)
+	if err == nil {
+		cache := sm.getOrLoadAdditionsCache(repoPath)
+		if cache != nil {
+			if addition := cache.GetAddition(state.Workflow, state.CurrentStep); addition != "" {
+				prompt = fmt.Sprintf("%s\n\n---\n\n### Project-Specific Guidance\n\n%s", prompt, addition)
+			}
+		}
 	}
 
 	// Get next step
@@ -538,4 +554,66 @@ func (sm *StateManager) GetSessionStatus(sessionID string) (map[string]interface
 		"startedAt":    earliestStart,
 		"lastActivity": latestUpdate,
 	}, nil
+}
+
+// getRepoPath returns the git repository root path from a worktree path
+func (sm *StateManager) getRepoPath(worktreePath string) (string, error) {
+	cmd := exec.Command("git", "-C", worktreePath, "rev-parse", "--show-toplevel")
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("not a git repository: %s", worktreePath)
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// Maximum number of repository additions caches to maintain in memory
+const maxCacheSize = 100
+
+// getOrLoadAdditionsCache gets or creates an additions cache for a repository.
+// Returns nil if the repository path is invalid.
+func (sm *StateManager) getOrLoadAdditionsCache(repoPath string) *AdditionsCache {
+	// Check if cache exists (read lock)
+	sm.cacheMutex.RLock()
+	cache, exists := sm.additionsCache[repoPath]
+	sm.cacheMutex.RUnlock()
+
+	if exists {
+		return cache
+	}
+
+	// Create and load cache (write lock)
+	sm.cacheMutex.Lock()
+	defer sm.cacheMutex.Unlock()
+
+	// Double-check after acquiring write lock (another goroutine might have created it)
+	if cache, exists := sm.additionsCache[repoPath]; exists {
+		return cache
+	}
+
+	// Evict oldest entry if at capacity (simple FIFO)
+	if len(sm.additionsCache) >= maxCacheSize {
+		// Remove first entry from map (Go maps don't guarantee order, but this is best effort)
+		for k := range sm.additionsCache {
+			delete(sm.additionsCache, k)
+			log.Printf("Evicted additions cache for %s (cache full)", k)
+			break
+		}
+	}
+
+	// Create new cache and validate repo path
+	cache, err := NewAdditionsCache(repoPath)
+	if err != nil {
+		log.Printf("Failed to create additions cache for %s: %v", repoPath, err)
+		return nil
+	}
+
+	// Load additions from bob branch
+	if err := cache.LoadAdditions(); err != nil {
+		// Log error but still use cache - missing bob branch is OK, other errors are logged
+		log.Printf("Warning: Failed to load additions for %s: %v", repoPath, err)
+	}
+
+	sm.additionsCache[repoPath] = cache
+	return cache
 }

@@ -118,7 +118,11 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 	}
 
 	// Get workflow definition
-	repoPath, _ := sm.getRepoPath(actualWorktreePath)
+	repoPath, err := sm.getRepoPath(actualWorktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+		repoPath = ""
+	}
 	def, err := GetWorkflowDefinition(workflow, repoPath)
 	if err != nil {
 		return nil, err
@@ -198,7 +202,11 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 			if err == nil {
 				if hasIssues {
 					// Issues found - loop back to fix them
-					repoPath, _ := sm.getRepoPath(state.WorktreePath)
+					repoPath, err := sm.getRepoPath(state.WorktreePath)
+					if err != nil {
+						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						repoPath = ""
+					}
 					def, err := GetWorkflowDefinition(state.Workflow, repoPath)
 					if err == nil {
 						// Find current step's canLoopTo
@@ -212,7 +220,11 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 					}
 				} else {
 					// No issues - advance forward
-					repoPath, _ := sm.getRepoPath(state.WorktreePath)
+					repoPath, err := sm.getRepoPath(state.WorktreePath)
+					if err != nil {
+						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						repoPath = ""
+					}
 					nextStepName, err := GetNextStep(state.Workflow, currentStep, repoPath)
 					if err == nil {
 						nextStep = nextStepName
@@ -223,7 +235,11 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
 				// Fall back to checking findings length
 				if len(strings.TrimSpace(findingsText)) < 10 {
-					repoPath, _ := sm.getRepoPath(state.WorktreePath)
+					repoPath, err := sm.getRepoPath(state.WorktreePath)
+					if err != nil {
+						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						repoPath = ""
+					}
 					nextStepName, err := GetNextStep(state.Workflow, currentStep, repoPath)
 					if err == nil {
 						nextStep = nextStepName
@@ -235,7 +251,11 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 
 	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
-		repoPath, _ := sm.getRepoPath(state.WorktreePath)
+		repoPath, err := sm.getRepoPath(state.WorktreePath)
+		if err != nil {
+			log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+			repoPath = ""
+		}
 		nextStepName, err := GetNextStep(state.Workflow, currentStep, repoPath)
 		if err == nil {
 			nextStep = nextStepName
@@ -305,8 +325,12 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 	}
 
 	// Get loop targets
-	repoPath, _ = sm.getRepoPath(state.WorktreePath)
-	def, _ := GetWorkflowDefinition(state.Workflow, repoPath)
+	repoPath2, err := sm.getRepoPath(state.WorktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+		repoPath2 = ""
+	}
+	def, _ := GetWorkflowDefinition(state.Workflow, repoPath2)
 	var canLoopBack []string
 	for _, step := range def.Steps {
 		if step.Name == state.CurrentStep {
@@ -348,7 +372,11 @@ func (sm *StateManager) RecordIssues(worktreePath, step string, issues []Issue, 
 	var loopBackTo string
 
 	if shouldLoop {
-		repoPath, _ := sm.getRepoPath(state.WorktreePath)
+		repoPath, err := sm.getRepoPath(state.WorktreePath)
+		if err != nil {
+			log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+			repoPath = ""
+		}
 		def, _ := GetWorkflowDefinition(state.Workflow, repoPath)
 		for _, rule := range def.LoopRules {
 			if rule.FromStep == step && rule.Condition == "issues_found" {
@@ -419,7 +447,11 @@ func (sm *StateManager) worktreeToID(worktreePath, sessionID, agentID string) st
 
 // isLoopBack checks if moving from prevStep to currentStep is a loop back
 func (sm *StateManager) isLoopBack(workflow, worktreePath, prevStep, currentStep string) bool {
-	repoPath, _ := sm.getRepoPath(worktreePath)
+	repoPath, err := sm.getRepoPath(worktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+		repoPath = ""
+	}
 	def, err := GetWorkflowDefinition(workflow, repoPath)
 	if err != nil {
 		return false
@@ -699,7 +731,11 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 
 	// Validate step if provided
 	if step != "" {
-		repoPath, _ := sm.getRepoPath(state.WorktreePath)
+		repoPath, err := sm.getRepoPath(state.WorktreePath)
+		if err != nil {
+			log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+			repoPath = ""
+		}
 		def, err := GetWorkflowDefinition(state.Workflow, repoPath)
 		if err != nil {
 			return nil, err
@@ -732,7 +768,11 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 	// Reset subsequent steps if requested
 	if resetSubsequent && step != "" {
 		// Reuse the already-loaded definition from validation above
-		repoPath, _ := sm.getRepoPath(state.WorktreePath)
+		repoPath, err := sm.getRepoPath(state.WorktreePath)
+		if err != nil {
+			log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+			repoPath = ""
+		}
 		def, err := GetWorkflowDefinition(state.Workflow, repoPath)
 		if err != nil {
 			return nil, fmt.Errorf("failed to load workflow definition for reset: %w", err)

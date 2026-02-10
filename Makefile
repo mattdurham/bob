@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-guidance clean
+.PHONY: help install install-skills install-agents install-lsp install-guidance allow clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -15,6 +15,7 @@ help:
 	@echo "  make install-agents           - Install specialized subagents"
 	@echo "  make install-lsp              - Install Go LSP plugin"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
+	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make clean                    - Clean temporary files"
 	@echo ""
 	@echo "Quick start:"
@@ -127,6 +128,44 @@ install-guidance:
 	@echo ""
 	@echo "These files configure the repo to use Bob workflow skills."
 	@echo "Commit them to your repo so Claude knows about Bob workflows!"
+
+# Apply permissions from config to ~/.claude/settings.json
+allow:
+	@echo "🔐 Applying Claude permissions..."
+	@if [ ! -f "config/claude-permissions.json" ]; then \
+		echo "❌ Error: config/claude-permissions.json not found"; \
+		exit 1; \
+	fi
+	@if ! command -v jq >/dev/null 2>&1; then \
+		echo "❌ Error: jq is required but not installed"; \
+		echo "Install with: sudo apt-get install jq  (or your package manager)"; \
+		exit 1; \
+	fi
+	@SETTINGS_FILE="$$HOME/.claude/settings.json"; \
+	if [ ! -f "$$SETTINGS_FILE" ]; then \
+		echo "Creating new settings file..."; \
+		cp config/claude-permissions.json "$$SETTINGS_FILE"; \
+	else \
+		echo "Backing up existing settings..."; \
+		cp "$$SETTINGS_FILE" "$$SETTINGS_FILE.backup"; \
+		echo "Intelligently merging permissions (union of allow lists)..."; \
+		TMP_FILE=$$(mktemp); \
+		jq -s '.[0] as $$existing | .[1] as $$config | $$existing * $$config | .permissions.allow = (($$existing.permissions.allow // []) + ($$config.permissions.allow // []) | unique)' "$$SETTINGS_FILE" config/claude-permissions.json > "$$TMP_FILE"; \
+		if [ $$? -eq 0 ]; then \
+			mv "$$TMP_FILE" "$$SETTINGS_FILE"; \
+			echo "✅ Backup saved to: $$SETTINGS_FILE.backup"; \
+		else \
+			echo "❌ Merge failed, restoring from backup"; \
+			rm -f "$$TMP_FILE"; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "✅ Permissions applied to ~/.claude/settings.json"
+	@echo ""
+	@echo "Active permissions:"
+	@jq -r '.permissions.allow[]' "$$HOME/.claude/settings.json" | sed 's/^/  ✓ /'
+	@echo ""
+	@echo "Default mode: $$(jq -r '.permissions.defaultMode' "$$HOME/.claude/settings.json")"
 
 # Clean temporary files
 clean:

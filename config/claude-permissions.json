@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit",
+      "Skill",
+      "WebFetch",
+      "mcp__*"
+    ],
+    "defaultMode": "dontAsk"
+  },
+  "_comments": {
+    "defaultMode": "Permission mode controls how Claude handles tool execution. Options:",
+    "dontAsk": "Tools in 'allow' list are automatically permitted WITHOUT prompting. Security boundary is still enforced - only listed tools are allowed. RECOMMENDED for trusted workflows.",
+    "bypassPermissions": "DANGEROUS: Completely bypasses permission system. ALL tools allowed without ANY checks. Use only in fully trusted, sandboxed environments. Not recommended.",
+    "ask": "Prompts user for approval on EVERY tool use, even for allowed tools. Safest but most interactive. Good for learning/auditing what Claude does."
+  }
+}

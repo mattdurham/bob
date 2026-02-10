@@ -228,7 +228,7 @@ install-lsp:
 	@bash scripts/install-lsp.sh
 
 # Install everything (modified to include new targets)
-install-mcp-full: build install-skills install-agents install-lsp
+install-mcp-full: build install-skills install-agents install-lsp install-mcp-servers
 	@echo "🏴‍☠️ Installing Bob as MCP server..."
 	@if [ -z "$$HOME" ]; then \
 		echo "❌ Error: HOME environment variable not set"; \

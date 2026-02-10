@@ -63,8 +63,9 @@ func (c *ClaudeClient) ClassifyFindings(findings string) (bool, error) {
 		return c.fallbackClassification(findings), nil
 	}
 
-	// If findings are too short, no issues
-	if len(strings.TrimSpace(findings)) < minFindingsLength {
+	// Issue #8 fixed: Don't skip short findings - let model detect lazy reviews
+	// Empty findings = no issues, but short non-empty findings might be lazy
+	if len(strings.TrimSpace(findings)) == 0 {
 		return false, nil
 	}
 
@@ -81,13 +82,47 @@ Answer with ONLY one word: "yes" if the statement is FALSE (issues exist), or "n
 
 Answer:`, findings)
 	} else {
-		// Regular code review findings
-		prompt = fmt.Sprintf(`You are a binary classifier. Analyze the following code review findings and determine if there are any actual issues that need to be fixed.
+		// Regular code review findings - STRICT validation
+		prompt = fmt.Sprintf(`You are a balanced classifier for code review validation.
+
+Analyze the following code review and determine if there are ACTUAL ISSUES that need to be fixed.
 
 Code Review Findings:
 %s
 
-Answer with ONLY one word: "yes" if there are issues that need fixing, or "no" if there are no issues (empty findings, or just comments with no actionable items).
+BALANCED RULES (Issue #7 fixed: Check for issues FIRST, then approval):
+
+1. Answer "yes" (has issues) if ANY of these are true (CHECK FIRST):
+   - Lists actual bugs, errors, or problems to fix
+   - Contains severity markers (HIGH, MEDIUM, CRITICAL) with REAL issues
+   - Has TODO items or action items that block progress
+   - Test failures, build errors, or broken functionality
+   - Security vulnerabilities or bugs listed
+   - Review is LAZY/INSUFFICIENT (< 20 chars, just "OK"/"LGTM", no analysis)
+
+2. Answer "no" (no issues) ONLY if ALL of these are true:
+   - No bugs, errors, or problems listed (checked rule 1 first)
+   - Explicitly states "Total Issues: 0" or "no issues found" OR
+   - Contains approval (APPROVE, LGTM, Ready to merge) with meaningful analysis OR
+   - Lists only positive findings with checkmarks (✅) and no issues
+   - Summary clearly indicates clean/passing status
+
+3. IGNORE these (they are NOT issues by themselves):
+   - Positive checkmarks (✅ Tests pass, ✅ Code compiles, ✅ Clean)
+   - Verification statements (Code works, No regressions)
+   - Documentation of what was checked
+   - Summary of passing checks
+
+NOTE: If review has BOTH approval text AND actual issues, answer "yes" (issues take priority)
+
+EXAMPLES:
+- "Total Issues: 0. All tests pass." → Answer: "no"
+- "✅ Code compiles ✅ Tests pass ✅ Ready to merge" → Answer: "no"
+- "Bug in line 45: null pointer" → Answer: "yes"
+- "CRITICAL: Security vulnerability found" → Answer: "yes"
+- "OK" → Answer: "yes" (too short)
+
+Answer with ONLY one word: "yes" if there are actual issues OR if review is insufficient, "no" if clean and approved.
 
 Answer:`, findings)
 	}

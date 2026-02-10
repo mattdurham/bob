@@ -419,7 +419,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("Task description"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("Priority: low, medium, high, critical"),
+				mcp.Description("Priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("Array of tag strings"),
@@ -433,7 +433,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			title, _ := request.RequireString("title")
 			description, _ := request.RequireString("description")
 			priority := request.GetString("priority", "medium")
-			taskType := request.GetString("taskType", "task")
+			taskType := request.GetString("taskType", "feature")
 
 			args := request.GetArguments()
 			tagsRaw, _ := args["tags"].([]interface{})
@@ -457,7 +457,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				result["dependencyErrors"] = []string{} // Initialize before use
 				for _, depID := range deps {
 					// Add dependency: this task depends on depID
-					_, err := taskManager.AddDependency(repoPath, taskID, depID)
+					_, err := taskManager.AddDependency(repoPath, depID, taskID)
 					if err != nil {
 						// Log error but don't fail task creation
 						result["dependencyErrors"] = append(
@@ -516,7 +516,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("Filter by state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("Filter by priority: low, medium, high, critical"),
+				mcp.Description("Filter by priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("Filter by tags (match any)"),
@@ -559,7 +559,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("New state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("New priority: low, medium, high, critical"),
+				mcp.Description("New priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("New tags array"),
@@ -620,7 +620,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			taskID, _ := request.RequireString("taskId")
 			dependsOn, _ := request.RequireString("dependsOn")
 
-			result, err := taskManager.AddDependency(repoPath, taskID, dependsOn)
+			result, err := taskManager.AddDependency(repoPath, dependsOn, taskID)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -810,19 +810,6 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 }
 
 // Helper functions
-func getString(m map[string]interface{}, key string) string {
-	if v, ok := m[key].(string); ok {
-		return v
-	}
-	return ""
-}
-
-func getInt(m map[string]interface{}, key string) int {
-	if v, ok := m[key].(float64); ok {
-		return int(v)
-	}
-	return 0
-}
 
 func toStringSlice(arr []interface{}) []string {
 	result := make([]string, 0, len(arr))

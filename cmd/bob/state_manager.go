@@ -169,57 +169,104 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 
 	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
 	// check if this is a checkpoint phase and classify findings from markdown file
+	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
+	// check if this is a checkpoint phase and classify findings from markdown file
 	if currentStep == previousStep && sm.isCheckpointPhase(state.Workflow, currentStep) {
-		// Read markdown file directly instead of using metadata
-		findingsFile := filepath.Join(worktreePath, "bots", sm.stepToMarkdownFilename(currentStep))
-		findingsContent, err := os.ReadFile(findingsFile)
-
-		if err != nil {
-			// Distinguish file-not-found from other errors
-			if os.IsNotExist(err) {
-				// File missing = no issues found, advance forward
-				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
-			} else {
-				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
-				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
-			}
-		} else if len(findingsContent) < minFindingsLength {
-			// File exists but empty = no issues found, advance forward
-			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
-		} else {
-			// File exists with content - classify it with Claude API
-			claudeClient := NewClaudeClient()
-			hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
-
+		var useFallback bool
+		// SPECIAL HANDLING FOR MONITOR PHASE: Check actual PR status
+		if currentStep == "MONITOR" {
+			prStatus, err := sm.checkPRStatus(state.WorktreePath)
 			if err == nil {
-				if hasIssues {
-					// Issues found - loop back to fix them
+				// Successfully checked PR status
+				if prStatus.Merged {
+					// PR is merged - advance to COMPLETE
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					log.Printf("MONITOR: PR merged, advancing to COMPLETE")
+				} else if prStatus.HasIssues {
+					// PR has CI failures or change requests - loop back to REVIEW
 					repoPath, err := sm.getRepoPath(state.WorktreePath)
 					if err != nil {
-						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						log.Printf("Warning: failed to get repo path: %v", err)
 						repoPath = ""
 					}
 					workflowDef, err := GetWorkflowDefinition(state.Workflow, repoPath)
-					if err != nil {
-						log.Printf("Warning: failed to get workflow definition: %v", err)
-					} else {
-						// Find current step's canLoopTo
+					if err == nil {
 						for _, step := range workflowDef.Steps {
 							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
-								// Loop to first available target
 								nextStep = step.CanLoopTo[0]
+								log.Printf("MONITOR: PR has issues (%d failed checks, %d change requests), looping to %s",
+									len(prStatus.FailedChecks), prStatus.UnresolvedThreads, nextStep)
 								break
 							}
 						}
 					}
 				} else {
-					// No issues - advance forward
-					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					// PR is open, no issues - stay in MONITOR and wait
+					nextStep = currentStep
+					log.Printf("MONITOR: PR open, no issues, staying in MONITOR (waiting for merge)")
 				}
 			} else {
-				// If classification fails, log error and advance forward (safe default)
-				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+				// Failed to check PR status - fall back to reading bots/monitor.md
+				log.Printf("MONITOR: Failed to check PR status (%v), falling back to bots/monitor.md", err)
+				useFallback = true
+			}
+		} else {
+			useFallback = true
+		}
+
+		// Fallback for non-MONITOR checkpoints or MONITOR failures
+		if useFallback {
+			// Read markdown file directly instead of using metadata
+			findingsFile := filepath.Join(worktreePath, "bots", sm.stepToMarkdownFilename(currentStep))
+			findingsContent, err := os.ReadFile(findingsFile)
+
+			if err != nil {
+				// Distinguish file-not-found from other errors
+				if os.IsNotExist(err) {
+					// File missing = no issues found, advance forward
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+				} else {
+					// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
+					return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
+				}
+			} else if len(findingsContent) < minFindingsLength {
+				// File exists but empty = no issues found, advance forward
 				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+			} else {
+				// File exists with content - classify it with Claude API
+				claudeClient := NewClaudeClient()
+				hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
+
+				if err == nil {
+					if hasIssues {
+						// Issues found - loop back to fix them
+						repoPath, err := sm.getRepoPath(state.WorktreePath)
+						if err != nil {
+							log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+							repoPath = ""
+						}
+						workflowDef, err := GetWorkflowDefinition(state.Workflow, repoPath)
+						if err != nil {
+							log.Printf("Warning: failed to get workflow definition: %v", err)
+						} else {
+							// Find current step's canLoopTo
+							for _, step := range workflowDef.Steps {
+								if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+									// Loop to first available target
+									nextStep = step.CanLoopTo[0]
+									break
+								}
+							}
+						}
+					} else {
+						// No issues - advance forward
+						nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					}
+				} else {
+					// If classification fails, log error and advance forward (safe default)
+					fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+				}
 			}
 		}
 	}
@@ -732,4 +779,108 @@ func (sm *StateManager) createWorktree(repoPath, featureName string) (string, st
 	}
 
 	return worktreePath, branchName, nil
+}
+
+// PRStatus represents the status of a pull request
+type PRStatus struct {
+	State             string // OPEN, CLOSED, MERGED
+	Merged            bool
+	HasIssues         bool
+	FailedChecks      []string
+	UnresolvedThreads int
+}
+
+// checkPRStatus checks the actual PR status using gh CLI
+func (sm *StateManager) checkPRStatus(worktreePath string) (*PRStatus, error) {
+	// Get repo path to determine branch name
+	repoPath, err := sm.getRepoPath(worktreePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repo path: %w", err)
+	}
+
+	// Get current branch name
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = repoPath
+	branchBytes, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch name: %w", err)
+	}
+	branch := strings.TrimSpace(string(branchBytes))
+
+	// Check PR status using gh CLI
+	prCmd := exec.Command("gh", "pr", "view", branch,
+		"--json", "state,mergedAt,statusCheckRollup,reviews")
+	prCmd.Dir = repoPath
+	output, err := prCmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get PR status: %w", err)
+	}
+
+	// Parse JSON response
+	var prData struct {
+		State             string  `json:"state"`
+		MergedAt          *string `json:"mergedAt"` // Null if not merged
+		StatusCheckRollup []struct {
+			Status     string `json:"status"`
+			Conclusion string `json:"conclusion"`
+			Name       string `json:"name"`
+		} `json:"statusCheckRollup"`
+		Reviews []struct {
+			State string `json:"state"`
+		} `json:"reviews"`
+	}
+
+	if err := json.Unmarshal(output, &prData); err != nil {
+		return nil, fmt.Errorf("failed to parse PR data: %w", err)
+	}
+
+	status := &PRStatus{
+		State:             prData.State,
+		Merged:            prData.MergedAt != nil, // If mergedAt is not null, PR is merged
+		HasIssues:         false,
+		FailedChecks:      []string{},
+		UnresolvedThreads: 0,
+	}
+
+	// Check for failed CI checks
+	for _, check := range prData.StatusCheckRollup {
+		if check.Conclusion != "SUCCESS" && check.Conclusion != "SKIPPED" && check.Conclusion != "" {
+			status.HasIssues = true
+			status.FailedChecks = append(status.FailedChecks,
+				fmt.Sprintf("%s: %s", check.Name, check.Conclusion))
+		}
+	}
+
+	// Check for change requests in reviews
+	for _, review := range prData.Reviews {
+		if review.State == "CHANGES_REQUESTED" {
+			status.HasIssues = true
+			status.UnresolvedThreads++
+		}
+	}
+
+	// Check for inline review comments (any comments = issues to address)
+	// First get PR number from branch
+	prNumCmd := exec.Command("gh", "pr", "view", branch, "--json", "number", "-q", ".number")
+	prNumCmd.Dir = repoPath
+	prNumOutput, err := prNumCmd.Output()
+	if err == nil {
+		prNumber := strings.TrimSpace(string(prNumOutput))
+		// Get inline review comments count
+		commentsCmd := exec.Command("gh", "api", fmt.Sprintf("repos/{owner}/{repo}/pulls/%s/comments", prNumber), "--jq", "length")
+		commentsCmd.Dir = repoPath
+		commentsOutput, err := commentsCmd.Output()
+		if err == nil {
+			commentCount := strings.TrimSpace(string(commentsOutput))
+			if commentCount != "0" && commentCount != "" {
+				status.HasIssues = true
+				// Parse comment count for logging
+				var count int
+				_, _ = fmt.Sscanf(commentCount, "%d", &count)
+				status.UnresolvedThreads += count
+			}
+		}
+	}
+
+	return status, nil
 }

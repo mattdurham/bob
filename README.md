@@ -362,3 +362,275 @@ MIT License - See LICENSE file
 # Developing Bob
 
 Note all development work in Bob must go through a bob workflow session.
+
+## Workflow Skills
+
+Bob provides workflow orchestration through Claude skills. These skills coordinate specialized subagents via the Task tool to guide you through complete development workflows.
+
+### Available Workflow Skills
+
+#### `/work` - Full Development Workflow
+
+Complete feature development from idea to merged PR.
+
+**Usage:** `/work "Add user authentication feature"`
+
+**Workflow Phases:**
+```
+INIT → PROMPT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+                                           ↑                         ↓
+                                           └─────────────────────────┘
+                                                (loop on issues)
+```
+
+**What It Does:**
+- Researches existing patterns (spawns Explore agent)
+- Creates implementation plan (spawns planner agent)
+- Implements changes (spawns coder agents)
+- Runs tests (spawns tester agent)
+- Reviews code (spawns reviewer agent)
+- Commits and creates PR
+- Monitors CI/checks
+
+**Loop-back Rules:**
+- REVIEW → PLAN (major architectural issues)
+- REVIEW → EXECUTE (minor implementation fixes)
+- TEST → EXECUTE (test failures)
+- MONITOR → REVIEW (CI failures - always review first!)
+
+---
+
+#### `/code-review` - Code Review Workflow
+
+Review existing code, identify issues, fix them, and verify fixes.
+
+**Usage:** `/code-review`
+
+**Workflow Phases:**
+```
+INIT → PROMPT → WORKTREE → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
+                              ↑               ↓
+                              └───────────────┘
+                                (loop on issues)
+```
+
+**What It Does:**
+- Reviews code for issues (spawns reviewer agent)
+- Fixes identified problems (spawns coder agents)
+- Runs tests to verify (spawns tester agent)
+- Re-reviews after fixes (loops back to REVIEW)
+- Commits fixes and creates PR
+
+**Loop-back Rules:**
+- REVIEW → FIX (issues found)
+- TEST → REVIEW (re-verify after fixes)
+- MONITOR → REVIEW (CI failures)
+
+---
+
+#### `/performance` - Performance Optimization Workflow
+
+Benchmark, analyze bottlenecks, optimize, and verify improvements.
+
+**Usage:** `/performance "Optimize API response times"`
+
+**Workflow Phases:**
+```
+INIT → PROMPT → WORKTREE → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR → COMPLETE
+                                          ↑                       ↓
+                                          └───────────────────────┘
+                                            (loop if targets not met)
+```
+
+**What It Does:**
+- Runs baseline benchmarks (spawns tester agent)
+- Analyzes performance bottlenecks (spawns researcher agent)
+- Implements optimizations (spawns coder agents)
+- Verifies improvements meet targets (spawns tester agent)
+- Commits optimizations with before/after metrics
+
+**Loop-back Rules:**
+- VERIFY → ANALYZE (performance targets not met)
+- MONITOR → ANALYZE (CI performance tests fail)
+
+---
+
+#### `/explore` - Codebase Exploration Workflow
+
+Read-only exploration and documentation of codebase.
+
+**Usage:** `/explore "Understand authentication flow"`
+
+**Workflow Phases:**
+```
+INIT → PROMPT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+```
+
+**What It Does:**
+- Discovers relevant files and components (spawns Explore agent)
+- Analyzes code and understands logic (spawns researcher agent)
+- Creates comprehensive documentation (spawns documenter agent)
+- No code changes (read-only workflow)
+
+**No Loops:** This is a one-pass, read-only workflow.
+
+---
+
+### How Workflow Skills Work
+
+**Skills are Orchestration Layers:**
+- Skills don't implement features themselves
+- Skills spawn Task tool subagents for actual work
+- Skills enforce flow control rules (when to loop back)
+- Skills use Bob MCP tools for state persistence
+
+**Subagents Used:**
+- **Explore** - Codebase discovery and search
+- **planner** - Create implementation plans
+- **coder** - Write and modify code
+- **tester** - Run tests and benchmarks
+- **reviewer** - Code review and quality checks
+- **researcher** - Deep analysis and investigation
+
+**State Management:**
+- Skills use Bob MCP tools to persist workflow state
+- Progress survives Claude CLI restarts
+- Multiple users can collaborate on same workflow
+- State stored in `~/.bob/state/`
+
+---
+
+## MCP Servers
+
+When you run `make install-mcp-full`, Bob installs multiple MCP servers:
+
+1. **Bob** - Workflow state persistence and task tracking
+   - Tools: workflow_register, workflow_report_progress, task_create, task_update
+   - Storage: ~/.bob/state/
+
+2. **Filesystem** - Secure file operations in allowed directories
+   - Allowed: ~/source, /tmp
+   - Tools: read_file, write_file, search_files, etc.
+
+3. **GitHub** - GitHub API integration (if available)
+   - Tools: PR management, issue tracking, repository operations
+
+4. **Sequential Thinking** - Enhanced reasoning (if available)
+   - Advanced reasoning capabilities for complex decisions
+
+All servers work together to provide comprehensive development support.
+
+---
+
+## Installation
+
+### Quick Install (Everything)
+
+```bash
+# Install everything: Bob + Skills + LSP + MCP servers
+make install-mcp-full
+```
+
+This installs:
+- Bob MCP server
+- Filesystem MCP server
+- Workflow skills (/work, /code-review, /performance, /explore)
+- Go LSP plugin (gopls)
+- Additional MCP servers (GitHub, Sequential Thinking if available)
+
+### Modular Installation
+
+```bash
+# Install only Bob and filesystem (basic)
+make install-mcp
+
+# Install only workflow skills
+make install-skills
+
+# Install only Go LSP plugin
+make install-lsp
+
+# Install only additional MCP servers
+make install-mcp-servers
+```
+
+### After Installation
+
+1. Restart Claude CLI to activate all features
+2. Invoke workflow skills with slash commands: `/work`, `/code-review`, etc.
+3. Skills will guide you through each workflow phase
+4. Use Bob MCP tools for state persistence
+
+---
+
+## Skill vs MCP Tool Usage
+
+### When to Use Skills
+
+**Use workflow skills for:**
+- Orchestrating complete workflows
+- Guided development processes
+- Team collaboration on structured tasks
+- Enforcing best practices and review cycles
+
+**Examples:**
+- `/work "Add feature X"` - Complete development workflow
+- `/code-review` - Systematic code review process
+- `/performance "Optimize Y"` - Performance improvement cycle
+
+### When to Use MCP Tools Directly
+
+**Use Bob MCP tools for:**
+- Custom workflows or automation scripts
+- Programmatic access to state
+- Building your own orchestration logic
+- Integration with other tools
+
+**Examples:**
+- `bob.task_create()` - Create task for tracking
+- `bob.workflow_register()` - Start custom workflow
+- `bob.workflow_report_progress()` - Transition workflow phases
+
+---
+
+## Documentation
+
+- **AGENTS.md** - Bob usage guide and workflow descriptions
+- **CLAUDE.md** - Claude-specific configuration and setup
+- **CODEX.md** - Codex-specific configuration
+- **docs/SKILLS.md** - Detailed skill usage guide
+- **docs/SUBAGENTS.md** - Subagent patterns and best practices
+
+---
+
+## Example: Using /work Skill
+
+```
+User: /work "Add JWT authentication to API"
+
+Skill: Initializing work workflow...
+       [Spawns Explore agent to research auth patterns]
+       
+       Found authentication patterns in auth/ directory.
+       [Documents findings in bots/brainstorm.md]
+       
+       [Spawns planner agent]
+       Created implementation plan in bots/plan.md
+       
+       [Spawns coder agent]
+       Implementing JWT middleware...
+       Adding token validation...
+       
+       [Spawns tester agent]
+       Running tests... ✓ All pass
+       
+       [Spawns reviewer agent]
+       Code review complete - no issues found
+       
+       Creating commit and PR...
+       Monitoring CI checks... ✓ All pass
+       
+       Work workflow complete! PR ready to merge.
+```
+
+---

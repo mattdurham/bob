@@ -10,7 +10,11 @@ help:
 	@echo "  make run                      - Run Bob as MCP server"
 	@echo "  make build                    - Build Bob binary"
 	@echo "  make install-deps             - Install Go dependencies"
-	@echo "  make install-mcp              - Install Bob + Filesystem MCP servers in Claude and Codex"
+	@echo "  make install-mcp              - Install Bob + Filesystem MCP servers (basic)"
+	@echo "  make install-mcp-full         - Full installation (Bob + Skills + LSP + extras)"
+	@echo "  make install-skills           - Install workflow skills only"
+	@echo "  make install-lsp              - Install Go LSP plugin only"
+	@echo "  make install-mcp-servers      - Install additional MCP servers only"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run tests"
@@ -194,3 +198,186 @@ install-mcp: build
 			echo "  Codex Filesystem:  codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
 		fi; \
 	fi
+
+# Install workflow skills to Claude
+install-skills:
+	@echo "📚 Installing Bob workflow skills..."
+	@SKILLS_DIR="$$HOME/.claude/skills"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	for skill in work code-review performance explore; do \
+		echo "   Installing $$skill skill..."; \
+		mkdir -p "$$SKILLS_DIR/$$skill"; \
+		cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+	done
+	@echo "✅ Skills installed to ~/.claude/skills/"
+	@echo ""
+	@echo "Available workflow commands:"
+	@echo "  /work          - Full development workflow"
+	@echo "  /code-review   - Code review workflow"
+	@echo "  /performance   - Performance optimization"
+	@echo "  /explore       - Codebase exploration"
+
+# Install additional MCP servers
+install-mcp-servers:
+	@echo "🔧 Installing additional MCP servers..."
+	@bash scripts/install-mcp-servers.sh
+
+# Install Go LSP plugin
+install-lsp:
+	@echo "🔧 Installing Go LSP plugin..."
+	@bash scripts/install-lsp.sh
+
+# Install everything (modified to include new targets)
+install-mcp-full: build install-skills install-agents install-lsp
+	@echo "🏴‍☠️ Installing Bob as MCP server..."
+	@if [ -z "$$HOME" ]; then \
+		echo "❌ Error: HOME environment variable not set"; \
+		exit 1; \
+	fi; \
+	BOB_INSTALL_DIR="$${HOME}/.bob"; \
+	BOB_PATH="$${BOB_INSTALL_DIR}/bob"; \
+	mkdir -p "$${BOB_INSTALL_DIR}"; \
+	echo "🛑 Stopping any running Bob MCP server processes..."; \
+	BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+	if [ -n "$${BOB_PIDS}" ]; then \
+		echo "   Found Bob MCP server processes: $${BOB_PIDS}"; \
+		kill $${BOB_PIDS} 2>/dev/null || true; \
+		for i in 1 2 3 4 5; do \
+			BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+			if [ -z "$${BOB_PIDS}" ]; then break; fi; \
+			sleep 1; \
+		done; \
+		BOB_PIDS=$$(pgrep -f "$${BOB_PATH} --serve" 2>/dev/null || true); \
+		if [ -n "$${BOB_PIDS}" ]; then \
+			echo "⚠️  Warning: Some Bob MCP server processes still running: $${BOB_PIDS}"; \
+			echo "   You may need to manually kill them: kill -9 $${BOB_PIDS}"; \
+		fi; \
+	fi; \
+	if ! cp cmd/bob/bob "$${BOB_PATH}"; then \
+		echo "❌ Error: Failed to copy Bob binary to $${BOB_PATH}"; \
+		echo "   Check disk space and permissions"; \
+		exit 1; \
+	fi; \
+	if ! chmod +x "$${BOB_PATH}"; then \
+		echo "❌ Error: Failed to make Bob executable"; \
+		exit 1; \
+	fi; \
+	echo "✅ Installed Bob to $${BOB_PATH}"; \
+	echo ""; \
+	echo "📦 Installing filesystem MCP server..."; \
+	if ! go install github.com/mark3labs/mcp-filesystem-server@latest 2>&1; then \
+		echo "   ⚠️  Failed to install filesystem server"; \
+		echo "   Make sure Go is installed and $$GOPATH/bin is in PATH"; \
+		FILESYSTEM_INSTALLED=0; \
+	else \
+		FILESYSTEM_PATH=$$(command -v mcp-filesystem-server 2>/dev/null); \
+		if [ -n "$${FILESYSTEM_PATH}" ]; then \
+			echo "   ✅ Filesystem server installed: $${FILESYSTEM_PATH}"; \
+			FILESYSTEM_INSTALLED=1; \
+		else \
+			echo "   ⚠️  Filesystem server installed but not in PATH"; \
+			echo "   Add $$HOME/go/bin to your PATH"; \
+			FILESYSTEM_INSTALLED=0; \
+		fi; \
+	fi; \
+	echo ""; \
+	CONFIGURED=0; \
+	echo "📦 Configuring MCP servers..."; \
+	echo ""; \
+	if command -v claude > /dev/null 2>&1 && [ -x "$$(command -v claude)" ]; then \
+		echo "🔧 Registering with Claude..."; \
+		claude mcp remove bob 2>/dev/null || true; \
+		if claude mcp add bob -- "$${BOB_PATH}" --serve 2>&1; then \
+			echo "   ✅ Bob registered with Claude"; \
+			CONFIGURED=1; \
+		else \
+			EXIT_CODE=$$?; \
+			echo "   ❌ Failed to register Bob with Claude (exit code: $${EXIT_CODE})"; \
+			echo "   Try manually: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			claude mcp remove filesystem 2>/dev/null || true; \
+			if claude mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
+				echo "   ✅ Filesystem server registered with Claude"; \
+				CONFIGURED=1; \
+			else \
+				EXIT_CODE=$$?; \
+				echo "   ❌ Failed to register filesystem with Claude (exit code: $${EXIT_CODE})"; \
+				echo "   Try manually: claude mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+			fi; \
+		fi; \
+	else \
+		echo "   ⚠️  Claude CLI not found - skipping Claude registration"; \
+	fi; \
+	echo ""; \
+	if command -v codex > /dev/null 2>&1 && [ -x "$$(command -v codex)" ]; then \
+		echo "🔧 Registering with Codex..."; \
+		codex mcp remove bob 2>/dev/null || true; \
+		if codex mcp add bob -- "$${BOB_PATH}" --serve 2>&1; then \
+			echo "   ✅ Bob registered with Codex"; \
+			CONFIGURED=1; \
+		else \
+			EXIT_CODE=$$?; \
+			echo "   ❌ Failed to register Bob with Codex (exit code: $${EXIT_CODE})"; \
+			echo "   Try manually: codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		fi; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			codex mcp remove filesystem 2>/dev/null || true; \
+			if codex mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
+				echo "   ✅ Filesystem server registered with Codex"; \
+				CONFIGURED=1; \
+			else \
+				EXIT_CODE=$$?; \
+				echo "   ❌ Failed to register filesystem with Codex (exit code: $${EXIT_CODE})"; \
+				echo "   Try manually: codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+			fi; \
+		fi; \
+	else \
+		echo "   ⚠️  Codex CLI not found - skipping Codex registration"; \
+	fi; \
+	echo ""; \
+	echo "📦 Installing additional MCP servers..."; \
+	bash scripts/install-mcp-servers.sh || true; \
+	echo ""; \
+	if [ $${CONFIGURED} -eq 1 ]; then \
+		echo "✅ Full Bob installation complete"; \
+		echo ""; \
+		echo "Installed components:"; \
+		echo "  ✓ Bob MCP server (~/.bob/bob)"; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			echo "  ✓ Filesystem MCP server"; \
+		fi; \
+		echo "  ✓ Workflow skills (/work, /code-review, /performance, /explore)"; \
+		echo "  ✓ Go LSP plugin (gopls)"; \
+		echo "  ✓ Additional MCP servers (if available)"; \
+		echo ""; \
+		echo "🔄 Restart Claude CLI to activate all features"; \
+	else \
+		echo "⚠️  No MCP clients configured. Install Claude or Codex CLI and run 'make install-mcp-full' again."; \
+		echo ""; \
+		echo "Manual configuration:"; \
+		echo "  Claude Bob: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		echo "  Codex Bob:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
+		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
+			echo "  Claude Filesystem: claude mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+			echo "  Codex Filesystem:  codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+		fi; \
+	fi
+
+# Install workflow subagents
+install-agents:
+	@echo "🤖 Installing workflow subagents..."
+	@AGENTS_DIR="$$HOME/.claude/agents"; \
+	mkdir -p "$$AGENTS_DIR/workflow"; \
+	for agent in planner coder tester reviewer performance-analyzer; do \
+		echo "   Installing workflow-$$agent agent..."; \
+		cp "agents/workflow/$$agent.md" "$$AGENTS_DIR/workflow/$$agent.md"; \
+	done
+	@echo "✅ Subagents installed to ~/.claude/agents/workflow/"
+	@echo ""
+	@echo "Available subagents:"
+	@echo "  workflow-planner           - Implementation planning"
+	@echo "  workflow-coder             - Code implementation (TDD)"
+	@echo "  workflow-tester            - Test execution and quality checks"
+	@echo "  workflow-reviewer          - Comprehensive code review"
+	@echo "  workflow-performance-analyzer - Performance analysis"

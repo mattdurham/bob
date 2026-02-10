@@ -132,3 +132,176 @@ Binary will be at: `cmd/bob/bob`
 ---
 
 *🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents*
+
+## Using Bob Workflow Skills
+
+Bob now provides workflows through **Claude skills** - user-invocable commands that orchestrate complete development processes.
+
+### Starting a Workflow
+
+Simply invoke the skill with a slash command:
+
+```
+/work "Add user authentication feature"
+```
+
+The skill will:
+1. Initialize workflow state via Bob MCP tools
+2. Guide you through each workflow phase
+3. Spawn Task tool subagents for actual work
+4. Persist state across Claude sessions
+5. Enforce flow control rules (loop-back when needed)
+
+### Available Workflow Skills
+
+- **`/work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+- **`/code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
+- **`/performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+- **`/explore`** - Codebase exploration (read-only, no modifications)
+
+See README.md for detailed workflow descriptions.
+
+### How Skills Work
+
+**Skills are orchestration layers:**
+
+```
+Skill (/work)
+  ↓
+Spawns subagents:
+  - Explore agent (research patterns)
+  - planner agent (create plan)
+  - coder agents (implement)
+  - tester agent (run tests)
+  - reviewer agent (code review)
+  ↓
+Uses Bob MCP tools:
+  - bob.workflow_register()
+  - bob.task_create()
+  - bob.workflow_report_progress()
+  - bob.workflow_get_guidance()
+  ↓
+Result: Complete, high-quality implementation
+```
+
+**Skills don't do the work themselves** - they coordinate specialized Task tool agents.
+
+### State Persistence
+
+Skills use Bob MCP tools for state management:
+
+```typescript
+// Initialize workflow
+bob.workflow_register({
+  workflow: "work",
+  worktreePath: "/path/to/repo",
+  featureName: "add-auth",
+  taskDescription: "Add JWT authentication"
+})
+
+// Track progress
+bob.workflow_report_progress({
+  worktreePath: "/path/to/worktree",
+  currentStep: "PLAN",
+  metadata: {"planComplete": true}
+})
+
+// Create tracking task
+bob.task_create({
+  repoPath: "/path/to/repo",
+  title: "Add authentication",
+  description: "Implement JWT auth system"
+})
+```
+
+All state persists in `~/.bob/state/` and survives Claude CLI restarts.
+
+### Flow Control
+
+Skills enforce loop-back rules:
+
+- **REVIEW → PLAN**: Major architectural issues found
+- **REVIEW → EXECUTE**: Minor implementation fixes needed
+- **TEST → EXECUTE**: Test failures require code changes
+- **MONITOR → REVIEW**: CI failures (ALWAYS review before fixing!)
+
+The skill ensures you never skip the review phase when looping from MONITOR.
+
+### Subagent Patterns
+
+Skills spawn Task tool agents for actual work:
+
+```
+// Research phase
+Task(subagent_type: "Explore", 
+     description: "Research auth patterns",
+     prompt: "Find existing authentication implementations...")
+
+// Planning phase
+Task(subagent_type: "planner",
+     description: "Create implementation plan",
+     prompt: "Based on research, create detailed plan...")
+
+// Implementation phase
+Task(subagent_type: "coder",
+     description: "Implement JWT auth",
+     prompt: "Follow plan in bots/plan.md and implement...")
+
+// Testing phase
+Task(subagent_type: "tester",
+     description: "Run all tests",
+     prompt: "Run test suite: go test ./...")
+
+// Review phase
+Task(subagent_type: "reviewer",
+     description: "Code review",
+     prompt: "Review changes against plan, check for issues...")
+```
+
+### Migration from Old Workflow System
+
+**Old way (MCP-based):**
+```typescript
+bob.workflow_register()  // Register
+bob.workflow_get_guidance()  // Get next prompt
+// Follow prompt instructions manually
+bob.workflow_report_progress()  // Report done
+// Repeat for each phase
+```
+
+**New way (Skill-based):**
+```
+/work "feature description"
+// Skill orchestrates everything automatically
+// Just respond to questions and verify work
+```
+
+Both systems still work, but **skills are recommended** for new workflows:
+- Easier to use (one command vs many tool calls)
+- Self-contained (all logic in skill, not scattered)
+- Better flow control (enforces loop-back rules)
+- Clear documentation (workflow diagram in skill)
+
+### Bob MCP Tools Reference
+
+Skills use these Bob tools for state management:
+
+**Workflow Management:**
+- `mcp__bob__workflow_register` - Initialize workflow, create worktree
+- `mcp__bob__workflow_report_progress` - Transition between phases
+- `mcp__bob__workflow_get_guidance` - Retrieve workflow state
+- `mcp__bob__workflow_get_status` - Check current phase
+- `mcp__bob__workflow_rejoin` - Rejoin workflow at specific phase
+
+**Task Management:**
+- `mcp__bob__task_create` - Create tracking task
+- `mcp__bob__task_get` - Get task by ID
+- `mcp__bob__task_list` - List all tasks
+- `mcp__bob__task_update` - Update task status
+- `mcp__bob__task_get_ready` - Get ready-to-work tasks
+
+**Filesystem Operations:**
+- Use the `filesystem` MCP server (separate from Bob)
+- Allowed directories: `$HOME/source`, `/tmp`
+
+---

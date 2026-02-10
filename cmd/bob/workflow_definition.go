@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,6 +12,9 @@ import (
 
 //go:embed workflows/*.json
 var workflowsFS embed.FS
+
+// ErrFinalStep is returned when trying to advance past the final step of a workflow
+var ErrFinalStep = errors.New("already at final step")
 
 // WorkflowDefinition defines a complete workflow with steps and loop rules
 type WorkflowDefinition struct {
@@ -119,7 +123,7 @@ func GetNextStep(workflow string, currentStep string, basePath ...string) (strin
 			if i+1 < len(def.Steps) {
 				return def.Steps[i+1].Name, nil
 			}
-			return "", fmt.Errorf("already at final step")
+			return "", ErrFinalStep
 		}
 	}
 

@@ -906,9 +906,15 @@ func (tm *TaskManager) AddDependency(repoPath, taskID, blocksTaskID string) (map
 		return nil, fmt.Errorf("failed to load tasks for cycle detection: %w", err)
 	}
 
+	// Build adjacency map for O(1) lookups during DFS
+	taskMap := make(map[string]*Task, len(allTasks))
+	for i := range allTasks {
+		taskMap[allTasks[i].ID] = &allTasks[i]
+	}
+
 	// Check if blocksTaskID already (directly or indirectly) depends on taskID
 	visited := make(map[string]bool)
-	if tm.hasCircularDependency(allTasks, blocksTaskID, taskID, visited) {
+	if tm.hasCircularDependency(taskMap, blocksTaskID, taskID, visited) {
 		return nil, fmt.Errorf("circular dependency detected: %s -> %s would create a cycle", taskID, blocksTaskID)
 	}
 
@@ -1142,7 +1148,8 @@ func contains(slice []string, item string) bool {
 
 // hasCircularDependency checks if adding a dependency from->to would create a cycle
 // It checks if 'to' already (directly or indirectly) blocks 'from'
-func (tm *TaskManager) hasCircularDependency(tasks []Task, from, to string, visited map[string]bool) bool {
+// Uses a task map for O(1) lookups, making DFS traversal O(V+E) instead of O(N²)
+func (tm *TaskManager) hasCircularDependency(taskMap map[string]*Task, from, to string, visited map[string]bool) bool {
 	// If we've reached our target, we found a cycle
 	if from == to {
 		return true
@@ -1154,13 +1161,11 @@ func (tm *TaskManager) hasCircularDependency(tasks []Task, from, to string, visi
 	}
 	visited[from] = true
 
-	// Find the 'from' task and check all tasks it blocks
-	for _, task := range tasks {
-		if task.ID == from {
-			for _, blockedID := range task.Blocks {
-				if tm.hasCircularDependency(tasks, blockedID, to, visited) {
-					return true
-				}
+	// Look up the 'from' task in O(1) time and check all tasks it blocks
+	if task, ok := taskMap[from]; ok {
+		for _, blockedID := range task.Blocks {
+			if tm.hasCircularDependency(taskMap, blockedID, to, visited) {
+				return true
 			}
 		}
 	}

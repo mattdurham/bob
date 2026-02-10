@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -133,8 +134,8 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 func (sm *StateManager) tryAdvanceStep(workflow, currentStep string) (string, bool) {
 	nextStep, err := GetNextStep(workflow, currentStep)
 	if err != nil {
-		// Check if this is the final step
-		if strings.Contains(err.Error(), "final step") {
+		// Check if this is the final step using typed error
+		if errors.Is(err, ErrFinalStep) {
 			return currentStep, true // Workflow completed
 		}
 		// Other error - log and stay at current step
@@ -167,8 +168,9 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 		if err != nil {
 			// Distinguish file-not-found from other errors
 			if os.IsNotExist(err) {
-				// File missing = no issues found, advance forward
-				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+				// Enforce contract: findings file must exist for checkpoint phases
+				// Agents must ALWAYS write findings before reporting progress
+				return nil, fmt.Errorf("findings file not found for checkpoint step %q; agents must ALWAYS write findings before reporting progress. Expected file: %s", currentStep, findingsFile)
 			} else {
 				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
 				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)

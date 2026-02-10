@@ -153,8 +153,8 @@ Answer:`, findings)
 func (c *ClaudeClient) fallbackClassification(findings string) bool {
 	findings = strings.TrimSpace(findings)
 
-	// Empty or very short = no issues
-	if len(findings) < 10 {
+	// Empty or very short = no issues (use same threshold as ClassifyFindings)
+	if len(findings) < minFindingsLength {
 		return false
 	}
 

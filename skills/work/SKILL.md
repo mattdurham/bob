@@ -122,7 +122,33 @@ Write consolidated findings to `bots/brainstorm.md`:
 - Recommended approach with rationale
 - Risks and open questions
 
-**Output:** `bots/brainstorm.md`
+**Step 4: Create isolated worktree**
+
+Create a git worktree for isolated development:
+
+```bash
+# Get repo name and create feature name
+REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+FEATURE_NAME="<descriptive-feature-name>"  # e.g., "add-auth", "fix-parser-bug"
+
+# Create worktree directory structure
+WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
+mkdir -p "../${REPO_NAME}-worktrees"
+
+# Create new branch and worktree
+git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+
+# Change to worktree directory
+cd "$WORKTREE_DIR"
+
+# Verify we're in the worktree
+pwd
+git branch --show-current
+```
+
+**Output:**
+- `bots/brainstorm.md`
+- Isolated worktree in `../<repo>-worktrees/<feature>/`
 
 ---
 

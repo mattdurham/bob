@@ -39,9 +39,23 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 
 ## Phase 1: INIT
 
-Create bots/ directory:
+Create bots/ directory and isolated worktree:
 ```bash
 mkdir -p bots
+
+# Create worktree for isolated code review
+REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+FEATURE_NAME="<review-name>"  # e.g., "review-security-fix", "review-pr-123"
+
+# Create worktree directory structure
+WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
+mkdir -p "../${REPO_NAME}-worktrees"
+
+# Create new branch and worktree
+git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+
+# Change to worktree directory
+cd "$WORKTREE_DIR"
 ```
 
 ---

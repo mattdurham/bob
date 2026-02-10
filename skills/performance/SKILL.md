@@ -38,9 +38,23 @@ Understand performance goals:
 - Current vs target metrics?
 - Acceptable trade-offs?
 
-Create bots/:
+Create bots/ and isolated worktree:
 ```bash
 mkdir -p bots
+
+# Create worktree for isolated performance optimization
+REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+FEATURE_NAME="<perf-task>"  # e.g., "optimize-query", "reduce-memory"
+
+# Create worktree directory structure
+WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
+mkdir -p "../${REPO_NAME}-worktrees"
+
+# Create new branch and worktree
+git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+
+# Change to worktree directory
+cd "$WORKTREE_DIR"
 ```
 
 Write targets to `bots/perf-targets.md`

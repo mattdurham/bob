@@ -1,11 +1,19 @@
 {
   "keyword": "performance",
   "name": "Performance Optimization Cycle",
-  "description": "Benchmark, analyze, optimize, and verify: INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → (loop if needed) → COMMIT → MONITOR → COMPLETE",
+  "description": "Benchmark, analyze, optimize, and verify: INIT → PROMPT → WORKTREE → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → (loop if needed) → COMMIT → MONITOR → COMPLETE",
   "steps": [
     {
       "name": "INIT",
-      "description": "Create worktree for performance work"
+      "description": "Initial state - gather performance goals"
+    },
+    {
+      "name": "PROMPT",
+      "description": "Ask user what they want to optimize"
+    },
+    {
+      "name": "WORKTREE",
+      "description": "Worktree created and ready for performance work"
     },
     {
       "name": "BENCHMARK",

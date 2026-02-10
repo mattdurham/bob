@@ -1,11 +1,19 @@
 {
   "keyword": "code-review",
   "name": "Code Review & Fix Cycle",
-  "description": "Review code, fix issues, test, and iterate until clean: INIT → REVIEW → FIX → TEST → REVIEW (loop) → COMMIT → MONITOR → COMPLETE",
+  "description": "Review code, fix issues, test, and iterate until clean: INIT → PROMPT → WORKTREE → REVIEW → FIX → TEST → REVIEW (loop) → COMMIT → MONITOR → COMPLETE",
   "steps": [
     {
       "name": "INIT",
-      "description": "Create worktree for code review"
+      "description": "Initial state - gather review scope"
+    },
+    {
+      "name": "PROMPT",
+      "description": "Ask user what they want to review"
+    },
+    {
+      "name": "WORKTREE",
+      "description": "Worktree created and ready for review"
     },
     {
       "name": "REVIEW",

@@ -1,12 +1,16 @@
 {
   "keyword": "work",
   "name": "Work Development Workflow",
-  "description": "Full development workflow: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE",
+  "description": "Full development workflow: INIT → PROMPT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE",
   "steps": [
     {
       "name": "INIT",
-      "description": "Initial state - need to create worktree",
+      "description": "Initial state - need to gather requirements",
       "requirements": ["git_repo"]
+    },
+    {
+      "name": "PROMPT",
+      "description": "Ask user what they want to do"
     },
     {
       "name": "WORKTREE",

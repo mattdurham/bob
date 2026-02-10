@@ -122,31 +122,31 @@ Bob includes four production-ready workflows:
 ### 1. work
 Full development workflow with planning and iteration:
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-          ↑                                              ↓           ↓
-          └──────────────────[issues found]─────────────┴───────────┘
+INIT → PROMPT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+                   ↑                                                 ↓           ↓
+                   └──────────────────[issues found]────────────────┴───────────┘
 ```
 
 ### 2. code-review
 Review, fix, test, and iterate until clean:
 ```
-INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
-        ↑        ↓     ↓
-        └────────┴─────┘
+INIT → PROMPT → WORKTREE → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
+                             ↑        ↓     ↓
+                             └────────┴─────┘
 ```
 
 ### 3. performance
 Benchmark, analyze, optimize, and verify:
 ```
-INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR → COMPLETE
-                      ↑          ↓         ↓
-                      └──────────┴─────────┘
+INIT → PROMPT → WORKTREE → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR → COMPLETE
+                               ↑          ↓         ↓
+                               └──────────┴─────────┘
 ```
 
 ### 4. explore
 Read-only codebase exploration:
 ```
-INIT → WORKTREE → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+INIT → PROMPT → WORKTREE → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 ```
 
 See [AGENTS.md](AGENTS.md) for detailed workflow documentation.

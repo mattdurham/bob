@@ -6,7 +6,7 @@
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (work, code-review, performance, explore)
+- **Workflow Skills** - User-invocable workflows (bob:work, bob:code-review, bob:performance, bob:explore)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `bots/` directory
 - **Git Worktrees** - Isolated development environments
@@ -15,11 +15,10 @@ Bob gives Claude access to:
 
 Invoke these workflows with slash commands:
 
-1. **`/work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-2. **`/code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
-3. **`/performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
-4. **`/explore`** - Read-only codebase exploration
-5. **`/brainstorming`** - Creative ideation and problem exploration
+1. **`/bob:work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+2. **`/bob:code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
+3. **`/bob:performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+4. **`/bob:explore`** - Read-only codebase exploration
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -28,7 +27,7 @@ See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 **Skills are orchestration layers:**
 
 ```
-Skill (/work)
+Skill (/bob:work)
   ↓
 Creates worktree & bots/ directory
   ↓
@@ -66,7 +65,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/work`, `/code-review`, etc.
+After installation, skills are available via slash commands: `/bob:work`, `/bob:code-review`, etc.
 
 **Individual component installation:**
 ```bash
@@ -99,7 +98,7 @@ That's it! No Bob-specific MCP server needed—everything runs through skills an
 Simply invoke the skill:
 
 ```
-/work "Add user authentication feature"
+/bob:work "Add user authentication feature"
 ```
 
 The skill will:
@@ -199,7 +198,7 @@ Workflows enforce strict flow control:
 ## Example Session
 
 ```
-You: /work "Add rate limiting to API"
+You: /bob:work "Add rate limiting to API"
 
 Claude: I'll orchestrate the work workflow...
 
@@ -311,7 +310,7 @@ If you previously used Bob as an MCP server:
 To migrate:
 1. Remove Bob MCP server from config: `claude mcp remove bob`
 2. Install Bob skills: `make install-skills`
-3. Use slash commands: `/work`, `/code-review`, etc.
+3. Use slash commands: `/bob:work`, `/bob:code-review`, etc.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-name: work
+name: bob:work
 description: Full development workflow orchestrator - INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR
 user-invocable: true
 category: workflow

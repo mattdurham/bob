@@ -1,5 +1,5 @@
 ---
-name: explore
+name: bob:explore
 description: Read-only codebase exploration - DISCOVER → ANALYZE → DOCUMENT
 user-invocable: true
 category: workflow

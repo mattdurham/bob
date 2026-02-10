@@ -1,5 +1,5 @@
 ---
-name: performance
+name: bob:performance
 description: Performance optimization workflow - BENCHMARK → ANALYZE → OPTIMIZE → VERIFY
 user-invocable: true
 category: workflow

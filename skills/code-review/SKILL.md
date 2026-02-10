@@ -13,8 +13,8 @@ You orchestrate a **code review workflow** for reviewing, fixing issues, and ver
 
 ```
 INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
-          ↑            ↓
-          └────────────┘
+          ↑      ↓                    ↓
+          └──────┴────────────────────┘
          (loop on issues)
 ```
 
@@ -22,7 +22,7 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 
 - **REVIEW → FIX**: Issues found
 - **TEST → REVIEW**: Re-verify after fixes
-- **MONITOR → PLAN**: CI failures (create plan for fixes)
+- **MONITOR → REVIEW**: CI failures or PR feedback (review and fix again)
 
 ---
 

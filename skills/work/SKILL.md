@@ -9,24 +9,42 @@ category: workflow
 
 You are orchestrating a **full development workflow**. You coordinate specialized subagents via the Task tool to guide through complete feature development from idea to merged PR.
 
+
 ## Workflow Diagram
 
 ```
 INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-          ↑                                              ↓
-          └──────────────────────────────────────────────┘
-                        (loop on issues)
+          ↑                                      ↓               ↓
+          └──────────────────────────────────────┴───────────────┘
+                        (loop back on issues)
 ```
 
 ## Flow Control Rules
 
 **Loop-back paths:**
-- **REVIEW → PLAN**: Major issues requiring replanning
-- **REVIEW → EXECUTE**: Minor implementation fixes
-- **TEST → EXECUTE**: Test failures
-- **MONITOR → PLAN**: CI failures or PR feedback (always replan when issues found)
+- **REVIEW → BRAINSTORM**: Issues found during review require re-brainstorming
+- **MONITOR → BRAINSTORM**: CI failures or PR feedback require re-brainstorming
+- **TEST → EXECUTE**: Test failures require code fixes
 
 **Never skip REVIEW** - Always review before commit, even if tests pass.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ---
 
@@ -198,8 +216,8 @@ Review covers:
 
 **Decision based on bots/review.md:**
 - No issues → COMMIT
-- Minor issues → EXECUTE (fix and return to REVIEW)
-- Major issues → PLAN (need to replan)
+- Issues found → BRAINSTORM (re-brainstorm with review feedback)
+
 
 ---
 
@@ -255,15 +273,15 @@ Review covers:
    - Conversation threads
 
 3. **If ANY issues/failures:**
-   - **LOOP TO PLAN** (not REVIEW, not EXECUTE)
+   - **LOOP TO BRAINSTORM** (not REVIEW, not EXECUTE)
    - Review the issues
-   - Update plan to address them
+   - Re-brainstorm to address them
    - Then proceed through EXECUTE → TEST → REVIEW again
 
 4. **If all checks pass and approved:**
    - Move to COMPLETE
 
-**Critical:** MONITOR always loops to PLAN when issues found, ensuring proper replanning before fixes.
+**Critical:** MONITOR always loops to BRAINSTORM when issues found, ensuring proper re-brainstorming before fixes.
 
 ---
 

@@ -1,15 +1,8 @@
 ---
 name: workflow-planner
-type: workflow
-color: "#4A90E2"
 description: Specialized planning agent for creating detailed implementation plans
-capabilities:
-  - implementation_planning
-  - tdd_design
-  - edge_case_analysis
-  - risk_assessment
-  - complexity_estimation
-priority: high
+tools: Read, Glob, Grep
+model: sonnet
 ---
 
 # Workflow Planner Agent

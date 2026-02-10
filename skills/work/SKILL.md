@@ -49,25 +49,7 @@ Task(subagent_type: "any-agent",
 
 **Why?** Background execution allows the workflow to continue and enables true parallelism when spawning multiple agents.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
----
+--=
 
 ## Phase 1: INIT
 
@@ -75,11 +57,7 @@ Task(subagent_type: "any-agent",
 
 **Actions:**
 1. Greet user and understand what they want to build
-2. Create `bots/` directory for workflow artifacts:
-   ```bash
-   mkdir -p bots
-   ```
-3. Move to BRAINSTORM phase
+2. Move to BRAINSTORM phase
 
 ---
 
@@ -196,7 +174,7 @@ Plan includes:
 
 ## Phase 4: EXECUTE
 
-**Goal:** Implement the planned changes
+**Goal:** Implement the planned changes.  
 
 **Actions:**
 

@@ -49,6 +49,37 @@ Task(subagent_type: "any-agent",
 
 **Why?** Background execution allows the workflow to continue and enables true parallelism when spawning multiple agents.
 
+---
+
+## Autonomous Progression Rules
+
+**CRITICAL: Progress automatically between phases without user confirmation**
+
+- ✅ **Automatically continue** from EXECUTE → TEST → REVIEW when agents complete successfully
+- ✅ **Only prompt user** when there's a problem, decision needed, or at critical gates
+- ❌ **Never ask "Should I continue to next phase?"** when the path is clear
+- ❌ **Never ask "Do you want me to proceed?"** for standard workflow progression
+
+**When to ask user:**
+- ❌ NOT between EXECUTE → TEST (automatic)
+- ❌ NOT between TEST → REVIEW (automatic if tests pass)
+- ✅ YES if agent fails or returns errors
+- ✅ YES at REVIEW → BRAINSTORM/EXECUTE decision (show findings, explain routing)
+- ✅ YES at COMPLETE phase (confirm merge)
+- ✅ YES if loop-back occurs (explain why and what will be fixed)
+
+**Standard flow without prompts:**
+```
+EXECUTE (agent completes) → TEST (tests pass) → REVIEW (all reviewers complete) → [decision]
+```
+
+**Flow with problems (prompts required):**
+```
+EXECUTE (agent fails) → [PROMPT: explain error, ask if should retry/modify]
+TEST (tests fail) → [PROMPT: show failures, confirm loop to EXECUTE]
+REVIEW (issues found) → [PROMPT: show findings, explain routing to BRAINSTORM/EXECUTE]
+```
+
 --=
 
 ## Phase 1: INIT
@@ -174,7 +205,7 @@ Plan includes:
 
 ## Phase 4: EXECUTE
 
-**Goal:** Implement the planned changes.  
+**Goal:** Implement the planned changes.
 
 **Actions:**
 
@@ -194,6 +225,9 @@ Task(subagent_type: "workflow-coder",
 **Input:** `bots/plan.md`
 **Output:** Code implementation
 
+**After completion:**
+- ✅ If agent succeeds → **Automatically proceed to TEST** (no prompt)
+- ❌ If agent fails → Prompt user with error details
 
 **If looping from TEST/REVIEW:** Fix specific issues identified
 
@@ -224,6 +258,10 @@ Checks:
 - Code formatted
 - Linter clean
 - Complexity < 40
+
+**After completion:**
+- ✅ If tests pass → **Automatically proceed to REVIEW** (no prompt)
+- ❌ If tests fail → Prompt user with failures, confirm loop to EXECUTE
 
 **If tests fail:** Loop to EXECUTE to fix issues
 
@@ -466,6 +504,12 @@ else:
 3. **No issues → COMMIT**
    - All checks passed
    - Code is ready
+
+**After routing decision:**
+- ✅ **Always show user the findings summary** (even if no issues)
+- ✅ **Explain the routing decision** (why BRAINSTORM/EXECUTE/COMMIT)
+- ✅ If no issues found → **Automatically proceed to COMMIT** (no confirmation needed)
+- ✅ If issues found → **Explain what will be fixed** and automatically loop (no "should I continue?" prompt)
 
 **Error Handling:**
 

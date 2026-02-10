@@ -178,6 +178,8 @@ Plan includes:
 
 **Actions:**
 
+For parallel work, spawn multiple coder agents for independent files.
+
 Spawn workflow-coder agent(s):
 ```
 Task(subagent_type: "workflow-coder",
@@ -192,7 +194,6 @@ Task(subagent_type: "workflow-coder",
 **Input:** `bots/plan.md`
 **Output:** Code implementation
 
-For parallel work, spawn multiple coder agents for independent files.
 
 **If looping from TEST/REVIEW:** Fix specific issues identified
 

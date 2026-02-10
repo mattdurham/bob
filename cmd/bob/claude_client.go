@@ -81,13 +81,35 @@ Answer with ONLY one word: "yes" if the statement is FALSE (issues exist), or "n
 
 Answer:`, findings)
 	} else {
-		// Regular code review findings
-		prompt = fmt.Sprintf(`You are a binary classifier. Analyze the following code review findings and determine if there are any actual issues that need to be fixed.
+		// Regular code review findings - STRICT validation
+		prompt = fmt.Sprintf(`You are a STRICT binary classifier for code review validation.
+
+Analyze the following code review and determine if it represents a LEGITIMATE "no issues" review or if there are issues/problems.
 
 Code Review Findings:
 %s
 
-Answer with ONLY one word: "yes" if there are issues that need fixing, or "no" if there are no issues (empty findings, or just comments with no actionable items).
+STRICT RULES:
+1. Answer "yes" (has issues) if the review contains ANY of:
+   - Actual issues, bugs, or problems listed
+   - TODO items or action items
+   - Severity markers (HIGH, MEDIUM, LOW, CRITICAL)
+   - Any numbered or bulleted list of problems
+   - Recommendations to fix things
+
+2. Answer "yes" (has issues) if the review is LAZY or INSUFFICIENT:
+   - Too short (< 20 characters like "OK", "LGTM", "Good", "Fine")
+   - No meaningful content or analysis
+   - Just a single word or phrase
+   - Lacks proper review structure
+
+3. Answer "no" (no issues) ONLY if:
+   - Review explicitly states "no issues found" or "0 issues"
+   - Review has meaningful content explaining what was checked
+   - Review shows actual analysis was performed
+   - Summary clearly indicates clean/ready status
+
+Answer with ONLY one word: "yes" if there are issues OR if review is insufficient, "no" ONLY if legitimately clean.
 
 Answer:`, findings)
 	}

@@ -177,30 +177,36 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 			// File exists but empty = no issues found, advance forward
 			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 		} else {
-			// File exists with content - check for ANY issues (strict: 0 issues acceptable)
-			// Parse markdown to find any list items (issues)
-			findings := sm.parseMarkdownFindings(string(findingsContent))
-			
-			if len(findings) > 0 {
-				// ANY issues found - loop back to fix them
-				workflowDef, err := GetWorkflowDefinition(state.Workflow)
-				if err == nil {
-					// Find current step's canLoopTo
-					for _, step := range workflowDef.Steps {
-						if step.Name == currentStep && len(step.CanLoopTo) > 0 {
-							// Loop to first available target
-							nextStep = step.CanLoopTo[0]
-							break
+			// File exists with content - classify it with Claude API
+			claudeClient := NewClaudeClient()
+			hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
+
+			if err == nil {
+				if hasIssues {
+					// Issues found - loop back to fix them
+					workflowDef, err := GetWorkflowDefinition(state.Workflow)
+					if err == nil {
+						// Find current step's canLoopTo
+						for _, step := range workflowDef.Steps {
+							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+								// Loop to first available target
+								nextStep = step.CanLoopTo[0]
+								break
+							}
 						}
 					}
+				} else {
+					// No issues - advance forward
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 				}
 			} else {
-				// No issues - advance forward
+				// If classification fails, log error and advance forward (safe default)
+				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
 				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 			}
 		}
-	}
 	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
+}
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
 		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 	}

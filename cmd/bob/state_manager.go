@@ -262,6 +262,12 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 		}
 	}
 
+	// Append dynamic context based on bots/*.md files
+	dynamicContext := sm.generateDynamicContext(worktreePath, state.Workflow, state.CurrentStep)
+	if dynamicContext != "" {
+		prompt = fmt.Sprintf("%s\n\n---\n\n## Current Context\n\n%s", prompt, dynamicContext)
+	}
+
 	// Get loop targets
 	def, _ := GetWorkflowDefinition(state.Workflow)
 	var canLoopBack []string
@@ -697,4 +703,167 @@ func (sm *StateManager) createWorktree(repoPath, featureName string) (string, st
 	}
 
 	return worktreePath, branchName, nil
+}
+
+// generateDynamicContext reads bots/*.md files and generates contextual guidance
+// based on current workflow state and step
+func (sm *StateManager) generateDynamicContext(worktreePath, workflow, currentStep string) string {
+	// Check if we can loop back from this step (meaning we might have looped TO this step)
+	// Read previous step's file if we just looped back
+	var content string
+	var err error
+
+	// Try to detect loop back by checking if previous step files exist with issues
+	// For PLAN step, check if review.md exists (common loop: REVIEW -> PLAN)
+	// For EXECUTE step, check if test.md exists (common loop: TEST -> EXECUTE)
+	previousStepFiles := map[string][]string{
+		"PLAN":    {"review", "test"}, // Could have looped from REVIEW or TEST
+		"EXECUTE": {"test", "review"}, // Could have looped from TEST or REVIEW
+		"REVIEW":  {"monitor"},        // Could have looped from MONITOR
+	}
+
+	// First try previous step files
+	if prevSteps, ok := previousStepFiles[currentStep]; ok {
+		for _, prevStep := range prevSteps {
+			content, err = sm.readBotsFile(worktreePath, prevStep)
+			if err == nil && len(content) >= minFindingsLength {
+				// Found previous step's file with content - use it
+				break
+			}
+		}
+	}
+
+	// If no previous step content, try current step
+	if content == "" || err != nil {
+		content, err = sm.readBotsFile(worktreePath, currentStep)
+		if err != nil || len(content) < minFindingsLength {
+			return "" // No meaningful content
+		}
+	}
+
+	// Parse findings from markdown
+	findings := sm.parseMarkdownFindings(content)
+	if len(findings) == 0 {
+		return ""
+	}
+
+	// Format context based on step
+	return sm.formatContextForStep(currentStep, findings)
+}
+
+// readBotsFile reads a markdown file from the bots/ directory
+func (sm *StateManager) readBotsFile(worktreePath, step string) (string, error) {
+	filename := sm.stepToMarkdownFilename(step)
+	filePath := filepath.Join(worktreePath, "bots", filename)
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
+
+// parseMarkdownFindings extracts key findings from markdown content
+// Looks for bullet points, numbered lists, and extracts them as findings
+func (sm *StateManager) parseMarkdownFindings(content string) []string {
+	var findings []string
+	lines := strings.Split(content, "\n")
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Skip empty lines
+		if trimmed == "" {
+			continue
+		}
+
+		// Extract bullet points (-, *, +)
+		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "+ ") {
+			finding := strings.TrimSpace(trimmed[2:])
+			if finding != "" {
+				findings = append(findings, finding)
+			}
+			continue
+		}
+
+		// Extract numbered lists (1., 2., etc.)
+		for i := 1; i <= 99; i++ {
+			prefix := fmt.Sprintf("%d. ", i)
+			if strings.HasPrefix(trimmed, prefix) {
+				finding := strings.TrimSpace(trimmed[len(prefix):])
+				if finding != "" {
+					findings = append(findings, finding)
+				}
+				break
+			}
+		}
+
+		// Limit to first 10 findings
+		if len(findings) >= 10 {
+			break
+		}
+	}
+
+	return findings
+}
+
+// formatContextForStep formats findings into a context message based on the step
+func (sm *StateManager) formatContextForStep(step string, findings []string) string {
+	if len(findings) == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+
+	// Check if this is a checkpoint step that might have looped back
+	checkpoint := sm.isCheckpointPhase("work", step)
+
+	if checkpoint {
+		sb.WriteString("⚠️ Issues found that need attention\n\n")
+	}
+
+	// Format findings based on step type
+	switch step {
+	case "PLAN":
+		sb.WriteString("Issues to address in your plan:\n")
+	case "EXECUTE":
+		sb.WriteString("Issues to fix in your implementation:\n")
+	case "REVIEW":
+		sb.WriteString("Issues found during review:\n")
+	case "TEST":
+		sb.WriteString("Test failures to address:\n")
+	default:
+		sb.WriteString("Issues found:\n")
+	}
+
+	// List findings
+	for i, finding := range findings {
+		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, finding))
+	}
+
+	// Add task instruction based on step
+	sb.WriteString("\nYour task:\n")
+	switch step {
+	case "PLAN":
+		sb.WriteString("- Update your plan to address these issues\n")
+		sb.WriteString("- Consider impacts and dependencies\n")
+		sb.WriteString("- Write updated plan to bots/plan.md\n")
+	case "EXECUTE":
+		sb.WriteString("- Fix these issues in your implementation\n")
+		sb.WriteString("- Ensure tests pass after fixes\n")
+		sb.WriteString("- Follow TDD principles\n")
+	case "REVIEW":
+		sb.WriteString("- Review code for these issues\n")
+		sb.WriteString("- Document findings in bots/review.md\n")
+		sb.WriteString("- Suggest specific fixes\n")
+	case "TEST":
+		sb.WriteString("- Fix failing tests\n")
+		sb.WriteString("- Verify all tests pass\n")
+		sb.WriteString("- Check test coverage\n")
+	default:
+		sb.WriteString("- Address these issues before proceeding\n")
+	}
+
+	return sb.String()
 }

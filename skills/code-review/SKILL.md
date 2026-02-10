@@ -48,18 +48,56 @@ mkdir -p bots
 
 ## Phase 2: REVIEW
 
-**Goal:** Comprehensive code review
+**Goal:** Comprehensive code review by 7 specialized agents in parallel
 
-Spawn workflow-reviewer:
+Spawn 7 reviewer agents in parallel (single message, 7 Task calls):
 ```
 Task(subagent_type: "workflow-reviewer",
-     description: "Code review",
+     description: "Code quality review",
      run_in_background: true,
-     prompt: "Review code with 3-pass approach.
-             Write findings to bots/review.md.")
+     prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
+             Write findings to bots/review-code.md with severity levels.")
+
+Task(subagent_type: "security-reviewer",
+     description: "Security vulnerability review",
+     run_in_background: true,
+     prompt: "Scan code for security vulnerabilities (OWASP Top 10, secrets, input validation).
+             Write findings to bots/review-security.md with severity levels.")
+
+Task(subagent_type: "performance-analyzer",
+     description: "Performance bottleneck review",
+     run_in_background: true,
+     prompt: "Analyze code for performance issues (complexity, memory, N+1 patterns).
+             Write findings to bots/review-performance.md with severity levels.")
+
+Task(subagent_type: "docs-reviewer",
+     description: "Documentation accuracy review",
+     run_in_background: true,
+     prompt: "Review documentation for accuracy and completeness.
+             Write findings to bots/review-docs.md with severity levels.")
+
+Task(subagent_type: "architect-reviewer",
+     description: "Architecture and design review",
+     run_in_background: true,
+     prompt: "Evaluate system architecture and design decisions.
+             Write findings to bots/review-architecture.md with severity levels.")
+
+Task(subagent_type: "code-reviewer",
+     description: "Comprehensive code quality review",
+     run_in_background: true,
+     prompt: "Conduct deep code review (logic, security, performance, maintainability).
+             Write findings to bots/review-code-quality.md with severity levels.")
+
+Task(subagent_type: "golang-pro",
+     description: "Go-specific code review",
+     run_in_background: true,
+     prompt: "Review Go code for idiomatic patterns and best practices.
+             Write findings to bots/review-go.md with severity levels.")
 ```
 
-**Output:** `bots/review.md`
+After all 7 agents complete, consolidate findings into `bots/review.md`.
+
+**Output:** `bots/review.md` (consolidated report)
 
 **Decision:**
 - No issues → COMMIT

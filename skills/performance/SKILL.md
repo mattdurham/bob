@@ -118,13 +118,72 @@ Task(subagent_type: "workflow-tester",
 **Output:** `bots/perf-results.md`
 
 **Decision:**
-- Targets met + tests pass → COMMIT
+- Targets met + tests pass → REVIEW
 - Targets not met → ANALYZE (deeper optimization)
 - Tests fail → OPTIMIZE (fix broken code)
 
 ---
 
-## Phase 6: COMMIT
+## Phase 6: REVIEW
+
+**Goal:** Comprehensive code review of optimized code by 7 specialized agents
+
+Spawn 7 reviewer agents in parallel (single message, 7 Task calls):
+```
+Task(subagent_type: "workflow-reviewer",
+     description: "Code quality review",
+     run_in_background: true,
+     prompt: "Review optimized code for logic, bugs, and best practices.
+             Write findings to bots/review-code.md with severity levels.")
+
+Task(subagent_type: "security-reviewer",
+     description: "Security vulnerability review",
+     run_in_background: true,
+     prompt: "Scan for security vulnerabilities introduced by optimizations.
+             Write findings to bots/review-security.md with severity levels.")
+
+Task(subagent_type: "performance-analyzer",
+     description: "Performance bottleneck review",
+     run_in_background: true,
+     prompt: "Verify optimizations didn't introduce new bottlenecks.
+             Write findings to bots/review-performance.md with severity levels.")
+
+Task(subagent_type: "docs-reviewer",
+     description: "Documentation accuracy review",
+     run_in_background: true,
+     prompt: "Ensure performance changes are documented correctly.
+             Write findings to bots/review-docs.md with severity levels.")
+
+Task(subagent_type: "architect-reviewer",
+     description: "Architecture and design review",
+     run_in_background: true,
+     prompt: "Evaluate if optimizations maintain good architecture.
+             Write findings to bots/review-architecture.md with severity levels.")
+
+Task(subagent_type: "code-reviewer",
+     description: "Comprehensive code quality review",
+     run_in_background: true,
+     prompt: "Deep review of optimization quality and maintainability.
+             Write findings to bots/review-code-quality.md with severity levels.")
+
+Task(subagent_type: "golang-pro",
+     description: "Go-specific code review",
+     run_in_background: true,
+     prompt: "Review Go optimizations for idiomatic patterns.
+             Write findings to bots/review-go.md with severity levels.")
+```
+
+After all 7 agents complete, consolidate findings into `bots/review.md`.
+
+**Output:** `bots/review.md` (consolidated report)
+
+**Decision:**
+- No issues → COMMIT
+- Issues found → OPTIMIZE (fix issues before commit)
+
+---
+
+## Phase 7: COMMIT
 
 Create commit with metrics:
 ```bash
@@ -139,7 +198,7 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 
 ---
 
-## Phase 7: MONITOR
+## Phase 8: MONITOR
 
 Monitor CI performance tests.
 
@@ -147,6 +206,6 @@ Monitor CI performance tests.
 
 ---
 
-## Phase 8: COMPLETE
+## Phase 9: COMPLETE
 
 Optimization complete! Performance targets met.

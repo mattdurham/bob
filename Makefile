@@ -247,7 +247,7 @@ install-agents:
 	@echo "🤖 Installing workflow subagents..."
 	@AGENTS_DIR="$$HOME/.claude/agents"; \
 	mkdir -p "$$AGENTS_DIR"; \
-	for agent in planner coder tester reviewer performance-analyzer security-reviewer docs-reviewer; do \
+	for agent in planner coder tester reviewer performance-analyzer security-reviewer docs-reviewer architecture-review code-review go-reviewer; do \
 		echo "   Installing $$agent agent..."; \
 		mkdir -p "$$AGENTS_DIR/$$agent"; cp "agents/$$agent/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
 	done
@@ -257,7 +257,10 @@ install-agents:
 	@echo "  workflow-planner              - Implementation planning"
 	@echo "  workflow-coder                - Code implementation (TDD)"
 	@echo "  workflow-tester               - Test execution and quality checks"
-	@echo "  workflow-reviewer             - Comprehensive code review"
-	@echo "  workflow-performance-analyzer - Performance analysis"
+	@echo "  workflow-reviewer             - Code quality review (basic)"
+	@echo "  performance-analyzer          - Performance analysis"
 	@echo "  security-reviewer             - Security vulnerability detection"
 	@echo "  docs-reviewer                 - Documentation accuracy validation"
+	@echo "  architect-reviewer            - Architecture and design review"
+	@echo "  code-reviewer                 - Comprehensive code quality review"
+	@echo "  golang-pro                    - Go-specific code review"

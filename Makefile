@@ -247,15 +247,17 @@ install-agents:
 	@echo "🤖 Installing workflow subagents..."
 	@AGENTS_DIR="$$HOME/.claude/agents"; \
 	mkdir -p "$$AGENTS_DIR"; \
-	for agent in planner coder tester reviewer performance-analyzer; do \
+	for agent in planner coder tester reviewer performance-analyzer security-reviewer docs-reviewer; do \
 		echo "   Installing $$agent agent..."; \
 		mkdir -p "$$AGENTS_DIR/$$agent"; cp "agents/$$agent/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
 	done
 	@echo "✅ Subagents installed to ~/.claude/agents/"
 	@echo ""
 	@echo "Available subagents:"
-	@echo "  workflow-planner           - Implementation planning"
-	@echo "  workflow-coder             - Code implementation (TDD)"
-	@echo "  workflow-tester            - Test execution and quality checks"
-	@echo "  workflow-reviewer          - Comprehensive code review"
+	@echo "  workflow-planner              - Implementation planning"
+	@echo "  workflow-coder                - Code implementation (TDD)"
+	@echo "  workflow-tester               - Test execution and quality checks"
+	@echo "  workflow-reviewer             - Comprehensive code review"
 	@echo "  workflow-performance-analyzer - Performance analysis"
+	@echo "  security-reviewer             - Security vulnerability detection"
+	@echo "  docs-reviewer                 - Documentation accuracy validation"

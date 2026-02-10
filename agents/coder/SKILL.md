@@ -435,3 +435,34 @@ Report completion with summary of what was implemented.
 - **Document complexity** (explain the hard parts)
 
 You are implementing the plan, not creating it. Follow the plan exactly!
+
+---
+
+## Output
+
+You will create and modify code files as specified in the implementation plan.
+
+### CRITICAL: How to Create/Modify Files
+
+You MUST use the **Write** and **Edit** tools for file operations. Do NOT use Bash, echo, or cat.
+
+**For new files:**
+```
+Write(file_path: "/home/matt/source/bob/path/to/new_file.go",
+      content: "[Complete file content]")
+```
+
+**For modifying existing files:**
+```
+Edit(file_path: "/home/matt/source/bob/path/to/existing.go",
+     old_string: "[Exact text to replace]",
+     new_string: "[New text]")
+```
+
+**Never do this:**
+- ❌ Using Bash: `echo "code" > file.go`
+- ❌ Using cat with heredoc
+- ❌ Using sed/awk for edits
+- ❌ Just outputting code without writing files
+
+**You are not done until all files are written/edited.** Your task is incomplete if you only output code without using Write/Edit.

@@ -1,5 +1,5 @@
 ---
-name: workflow-performance-analyzer
+name: performance-analyzer
 description: Specialized performance analysis agent for benchmarking and optimization
 tools: Read, Bash, Grep, Glob, Write
 model: sonnet
@@ -25,11 +25,6 @@ When spawned by a workflow skill, you:
 3. Identify bottlenecks and hotspots
 4. Provide optimization recommendations
 5. Report findings in `bots/review-performance.md`
-1. Run performance benchmarks
-2. Analyze profiling data
-3. Identify bottlenecks and hotspots
-4. Recommend specific optimizations
-5. Report findings in bots/review-performance.md
 
 ## Analysis Process
 

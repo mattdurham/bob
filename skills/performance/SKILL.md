@@ -20,6 +20,17 @@ INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR �
 
 ---
 
+## Execution Rules
+
+**CRITICAL: All subagents MUST run in background**
+
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **After spawning agents, STOP** - do not poll or check status
+- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ❌ **Never use foreground execution** - it blocks the workflow
+
+---
+
 ## Phase 1: INIT
 
 Understand performance goals:
@@ -44,6 +55,7 @@ Spawn workflow-tester for benchmarking:
 ```
 Task(subagent_type: "workflow-tester",
      description: "Run benchmarks",
+     run_in_background: true,
      prompt: "Run performance benchmarks.
              Save results to bots/benchmark-before.txt.")
 ```
@@ -60,6 +72,7 @@ Spawn workflow-performance-analyzer:
 ```
 Task(subagent_type: "workflow-performance-analyzer",
      description: "Analyze performance",
+     run_in_background: true,
      prompt: "Analyze benchmarks in bots/benchmark-before.txt.
              Identify bottlenecks and recommend optimizations.
              Write findings to bots/perf-analysis.md.")
@@ -78,6 +91,7 @@ Spawn workflow-coder:
 ```
 Task(subagent_type: "workflow-coder",
      description: "Implement optimizations",
+     run_in_background: true,
      prompt: "Implement optimizations from bots/perf-analysis.md.
              Keep code readable, add comments for complex changes.")
 ```
@@ -95,6 +109,7 @@ Spawn workflow-tester:
 ```
 Task(subagent_type: "workflow-tester",
      description: "Verify optimizations",
+     run_in_background: true,
      prompt: "Run tests and new benchmarks.
              Compare to baseline in bots/benchmark-before.txt.
              Write results to bots/perf-results.md.")

@@ -19,6 +19,17 @@ INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 
 ---
 
+## Execution Rules
+
+**CRITICAL: All subagents MUST run in background**
+
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **After spawning agents, STOP** - do not poll or check status
+- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ❌ **Never use foreground execution** - it blocks the workflow
+
+---
+
 ## Phase 1: INIT
 
 Understand exploration goal:
@@ -41,6 +52,7 @@ Spawn Explore agent:
 ```
 Task(subagent_type: "Explore",
      description: "Discover codebase structure",
+     run_in_background: true,
      prompt: "Find code related to [exploration goal].
              Map file structure, key components, relationships.
              Write findings to bots/discovery.md.")
@@ -58,6 +70,7 @@ Spawn researcher:
 ```
 Task(subagent_type: "researcher",
      description: "Analyze codebase",
+     run_in_background: true,
      prompt: "Read files in bots/discovery.md.
              Understand logic, patterns, architecture.
              Write analysis to bots/analysis.md.")

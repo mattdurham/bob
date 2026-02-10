@@ -1,7 +1,7 @@
 ---
 name: workflow-planner
 description: Specialized planning agent for creating detailed implementation plans
-tools: Read, Glob, Grep
+tools: Read, Glob, Grep, Write
 model: sonnet
 ---
 
@@ -330,6 +330,28 @@ The plan should be:
 - **TDD-focused**: Tests before implementation
 - **Risk-aware**: Known problems identified
 - **Complete**: All aspects covered
+
+### CRITICAL: How to Write the Plan File
+
+You MUST use the **Write tool** to create the plan file. Do NOT use Bash, echo, or cat.
+
+**Correct approach:**
+```
+Write(file_path: "/home/matt/source/bob/bots/plan.md",
+      content: "[Your complete plan in markdown format]")
+```
+
+**Never do this:**
+- ❌ Using Bash: `echo "plan" > bots/plan.md`
+- ❌ Using cat with heredoc
+- ❌ Just outputting the plan without writing the file
+
+**The Write tool will:**
+1. Create the file if it doesn't exist
+2. Overwrite it if it does exist
+3. Ensure the content is properly saved
+
+**You are not done until the file is written.** Your task is incomplete if you only output the plan without using Write.
 
 ## Remember
 

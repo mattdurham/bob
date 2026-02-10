@@ -1,7 +1,7 @@
 ---
 name: workflow-tester
 description: Specialized testing agent for running tests and quality checks
-tools: Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob, Write
 model: haiku
 ---
 
@@ -491,3 +491,31 @@ go test ./pkg/api ./pkg/auth
 - **Be thorough** - check everything, not just tests
 
 Your job is ensuring quality - take it seriously!
+
+---
+
+## Output
+
+Always write your complete test results to the specified output file (typically `bots/test-results.md`).
+
+### CRITICAL: How to Write the Results File
+
+You MUST use the **Write tool** to create the results file. Do NOT use Bash, echo, or cat.
+
+**Correct approach:**
+```
+Write(file_path: "/home/matt/source/bob/bots/test-results.md",
+      content: "[Your complete test results in markdown format]")
+```
+
+**Never do this:**
+- ❌ Using Bash: `echo "results" > bots/test-results.md`
+- ❌ Using cat with heredoc
+- ❌ Just outputting the results without writing the file
+
+**The Write tool will:**
+1. Create the file if it doesn't exist
+2. Overwrite it if it does exist
+3. Ensure the content is properly saved
+
+**You are not done until the file is written.** Your task is incomplete if you only output the results without using Write.

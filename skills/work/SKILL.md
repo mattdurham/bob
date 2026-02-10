@@ -241,7 +241,7 @@ Task(subagent_type: "security-reviewer",
              - Input validation gaps
              Write findings to bots/review-security.md with severity levels.")
 
-Task(subagent_type: "workflow-performance-analyzer",
+Task(subagent_type: "performance-analyzer",
      description: "Performance bottleneck review",
      run_in_background: true,
      prompt: "Analyze code for performance issues:

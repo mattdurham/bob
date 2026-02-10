@@ -26,6 +26,17 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 
 ---
 
+## Execution Rules
+
+**CRITICAL: All subagents MUST run in background**
+
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **After spawning agents, STOP** - do not poll or check status
+- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ❌ **Never use foreground execution** - it blocks the workflow
+
+---
+
 ## Phase 1: INIT
 
 Create bots/ directory:
@@ -43,6 +54,7 @@ Spawn workflow-reviewer:
 ```
 Task(subagent_type: "workflow-reviewer",
      description: "Code review",
+     run_in_background: true,
      prompt: "Review code with 3-pass approach.
              Write findings to bots/review.md.")
 ```
@@ -63,6 +75,7 @@ Spawn workflow-coder:
 ```
 Task(subagent_type: "workflow-coder",
      description: "Fix review issues",
+     run_in_background: true,
      prompt: "Fix issues in bots/review.md.
              Keep changes minimal and focused.")
 ```
@@ -80,6 +93,7 @@ Spawn workflow-tester:
 ```
 Task(subagent_type: "workflow-tester",
      description: "Run tests",
+     run_in_background: true,
      prompt: "Run full test suite.
              Write results to bots/test-results.md.")
 ```

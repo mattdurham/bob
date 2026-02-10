@@ -15,6 +15,8 @@ You will ensure any tests pass before starting work and after.
 
 Act as a senior Go engineer working on production systems.
 
+** USE THE GO LSP**
+
 Assume:
 - Go 1.21+
 - idiomatic Go style

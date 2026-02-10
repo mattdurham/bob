@@ -11,10 +11,9 @@ help:
 	@echo "  make build                    - Build Bob binary"
 	@echo "  make install-deps             - Install Go dependencies"
 	@echo "  make install-mcp              - Install Bob + Filesystem MCP servers (basic)"
-	@echo "  make install-mcp-full         - Full installation (Skills + Agents + LSP + MCP servers)"
+	@echo "  make install-mcp-full         - Full installation (Skills + Agents + LSP)"
 	@echo "  make install-skills           - Install workflow skills only"
 	@echo "  make install-lsp              - Install Go LSP plugin only"
-	@echo "  make install-mcp-servers      - Install additional MCP servers only"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make clean                    - Clean build artifacts"
 	@echo "  make test                     - Run tests"
@@ -219,18 +218,13 @@ install-skills:
 	@echo "  /performance   - Performance optimization"
 	@echo "  /explore       - Codebase exploration"
 
-# Install additional MCP servers
-install-mcp-servers:
-	@echo "🔧 Installing additional MCP servers..."
-	@bash scripts/install-mcp-servers.sh
-
 # Install Go LSP plugin
 install-lsp:
 	@echo "🔧 Installing Go LSP plugin..."
 	@bash scripts/install-lsp.sh
 
-# Install everything (skills, agents, LSP, MCP servers)
-install-mcp-full: install-skills install-agents install-lsp install-mcp-servers
+# Install everything (skills, agents, LSP)
+install-mcp-full: install-skills install-agents install-lsp
 	@echo ""
 	@echo "✅ Full installation complete!"
 	@echo ""

@@ -10,7 +10,7 @@ You are currently in the **INIT** phase of the code review workflow.
 - **State examples**: review findings, files to fix, issues found, test results, metrics
 
 ## Your Goal
-Create a git worktree for code review and fixes.
+Initialize the code review workflow - verify git repository and prepare to gather review scope.
 
 ## Continuation Behavior
 
@@ -30,39 +30,43 @@ Create a git worktree for code review and fixes.
 
 ## What To Do
 
-### 1. Pull Latest Changes
+### 1. Verify Git Repository
+```bash
+git status
+```
+
+Ensure you're in a git repository. If not, inform the user.
+
+### 2. Check Current Branch
+```bash
+git branch
+```
+
+Note the current branch for reference.
+
+### 3. Pull Latest Changes (if on main)
 ```bash
 git checkout main
 git pull origin main
 ```
 
-### 2. Create Worktree
-```bash
-mkdir -p ~/source/<repo-name>-worktrees
-git worktree add -b review-fix-<timestamp> ~/source/<repo-name>-worktrees/review-fix
-```
-
-### 3. Verify Worktree
-```bash
-cd ~/source/<repo-name>-worktrees/review-fix
-mkdir -p bots
-```
+Only do this if you're on the main branch. This ensures you have the latest code before starting.
 
 ## DO NOT
-- ❌ Do not skip worktree creation
-- ❌ Do not start reviewing yet
-- ❌ Do not automatically move to next phase
+- ❌ Do not create a worktree yet - that happens in the WORKTREE step
+- ❌ Do not ask the user what they want to review - that happens in the PROMPT step
+- ❌ Do not start reviewing code
 
 ## When You're Done
-Once worktree is created:
+Once you've verified the git repository:
 
-1. Confirm to user: "Worktree created for code review"
-2. Report progress:
+1. Inform the user: "Ready to begin code review workflow"
+2. Report your progress:
    ```
    workflow_report_progress(
-       worktreePath: "<worktree-path>",
+       worktreePath: "<current-path>",
        currentStep: "INIT",
-       metadata: { "worktreeCreated": true }
+       metadata: { "repoVerified": true }
    )
    ```
 

@@ -14,7 +14,7 @@ func TestAutoWorktreeCreation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Initialize git repo with explicit main branch
 	repoDir := filepath.Join(tmpDir, "test-repo")
@@ -67,7 +67,7 @@ func TestAutoWorktreeCreation(t *testing.T) {
 
 	// Test 1: Register with featureName on main repo - should auto-create worktree
 	t.Run("AutoCreateWorktreeFromMain", func(t *testing.T) {
-		result, err := sm.Register("brainstorm", repoDir, "Test task", "test-feature", "", "")
+		result, err := sm.Register("work", repoDir, "Test task", "test-feature", "", "")
 		if err != nil {
 			t.Fatalf("Register failed: %v", err)
 		}
@@ -113,7 +113,7 @@ func TestAutoWorktreeCreation(t *testing.T) {
 
 	// Test 2: Register on main without featureName - should error
 	t.Run("ErrorWithoutFeatureName", func(t *testing.T) {
-		_, err := sm.Register("brainstorm", repoDir, "Test task", "", "", "")
+		_, err := sm.Register("work", repoDir, "Test task", "", "", "")
 		if err == nil {
 			t.Error("Expected error when registering on main without featureName")
 		}
@@ -136,7 +136,7 @@ func TestAutoWorktreeCreation(t *testing.T) {
 		}
 
 		// Register workflow in existing worktree
-		result, err := sm.Register("brainstorm", existingWorktree, "Test task", "another-name", "", "")
+		result, err := sm.Register("work", existingWorktree, "Test task", "another-name", "", "")
 		if err != nil {
 			t.Fatalf("Register failed: %v", err)
 		}
@@ -159,7 +159,7 @@ func TestIsMainRepo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	repoDir := filepath.Join(tmpDir, "test-repo")
 	if err := os.MkdirAll(repoDir, 0755); err != nil {
@@ -244,7 +244,7 @@ func TestIsMainRepo(t *testing.T) {
 	// Test 3: Non-git directory should error
 	t.Run("ErrorForNonGitDir", func(t *testing.T) {
 		nonGitDir := filepath.Join(tmpDir, "not-a-repo")
-		os.MkdirAll(nonGitDir, 0755)
+		_ = os.MkdirAll(nonGitDir, 0755)
 
 		_, _, err := sm.isMainRepo(nonGitDir)
 		if err == nil {

@@ -87,9 +87,9 @@ func TestLoadAdditions_WithFiles(t *testing.T) {
 	}
 
 	// Verify content was loaded
-	content := cache.GetAddition("brainstorm", "PLAN")
+	content := cache.GetAddition("work", "PLAN")
 	if content == "" {
-		t.Error("Expected to load brainstorm/PLAN addition, got empty string")
+		t.Error("Expected to load work/PLAN addition, got empty string")
 	}
 	if content != "## Test Addition\nThis is test content for PLAN step." {
 		t.Errorf("Unexpected content: %s", content)
@@ -101,13 +101,13 @@ func TestGetAddition_Present(t *testing.T) {
 	tmpDir := t.TempDir()
 	cache, _ := NewAdditionsCache(tmpDir)
 	cache.additions = map[string]map[string]string{
-		"brainstorm": {
+		"work": {
 			"PLAN": "Test content",
 		},
 	}
 	cache.loaded = true
 
-	content := cache.GetAddition("brainstorm", "PLAN")
+	content := cache.GetAddition("work", "PLAN")
 	if content != "Test content" {
 		t.Errorf("Expected 'Test content', got '%s'", content)
 	}
@@ -159,7 +159,7 @@ func TestReadFileFromBobBranch_FileExists(t *testing.T) {
 	tmpDir := t.TempDir()
 	setupGitRepo(t, tmpDir, true)
 
-	content, err := readFileFromBobBranch(tmpDir, ".bob/additions/brainstorm/PLAN.md")
+	content, err := readFileFromBobBranch(tmpDir, ".bob/additions/work/PLAN.md")
 	if err != nil {
 		t.Fatalf("readFileFromBobBranch failed: %v", err)
 	}
@@ -206,7 +206,7 @@ func setupGitRepo(t *testing.T, dir string, withAdditions bool) {
 
 	if withAdditions {
 		// Create .bob/additions directory and files
-		additionsDir := filepath.Join(dir, ".bob", "additions", "brainstorm")
+		additionsDir := filepath.Join(dir, ".bob", "additions", "work")
 		if err := os.MkdirAll(additionsDir, 0755); err != nil {
 			t.Fatal(err)
 		}
@@ -347,7 +347,7 @@ func TestLoadAdditions_ConcurrentCalls(t *testing.T) {
 	wg.Wait()
 
 	// Should still work correctly
-	content := cache.GetAddition("brainstorm", "PLAN")
+	content := cache.GetAddition("work", "PLAN")
 	if content == "" {
 		t.Error("Cache should have loaded content despite concurrent calls")
 	}

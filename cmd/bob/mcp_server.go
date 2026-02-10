@@ -49,10 +49,10 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 	// workflow_get_definition
 	s.AddTool(
 		mcp.NewTool("workflow_get_definition",
-			mcp.WithDescription("Get the full definition of a workflow by keyword (e.g., 'brainstorm'). Checks for custom workflows in .bob/workflows/ if repoPath provided."),
+			mcp.WithDescription("Get the full definition of a workflow by keyword (e.g., 'work'). Checks for custom workflows in .bob/workflows/ if repoPath provided."),
 			mcp.WithString("workflow",
 				mcp.Required(),
-				mcp.Description("Workflow keyword (e.g., 'brainstorm', 'code-review', 'performance')"),
+				mcp.Description("Workflow keyword (e.g., 'work', 'code-review', 'performance')"),
 			),
 			mcp.WithString("repoPath",
 				mcp.Description("Optional: Git repository path to check for custom workflows"),
@@ -87,7 +87,7 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			mcp.WithDescription("Register a new workflow session. If worktreePath points to main repo, automatically creates a worktree using featureName."),
 			mcp.WithString("workflow",
 				mcp.Required(),
-				mcp.Description("Workflow keyword (e.g., 'brainstorm', 'code-review', 'performance')"),
+				mcp.Description("Workflow keyword (e.g., 'work', 'code-review', 'performance')"),
 			),
 			mcp.WithString("worktreePath",
 				mcp.Required(),
@@ -437,8 +437,8 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			mcp.WithString("priority",
 				mcp.Description("Priority: low, medium, high, critical"),
 			),
-			mcp.WithArray("labels",
-				mcp.Description("Array of label strings"),
+			mcp.WithArray("tags",
+				mcp.Description("Array of tag strings"),
 			),
 			mcp.WithArray("dependencies",
 				mcp.Description("Array of task IDs this task depends on"),
@@ -452,13 +452,13 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			taskType := request.GetString("taskType", "task")
 
 			args := request.GetArguments()
-			labelsRaw, _ := args["labels"].([]interface{})
-			labels := toStringSlice(labelsRaw)
+			tagsRaw, _ := args["tags"].([]interface{})
+			tags := toStringSlice(tagsRaw)
 
 			metadata := make(map[string]interface{})
 
 			// Create the task first
-			result, err := taskManager.CreateTask(repoPath, title, description, taskType, priority, labels, metadata)
+			result, err := taskManager.CreateTask(repoPath, title, description, taskType, priority, tags, metadata)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -470,6 +470,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			// Add dependencies if provided
 			if depsRaw, ok := args["dependencies"].([]interface{}); ok {
 				deps := toStringSlice(depsRaw)
+				result["dependencyErrors"] = []string{} // Initialize before use
 				for _, depID := range deps {
 					// Add dependency: this task depends on depID
 					_, err := taskManager.AddDependency(repoPath, taskID, depID)
@@ -480,6 +481,10 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 							err.Error(),
 						)
 					}
+				}
+				// Update message if there were dependency errors
+				if depErrors, ok := result["dependencyErrors"].([]string); ok && len(depErrors) > 0 {
+					result["message"] = fmt.Sprintf("Created task %s with %d dependency error(s)", taskID, len(depErrors))
 				}
 			}
 
@@ -523,25 +528,25 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Required(),
 				mcp.Description("Git repository path"),
 			),
-			mcp.WithString("status",
-				mcp.Description("Filter by status: open, in_progress, completed, blocked"),
+			mcp.WithString("state",
+				mcp.Description("Filter by state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
 				mcp.Description("Filter by priority: low, medium, high, critical"),
 			),
-			mcp.WithString("label",
-				mcp.Description("Filter by label"),
+			mcp.WithArray("tags",
+				mcp.Description("Filter by tags (match any)"),
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			repoPath, _ := request.RequireString("repoPath")
-			state := request.GetString("status", "")
+			state := request.GetString("state", "")
 			priority := request.GetString("priority", "")
 			taskType := request.GetString("taskType", "")
 			assignee := request.GetString("assignee", "")
 
 			args := request.GetArguments()
-			tagsRaw, _ := args["labels"].([]interface{})
+			tagsRaw, _ := args["tags"].([]interface{})
 			tags := toStringSlice(tagsRaw)
 
 			tasks, err := taskManager.ListTasks(repoPath, state, priority, taskType, assignee, tags)
@@ -557,7 +562,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 	// task_update
 	s.AddTool(
 		mcp.NewTool("task_update",
-			mcp.WithDescription("Update a task's fields (status, priority, labels, etc.)."),
+			mcp.WithDescription("Update a task's fields (state, priority, tags, etc.)."),
 			mcp.WithString("repoPath",
 				mcp.Required(),
 				mcp.Description("Git repository path"),
@@ -566,14 +571,14 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Required(),
 				mcp.Description("Task ID to update"),
 			),
-			mcp.WithString("status",
-				mcp.Description("New status: open, in_progress, completed, blocked"),
+			mcp.WithString("state",
+				mcp.Description("New state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
 				mcp.Description("New priority: low, medium, high, critical"),
 			),
-			mcp.WithArray("labels",
-				mcp.Description("New labels array"),
+			mcp.WithArray("tags",
+				mcp.Description("New tags array"),
 			),
 			mcp.WithString("assignee",
 				mcp.Description("Assignee name or ID"),
@@ -586,14 +591,14 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			args := request.GetArguments()
 			updates := make(map[string]interface{})
 
-			if status, ok := args["status"].(string); ok {
-				updates["state"] = status
+			if state, ok := args["state"].(string); ok {
+				updates["state"] = state
 			}
 			if priority, ok := args["priority"].(string); ok {
 				updates["priority"] = priority
 			}
-			if labelsRaw, ok := args["labels"].([]interface{}); ok {
-				updates["tags"] = toStringSlice(labelsRaw)
+			if tagsRaw, ok := args["tags"].([]interface{}); ok {
+				updates["tags"] = toStringSlice(tagsRaw)
 			}
 			if assignee, ok := args["assignee"].(string); ok {
 				updates["assignee"] = assignee
@@ -673,6 +678,33 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			}
 
 			data, _ := json.Marshal(task)
+			return mcp.NewToolResultText(string(data)), nil
+		},
+	)
+
+	// task_delete
+	s.AddTool(
+		mcp.NewTool("task_delete",
+			mcp.WithDescription("Delete a task from .bob/issues/ directory and clean up dependencies in related tasks."),
+			mcp.WithString("repoPath",
+				mcp.Required(),
+				mcp.Description("Git repository path"),
+			),
+			mcp.WithString("taskId",
+				mcp.Required(),
+				mcp.Description("Task ID to delete (e.g., 'task-001')"),
+			),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			repoPath, _ := request.RequireString("repoPath")
+			taskID, _ := request.RequireString("taskId")
+
+			result, err := taskManager.DeleteTask(repoPath, taskID)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			data, _ := json.Marshal(result)
 			return mcp.NewToolResultText(string(data)), nil
 		},
 	)

@@ -77,10 +77,10 @@ func setupTestGitRepo(t *testing.T) (tmpDir string, worktreePath string, sm *Sta
 func TestRejoin(t *testing.T) {
 	// Create temporary directory and git repo
 	tmpDir, worktreePath, sm := setupTestGitRepo(t)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Register initial workflow
-	_, err := sm.Register("brainstorm", worktreePath, "Initial task description", "", "", "")
+	_, err := sm.Register("work", worktreePath, "Initial task description", "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}
@@ -182,12 +182,12 @@ func TestRejoin(t *testing.T) {
 func TestReset(t *testing.T) {
 	// Create temporary directory and git repo
 	tmpDir, worktreePath, sm := setupTestGitRepo(t)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Test 1: Reset with archive
 	t.Run("ResetWithArchive", func(t *testing.T) {
 		// Register workflow
-		_, err := sm.Register("brainstorm", worktreePath, "Test task", "", "", "")
+		_, err := sm.Register("work", worktreePath, "Test task", "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to register workflow: %v", err)
 		}
@@ -224,7 +224,7 @@ func TestReset(t *testing.T) {
 	// Test 2: Reset without archive
 	t.Run("ResetWithoutArchive", func(t *testing.T) {
 		// Register new workflow
-		_, err := sm.Register("brainstorm", worktreePath, "Test task", "", "", "")
+		_, err := sm.Register("work", worktreePath, "Test task", "", "", "")
 		if err != nil {
 			t.Fatalf("Failed to register workflow: %v", err)
 		}
@@ -261,12 +261,12 @@ func TestReset(t *testing.T) {
 func TestRejoinWithSessionAndAgent(t *testing.T) {
 	// Create temporary directory and git repo
 	tmpDir, worktreePath, sm := setupTestGitRepo(t)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 	sessionID := "test-session"
 	agentID := "test-agent"
 
 	// Register workflow with session and agent IDs
-	_, err := sm.Register("brainstorm", worktreePath, "Test task", "", sessionID, agentID)
+	_, err := sm.Register("work", worktreePath, "Test task", "", sessionID, agentID)
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}
@@ -291,10 +291,10 @@ func TestRejoinWithSessionAndAgent(t *testing.T) {
 func TestRejoinTimestamps(t *testing.T) {
 	// Create temporary directory and git repo
 	tmpDir, worktreePath, sm := setupTestGitRepo(t)
-	defer os.RemoveAll(tmpDir)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	// Register workflow
-	_, err := sm.Register("brainstorm", worktreePath, "Test task", "", "", "")
+	_, err := sm.Register("work", worktreePath, "Test task", "", "", "")
 	if err != nil {
 		t.Fatalf("Failed to register workflow: %v", err)
 	}

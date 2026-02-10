@@ -1,334 +1,318 @@
 # Claude Configuration for Bob
 
-This repository uses **Belayin' Pin Bob** for workflow orchestration via MCP (Model Context Protocol).
-
-## MCP Server Configuration
-
-Bob integrates with three MCP servers:
-1. **Bob** - Workflow orchestration, task management, and workflow guidance
-2. **Filesystem** - Secure filesystem operations (official ModelContextProtocol server)
-3. **GitHub** - GitHub API access via official GitHub MCP server
-
-### Complete Configuration
-
-#### 1. Install Bob and Filesystem servers:
-
-```bash
-make install-mcp
-```
-
-Your MCP configuration will include:
-
-```json
-{
-  "mcpServers": {
-    "bob": {
-      "command": "$HOME/.bob/bob",
-      "args": ["--serve"]
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "$HOME/source", "/tmp"]
-    }
-  }
-}
-```
-
-#### 2. Add GitHub API access:
-
-The official GitHub MCP server provides GitHub API access with authentication.
-
-**Installation:**
-
-```bash
-# Install the GitHub MCP server
-npm install -g @github/mcp-server
-
-# Add to Claude MCP configuration
-claude mcp add github -- npx -y @github/mcp-server
-```
-
-**Prerequisites**:
-- You'll need a GitHub Personal Access Token (PAT) with appropriate scopes
-- The server will prompt for authentication on first use
-- See https://github.com/github/github-mcp-server for detailed setup
-
-All three servers run independently and can be used simultaneously in your Claude sessions.
-
+**Bob** is a workflow orchestration system implemented entirely through **Claude skills** and **subagents**. No MCP servers, no daemons—just intelligent workflow coordination through specialized Claude agents.
 
 ## What Bob Provides
 
 Bob gives Claude access to:
 
-- **Workflows** - Multi-step orchestrated workflows (work, code-review, performance, explore)
-- **Tasks** - Git-backed task management with dependencies
-- **State** - Persistent JSON state files shared across all Claude sessions
-- **Guidance** - Step-by-step prompts for each workflow phase
-- **Filesystem** - Secure file operations (read, write, search) in allowed directories
+- **Workflow Skills** - User-invocable workflows (work, code-review, performance, explore)
+- **Subagent Orchestration** - Specialized agents for each workflow phase
+- **State Management** - Persistent workflow artifacts in `bots/` directory
+- **Git Worktrees** - Isolated development environments
 
-## Platform Compatibility
+## Available Workflows
 
-Bob works with both **Claude** and **Codex**. The `make install-mcp` command automatically registers Bob with both platforms (if their CLIs are available).
+Invoke these workflows with slash commands:
 
-- **For Claude users**: This document contains Claude-specific configuration and usage
-- **For Codex users**: See [CODEX.md](CODEX.md) for Codex-specific documentation
-- **Shared state**: Workflows and tasks are shared across both platforms, so you can start work in Claude and continue in Codex, or vice versa
+1. **`/work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+2. **`/code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
+3. **`/performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+4. **`/explore`** - Read-only codebase exploration
+5. **`/brainstorming`** - Creative ideation and problem exploration
 
-## Available MCP Tools
+See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
-### Workflow Management
-- `bob.workflow_list` - List all available workflows
-- `bob.workflow_get` - Get workflow definition by keyword
-- `bob.workflow_create` - Start new workflow instance
-- `bob.workflow_progress` - Advance workflow to next step
-- `bob.workflow_list_running` - List active workflow instances
-
-### Task Management
-- `bob.task_create` - Create new task in `.bob/issues/`
-- `bob.task_get` - Get task by ID
-- `bob.task_list` - List all tasks with optional filters
-- `bob.task_update` - Update task properties
-
-### Filesystem Operations
-- `filesystem.read_file` - Read file contents
-- `filesystem.write_file` - Write or create files
-- `filesystem.list_directory` - List directory contents
-- `filesystem.create_directory` - Create new directory
-- `filesystem.search_files` - Search files by name pattern
-- `filesystem.search_within_files` - Search file contents
-- `filesystem.get_file_info` - Get file metadata
-- `filesystem.copy_file` - Copy files
-- `filesystem.move_file` - Move/rename files
-- `filesystem.delete_file` - Delete files
-- `filesystem.tree` - Get directory tree structure
-- `filesystem.read_multiple_files` - Read multiple files at once
-
-**Allowed Directories**: `$HOME/source`, `/tmp`
-
-**Security**: Filesystem server only allows access to explicitly allowed directories. Directory traversal attempts are blocked.
-
-## Workflows Available
-
-1. **work** - Full development workflow with planning
-2. **code-review** - Review, fix, and iterate until clean
-3. **performance** - Benchmark, analyze, and optimize
-4. **explore** - Read-only codebase exploration
-
-See AGENTS.md for detailed workflow descriptions.
-
-## Storage
-
-Bob stores all state in `~/.bob/state/`:
-- All Claude sessions share this state
-- Workflows and tasks persist across sessions
-- Updates from any Claude session appear everywhere
-
-## Custom Workflows
-
-You can add custom workflows to this repo in `.bob/workflows/*.json`.
-Bob will automatically discover and make them available.
-
-See AGENTS.md for custom workflow format.
-
-## Troubleshooting
-
-### Bob not appearing
-1. Verify Bob path is correct in MCP configuration
-2. Check Bob builds: `cd ~/source/bob && make build`
-3. Restart your MCP client
-
-### MCP server errors
-1. Test Bob directly: `cd ~/source/bob/cmd/bob && ./bob --serve`
-2. Check MCP client logs
-3. Verify Go dependencies: `cd ~/source/bob/cmd/bob && go mod download`
-
-### State issues
-1. Database location: `~/.bob/state/`
-2. Check permissions: `ls -la ~/.bob/state/`
-3. Reset state: `rm -rf ~/.bob/state/` (will recreate)
-
-## Building Bob
-
-```bash
-cd ~/source/bob
-make build
-```
-
-Binary will be at: `cmd/bob/bob`
-
----
-
-*🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents*
-
-## Using Bob Workflow Skills
-
-Bob now provides workflows through **Claude skills** - user-invocable commands that orchestrate complete development processes.
-
-### Starting a Workflow
-
-Simply invoke the skill with a slash command:
-
-```
-/work "Add user authentication feature"
-```
-
-The skill will:
-1. Initialize workflow state via Bob MCP tools
-2. Guide you through each workflow phase
-3. Spawn Task tool subagents for actual work
-4. Persist state across Claude sessions
-5. Enforce flow control rules (loop-back when needed)
-
-### Available Workflow Skills
-
-- **`/work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-- **`/code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
-- **`/performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
-- **`/explore`** - Codebase exploration (read-only, no modifications)
-
-See README.md for detailed workflow descriptions.
-
-### How Skills Work
+## How Skills Work
 
 **Skills are orchestration layers:**
 
 ```
 Skill (/work)
   ↓
-Spawns subagents:
-  - Explore agent (research patterns)
-  - planner agent (create plan)
-  - coder agents (implement)
-  - tester agent (run tests)
-  - reviewer agent (code review)
+Creates worktree & bots/ directory
   ↓
-Uses Bob MCP tools:
-  - bob.workflow_register()
-  - bob.task_create()
-  - bob.workflow_report_progress()
-  - bob.workflow_get_guidance()
+Spawns specialized subagents:
+  - Explore agent (research patterns)
+  - workflow-planner agent (create plan)
+  - workflow-coder agents (implement)
+  - workflow-tester agent (run tests)
+  - workflow-reviewer agent (code review)
+  ↓
+Manages artifacts in bots/:
+  - bots/brainstorm.md
+  - bots/plan.md
+  - bots/test-results.md
+  - bots/review.md
   ↓
 Result: Complete, high-quality implementation
 ```
 
 **Skills don't do the work themselves** - they coordinate specialized Task tool agents.
 
-### State Persistence
+## Installation
 
-Skills use Bob MCP tools for state management:
+### 1. Install Bob
 
-```typescript
-// Initialize workflow
-bob.workflow_register({
-  workflow: "work",
-  worktreePath: "/path/to/repo",
-  featureName: "add-auth",
-  taskDescription: "Add JWT authentication"
-})
+Bob skills and subagents need to be in `~/.claude/`:
 
-// Track progress
-bob.workflow_report_progress({
-  worktreePath: "/path/to/worktree",
-  currentStep: "PLAN",
-  metadata: {"planComplete": true}
-})
-
-// Create tracking task
-bob.task_create({
-  repoPath: "/path/to/repo",
-  title: "Add authentication",
-  description: "Implement JWT auth system"
-})
+```bash
+# From bob repository
+make install
 ```
 
-All state persists in `~/.bob/state/` and survives Claude CLI restarts.
+This installs:
+- Workflow skills → `~/.claude/skills/`
+- Specialized subagents → `~/.claude/agents/`
+- Go LSP plugin (if available)
 
-### Flow Control
+After installation, skills are available via slash commands: `/work`, `/code-review`, etc.
 
-Skills enforce loop-back rules:
+**Individual component installation:**
+```bash
+make install-skills   # Skills only
+make install-agents   # Subagents only
+make install-lsp      # Go LSP only
+```
 
-- **REVIEW → PLAN**: Major architectural issues found
-- **REVIEW → EXECUTE**: Minor implementation fixes needed
+### 2. Required MCP Server (Filesystem Only)
+
+Bob workflows require the filesystem MCP server for file operations:
+
+```bash
+# The filesystem server should already be configured in Claude
+claude mcp list
+
+# Should show:
+# filesystem: npx -y @modelcontextprotocol/server-filesystem /home/matt/source /tmp
+```
+
+If not installed:
+```bash
+claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$HOME/source" /tmp
+```
+
+That's it! No Bob-specific MCP server needed—everything runs through skills and subagents.
+
+## Starting a Workflow
+
+Simply invoke the skill:
+
+```
+/work "Add user authentication feature"
+```
+
+The skill will:
+1. Create isolated git worktree
+2. Set up `bots/` directory for artifacts
+3. Spawn specialized subagents for each phase
+4. Guide you through the complete workflow
+5. Enforce quality gates and loop-back rules
+
+## Workflow Artifacts
+
+All workflows store state in `bots/` directory within the worktree:
+
+- `bots/brainstorm.md` - Research and approach decisions
+- `bots/plan.md` - Detailed implementation plan
+- `bots/test-results.md` - Test execution results
+- `bots/review.md` - Code review findings
+- `bots/review-*.md` - Specialized review reports (security, performance, etc.)
+
+These files persist across Claude sessions and serve as context for subsequent phases.
+
+## Subagent Specialization
+
+Each workflow phase uses specialized agents:
+
+| Phase | Agent Type | Purpose |
+|-------|-----------|---------|
+| BRAINSTORM | Explore | Research existing patterns |
+| BRAINSTORM | brainstorming | Creative ideation |
+| PLAN | workflow-planner | Create implementation plan |
+| EXECUTE | workflow-coder | Implement code |
+| TEST | workflow-tester | Run tests and checks |
+| REVIEW | workflow-reviewer | Multi-pass code review |
+| REVIEW | security-reviewer | Security vulnerability scan |
+| REVIEW | performance-analyzer | Performance analysis |
+| REVIEW | docs-reviewer | Documentation accuracy |
+| REVIEW | architect-reviewer | Architecture evaluation |
+| REVIEW | code-reviewer | Deep code quality review |
+| REVIEW | golang-pro | Go-specific review |
+| REVIEW | debugger | Bug diagnosis |
+| REVIEW | error-detective | Error pattern analysis |
+
+## Flow Control Rules
+
+Workflows enforce strict flow control:
+
+**Loop-back paths:**
+- **REVIEW → BRAINSTORM**: Critical/high severity issues require re-thinking
+- **REVIEW → EXECUTE**: Medium/low severity issues need quick fixes
 - **TEST → EXECUTE**: Test failures require code changes
-- **MONITOR → REVIEW**: CI failures (ALWAYS review before fixing!)
+- **MONITOR → BRAINSTORM**: CI failures or PR feedback (always re-brainstorm!)
 
-The skill ensures you never skip the review phase when looping from MONITOR.
+**Never skip REVIEW** - Quality gate enforced even if tests pass.
 
-### Subagent Patterns
+## Git Worktrees
 
-Skills spawn Task tool agents for actual work:
+⚠️ **CRITICAL**: All workflows create isolated git worktrees BEFORE any file operations.
 
+**Why worktrees?**
+- Isolate work from main branch
+- Safe experimentation
+- Easy cleanup if abandoned
+- Parallel development possible
+
+**Structure:**
 ```
-// Research phase
-Task(subagent_type: "Explore", 
-     description: "Research auth patterns",
-     prompt: "Find existing authentication implementations...")
-
-// Planning phase
-Task(subagent_type: "planner",
-     description: "Create implementation plan",
-     prompt: "Based on research, create detailed plan...")
-
-// Implementation phase
-Task(subagent_type: "coder",
-     description: "Implement JWT auth",
-     prompt: "Follow plan in bots/plan.md and implement...")
-
-// Testing phase
-Task(subagent_type: "tester",
-     description: "Run all tests",
-     prompt: "Run test suite: go test ./...")
-
-// Review phase
-Task(subagent_type: "reviewer",
-     description: "Code review",
-     prompt: "Review changes against plan, check for issues...")
+~/source/bob/                    # Main repo
+~/source/bob-worktrees/
+  ├── add-auth/                  # Feature 1 worktree
+  │   ├── bots/                  # Workflow artifacts
+  │   └── ...                    # Feature code
+  └── fix-parser/                # Feature 2 worktree
+      ├── bots/
+      └── ...
 ```
 
-### Migration from Old Workflow System
+## Best Practices
 
-**Old way (MCP-based):**
-```typescript
-bob.workflow_register()  // Register
-bob.workflow_get_guidance()  // Get next prompt
-// Follow prompt instructions manually
-bob.workflow_report_progress()  // Report done
-// Repeat for each phase
+**Orchestration:**
+- Let subagents do the work
+- Pass context via `bots/*.md` files
+- Clear input/output for each phase
+- Chain agents together systematically
+
+**Flow Control:**
+- Enforce loop-back rules strictly
+- MONITOR → BRAINSTORM (not REVIEW or EXECUTE)
+- Never skip REVIEW phase
+- Always validate test passage
+
+**Quality:**
+- TDD throughout (tests first)
+- Comprehensive multi-agent code review (9 specialized reviewers)
+- Fix issues properly (re-brainstorm if needed)
+- Maintain code quality standards
+
+## Example Session
+
+```
+You: /work "Add rate limiting to API"
+
+Claude: I'll orchestrate the work workflow...
+
+[INIT Phase]
+Creating bots/ directory...
+✓ Ready to brainstorm
+
+[BRAINSTORM Phase]
+Spawning brainstorming skill...
+Creating worktree at ../bob-worktrees/add-rate-limiting...
+Spawning Explore agent to research patterns...
+✓ Research complete, findings in bots/brainstorm.md
+
+[PLAN Phase]
+Spawning workflow-planner agent...
+✓ Implementation plan in bots/plan.md
+
+[EXECUTE Phase]
+Spawning workflow-coder agent...
+✓ Code implementation complete
+
+[TEST Phase]
+Spawning workflow-tester agent...
+✓ All tests passing, results in bots/test-results.md
+
+[REVIEW Phase]
+Spawning 9 parallel reviewers...
+  ✓ Code quality review
+  ✓ Security review
+  ✓ Performance review
+  ✓ Documentation review
+  ✓ Architecture review
+  ✓ Code quality deep review
+  ✓ Go-specific review
+  ✓ Debugging review
+  ✓ Error pattern review
+Consolidating findings...
+✓ 3 medium issues found in bots/review.md
+
+[Loop to EXECUTE]
+Spawning workflow-coder to fix medium issues...
+...
+
+[COMMIT Phase]
+Creating commit and PR...
+✓ PR created: https://github.com/user/repo/pull/123
+
+[MONITOR Phase]
+Checking CI status...
+✓ All checks passing
+
+[COMPLETE]
+🎉 Workflow complete!
 ```
 
-**New way (Skill-based):**
+## Customization
+
+Add custom workflows by creating new skill files in `skills/`:
+
 ```
-/work "feature description"
-// Skill orchestrates everything automatically
-// Just respond to questions and verify work
+skills/
+  my-workflow/
+    SKILL.md    # Workflow definition with frontmatter
 ```
 
-Both systems still work, but **skills are recommended** for new workflows:
-- Easier to use (one command vs many tool calls)
-- Self-contained (all logic in skill, not scattered)
-- Better flow control (enforces loop-back rules)
-- Clear documentation (workflow diagram in skill)
+Frontmatter format:
+```yaml
+---
+name: my-workflow
+description: Brief description
+user-invocable: true
+category: workflow
+---
+```
 
-### Bob MCP Tools Reference
+## Troubleshooting
 
-Skills use these Bob tools for state management:
+**Skills not appearing:**
+1. Check skills installed: `ls ~/.claude/skills/`
+2. Verify frontmatter has required `name` field
+3. Restart Claude Code
 
-**Workflow Management:**
-- `mcp__bob__workflow_register` - Initialize workflow, create worktree
-- `mcp__bob__workflow_report_progress` - Transition between phases
-- `mcp__bob__workflow_get_guidance` - Retrieve workflow state
-- `mcp__bob__workflow_get_status` - Check current phase
-- `mcp__bob__workflow_rejoin` - Rejoin workflow at specific phase
+**Worktree creation fails:**
+1. Check you're in a git repository: `git status`
+2. Verify git is configured: `git config user.name`
+3. Check disk space: `df -h`
 
-**Task Management:**
-- `mcp__bob__task_create` - Create tracking task
-- `mcp__bob__task_get` - Get task by ID
-- `mcp__bob__task_list` - List all tasks
-- `mcp__bob__task_update` - Update task status
-- `mcp__bob__task_get_ready` - Get ready-to-work tasks
+**Subagents failing:**
+1. Check filesystem MCP server: `claude mcp list`
+2. Verify allowed directories include your repo
+3. Check subagent has necessary tools in skill definition
 
-**Filesystem Operations:**
-- Use the `filesystem` MCP server (separate from Bob)
-- Allowed directories: `$HOME/source`, `/tmp`
+## Migration from MCP-Based Bob
+
+If you previously used Bob as an MCP server:
+
+**Old approach:**
+- Bob binary running as MCP server
+- `bob.workflow_register()` tool calls
+- Manual progress tracking
+- Complex state management
+
+**New approach (current):**
+- Pure skill-based orchestration
+- No MCP server needed
+- Automatic subagent coordination
+- Simple artifact-based state in `bots/`
+
+To migrate:
+1. Remove Bob MCP server from config: `claude mcp remove bob`
+2. Install Bob skills: `make install-skills`
+3. Use slash commands: `/work`, `/code-review`, etc.
 
 ---
+
+*🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents*

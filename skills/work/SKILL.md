@@ -101,28 +101,10 @@ The brainstorming skill will help:
 - Identify potential issues early
 - Think through edge cases
 
-**Step 2: Research existing patterns**
+**⚠️ Step 2: CREATE ISOLATED WORKTREE (REQUIRED BEFORE ANY FILE WRITES) ⚠️**
 
-Spawn Explore agent for codebase research:
-```
-Task(subagent_type: "Explore",
-     description: "Research similar implementations",
-     run_in_background: true,
-     prompt: "Search codebase for patterns related to [task].
-             Find existing implementations, identify patterns to follow.
-             Document findings.")
-```
-
-**Step 3: Document findings**
-
-Write consolidated findings to `bots/brainstorm.md`:
-- Requirements and constraints
-- Existing patterns discovered
-- Approaches considered (2-3 options with pros/cons)
-- Recommended approach with rationale
-- Risks and open questions
-
-**Step 4: Create isolated worktree**
+**CRITICAL: You MUST create a git worktree BEFORE writing any design documents or doing research.**
+**This ensures all work is isolated and doesn't interfere with the main branch.**
 
 Create a git worktree for isolated development:
 
@@ -141,14 +123,43 @@ git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
 # Change to worktree directory
 cd "$WORKTREE_DIR"
 
+# Create bots directory in worktree
+mkdir -p bots
+
 # Verify we're in the worktree
 pwd
 git branch --show-current
 ```
 
+**After worktree creation:**
+- ✅ All subsequent file operations happen in the worktree
+- ✅ Main branch remains clean
+- ✅ Work is isolated and can be easily discarded if needed
+
+**Step 3: Research existing patterns**
+
+Now that you're in the worktree, spawn Explore agent for codebase research:
+```
+Task(subagent_type: "Explore",
+     description: "Research similar implementations",
+     run_in_background: true,
+     prompt: "Search codebase for patterns related to [task].
+             Find existing implementations, identify patterns to follow.
+             Document findings.")
+```
+
+**Step 4: Document findings in the worktree**
+
+Write consolidated findings to `bots/brainstorm.md` (in the worktree):
+- Requirements and constraints
+- Existing patterns discovered
+- Approaches considered (2-3 options with pros/cons)
+- Recommended approach with rationale
+- Risks and open questions
+
 **Output:**
-- `bots/brainstorm.md`
 - Isolated worktree in `../<repo>-worktrees/<feature>/`
+- `bots/brainstorm.md` (in worktree)
 
 ---
 

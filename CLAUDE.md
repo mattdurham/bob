@@ -4,13 +4,20 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration via MCP (Mo
 
 ## MCP Server Configuration
 
-Bob provides two MCP servers that work together:
+Bob integrates with three MCP servers:
 1. **Bob** - Workflow orchestration, task management, and workflow guidance
-2. **Filesystem** - Secure filesystem operations (read/write files, search, etc.)
+2. **Filesystem** - Secure filesystem operations (official ModelContextProtocol server)
+3. **GitHub** - GitHub API access via Copilot MCP endpoint
 
 ### Complete Configuration
 
-After running `make install-mcp`, your MCP configuration will include both servers:
+#### 1. Install Bob and Filesystem servers:
+
+```bash
+make install-mcp
+```
+
+Your MCP configuration will include:
 
 ```json
 {
@@ -20,14 +27,26 @@ After running `make install-mcp`, your MCP configuration will include both serve
       "args": ["--serve"]
     },
     "filesystem": {
-      "command": "mcp-filesystem-server",
-      "args": ["$HOME/source", "/tmp"]
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "$HOME/source", "/tmp"]
     }
   }
 }
 ```
 
-Both servers run independently and can be used simultaneously in your Claude sessions.
+#### 2. Add GitHub API access:
+
+```bash
+claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer '"$(grep GITHUB_PAT .env | cut -d '=' -f2)"'"}}'
+```
+
+**Prerequisites**: Create a `.env` file in your home directory with your GitHub Personal Access Token (PAT):
+```bash
+echo "GITHUB_PAT=your_github_token_here" > ~/.env
+```
+
+All three servers run independently and can be used simultaneously in your Claude sessions.
+
 
 ## What Bob Provides
 

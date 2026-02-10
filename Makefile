@@ -107,21 +107,23 @@ install-mcp: build
 	fi; \
 	echo "✅ Installed Bob to $${BOB_PATH}"; \
 	echo ""; \
-	echo "📦 Installing filesystem MCP server..."; \
-	if ! go install github.com/mark3labs/mcp-filesystem-server@latest 2>&1; then \
-		echo "   ⚠️  Failed to install filesystem server"; \
-		echo "   Make sure Go is installed and $$GOPATH/bin is in PATH"; \
-		FILESYSTEM_INSTALLED=0; \
+	echo "📦 Checking filesystem MCP server prerequisites..."; \
+	if command -v node > /dev/null 2>&1 && command -v npx > /dev/null 2>&1; then \
+		NODE_VERSION=$$(node --version 2>/dev/null || echo "unknown"); \
+		NPX_VERSION=$$(npx --version 2>/dev/null || echo "unknown"); \
+		echo "   ✅ Node.js: $${NODE_VERSION}"; \
+		echo "   ✅ npx: $${NPX_VERSION}"; \
+		echo "   Will use official @modelcontextprotocol/server-filesystem"; \
+		FILESYSTEM_INSTALLED=1; \
 	else \
-		FILESYSTEM_PATH=$$(command -v mcp-filesystem-server 2>/dev/null); \
-		if [ -n "$${FILESYSTEM_PATH}" ]; then \
-			echo "   ✅ Filesystem server installed: $${FILESYSTEM_PATH}"; \
-			FILESYSTEM_INSTALLED=1; \
-		else \
-			echo "   ⚠️  Filesystem server installed but not in PATH"; \
-			echo "   Add $$HOME/go/bin to your PATH"; \
-			FILESYSTEM_INSTALLED=0; \
-		fi; \
+		echo "   ⚠️  Node.js/npx not found - filesystem server will not be available"; \
+		echo ""; \
+		echo "   To enable filesystem operations, install Node.js:"; \
+		echo "   • Ubuntu/Debian: curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash - && sudo apt-get install -y nodejs"; \
+		echo "   • macOS: brew install node"; \
+		echo "   • Or visit: https://nodejs.org/"; \
+		echo ""; \
+		FILESYSTEM_INSTALLED=0; \
 	fi; \
 	echo ""; \
 	CONFIGURED=0; \
@@ -140,13 +142,13 @@ install-mcp: build
 		fi; \
 		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
 			claude mcp remove filesystem 2>/dev/null || true; \
-			if claude mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
+			if claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$$HOME/source" /tmp 2>&1; then \
 				echo "   ✅ Filesystem server registered with Claude"; \
 				CONFIGURED=1; \
 			else \
 				EXIT_CODE=$$?; \
 				echo "   ❌ Failed to register filesystem with Claude (exit code: $${EXIT_CODE})"; \
-				echo "   Try manually: claude mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+				echo "   Try manually: claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem \"$$HOME/source\" /tmp"; \
 			fi; \
 		fi; \
 	else \
@@ -166,13 +168,13 @@ install-mcp: build
 		fi; \
 		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
 			codex mcp remove filesystem 2>/dev/null || true; \
-			if codex mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
+			if codex mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$$HOME/source" /tmp 2>&1; then \
 				echo "   ✅ Filesystem server registered with Codex"; \
 				CONFIGURED=1; \
 			else \
 				EXIT_CODE=$$?; \
 				echo "   ❌ Failed to register filesystem with Codex (exit code: $${EXIT_CODE})"; \
-				echo "   Try manually: codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+				echo "   Try manually: codex mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem \"$$HOME/source\" /tmp"; \
 			fi; \
 		fi; \
 	else \

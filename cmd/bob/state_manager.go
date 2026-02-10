@@ -14,55 +14,16 @@ import (
 	"time"
 )
 
+const minFindingsLength = 10 // Minimum content length to consider findings meaningful
+
 // WorkflowState represents the current state of a workflow instance
+// Simplified to only track essential information: workflow type, location, and current step
+// All other data (findings, issues, progress) is stored in markdown files under bots/
 type WorkflowState struct {
-	WorkflowID      string                 `json:"workflowId"`
-	SessionID       string                 `json:"sessionId,omitempty"` // Optional: for grouping related agents
-	AgentID         string                 `json:"agentId,omitempty"`   // Optional: for multi-agent workflows
-	Workflow        string                 `json:"workflow"`
-	WorktreePath    string                 `json:"worktreePath"`
-	TaskDescription string                 `json:"taskDescription"`
-	CurrentStep     string                 `json:"currentStep"`
-	ProgressHistory []ProgressEntry        `json:"progressHistory"`
-	Issues          []Issue                `json:"issues"`
-	LoopCount       int                    `json:"loopCount"`
-	Metadata        map[string]interface{} `json:"metadata"`
-	RejoinHistory   []RejoinEvent          `json:"rejoinHistory,omitempty"`
-	ResetHistory    []ResetEvent           `json:"resetHistory,omitempty"`
-	StartedAt       time.Time              `json:"startedAt"`
-	UpdatedAt       time.Time              `json:"updatedAt"`
-}
-
-// ProgressEntry tracks a single progress report
-type ProgressEntry struct {
-	Step      string                 `json:"step"`
-	Timestamp time.Time              `json:"timestamp"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// Issue represents a problem found during review/testing
-type Issue struct {
-	Phase       string `json:"phase"`
-	Severity    string `json:"severity"`
-	Description string `json:"description"`
-	File        string `json:"file,omitempty"`
-	Line        int    `json:"line,omitempty"`
-}
-
-// RejoinEvent tracks a workflow rejoin action
-type RejoinEvent struct {
-	Timestamp       time.Time `json:"timestamp"`
-	FromStep        string    `json:"fromStep"`
-	ToStep          string    `json:"toStep"`
-	ResetSubsequent bool      `json:"resetSubsequent"`
-	Reason          string    `json:"reason,omitempty"`
-}
-
-// ResetEvent tracks a workflow reset action
-type ResetEvent struct {
-	Timestamp    time.Time `json:"timestamp"`
-	PreviousStep string    `json:"previousStep"`
-	Reason       string    `json:"reason,omitempty"`
+	WorkflowID   string `json:"workflowId"`
+	Workflow     string `json:"workflow"`
+	WorktreePath string `json:"worktreePath"`
+	CurrentStep  string `json:"currentStep"`
 }
 
 // StateManager manages workflow states
@@ -123,26 +84,17 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 		return nil, err
 	}
 
-	// Create initial state
+	// Validate workflow has at least one step
+	if len(def.Steps) == 0 {
+		return nil, fmt.Errorf("workflow '%s' has no steps defined", workflow)
+	}
+
+	// Create initial state (simplified - only essential fields)
 	state := &WorkflowState{
-		WorkflowID:      workflowID,
-		SessionID:       sessionID,
-		AgentID:         agentID,
-		Workflow:        workflow,
-		WorktreePath:    actualWorktreePath,
-		TaskDescription: taskDescription,
-		CurrentStep:     def.Steps[0].Name, // Start at first step
-		ProgressHistory: []ProgressEntry{
-			{
-				Step:      def.Steps[0].Name,
-				Timestamp: time.Now(),
-			},
-		},
-		Issues:    []Issue{},
-		LoopCount: 0,
-		Metadata:  make(map[string]interface{}),
-		StartedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		WorkflowID:   workflowID,
+		Workflow:     workflow,
+		WorktreePath: actualWorktreePath,
+		CurrentStep:  def.Steps[0].Name, // Start at first step
 	}
 
 	if err := sm.saveState(state); err != nil {
@@ -154,7 +106,7 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 		"workflow":        workflow,
 		"currentStep":     state.CurrentStep,
 		"steps":           def.Steps,
-		"registeredAt":    state.StartedAt,
+		"registeredAt":    time.Now(),
 		"worktreePath":    actualWorktreePath,
 		"createdWorktree": createdWorktree,
 	}
@@ -164,6 +116,7 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 		result["message"] = fmt.Sprintf("Created worktree at: %s\nBranch: %s\nRun: cd %s", actualWorktreePath, branchName, actualWorktreePath)
 	}
 
+	// Keep sessionID/agentID in result for backward compatibility, even though not stored in state
 	if sessionID != "" {
 		result["sessionId"] = sessionID
 	}
@@ -174,7 +127,25 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 	return result, nil
 }
 
+// tryAdvanceStep attempts to get the next step in workflow
+// Returns (nextStep, isCompleted). If final step reached, returns (currentStep, true)
+// Logs error if advancement fails for reasons other than reaching final step
+func (sm *StateManager) tryAdvanceStep(workflow, currentStep string) (string, bool) {
+	nextStep, err := GetNextStep(workflow, currentStep)
+	if err != nil {
+		// Check if this is the final step
+		if strings.Contains(err.Error(), "final step") {
+			return currentStep, true // Workflow completed
+		}
+		// Other error - log and stay at current step
+		fmt.Fprintf(os.Stderr, "Warning: failed to advance from step %s: %v\n", currentStep, err)
+		return currentStep, false
+	}
+	return nextStep, false
+}
+
 // ReportProgress updates the workflow state
+// KEY CHANGE: Reads markdown files directly instead of using metadata for validation
 func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadata map[string]interface{}, sessionID, agentID string) (map[string]interface{}, error) {
 	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
 	state, err := sm.loadState(workflowID)
@@ -184,23 +155,39 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 
 	previousStep := state.CurrentStep
 	nextStep := currentStep
+	var workflowCompleted bool
 
 	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
-	// check if this is a checkpoint phase and classify findings
+	// check if this is a checkpoint phase and classify findings from markdown file
 	if currentStep == previousStep && sm.isCheckpointPhase(state.Workflow, currentStep) {
-		// Check for findings text in metadata
-		if findingsText, ok := metadata["findings"].(string); ok {
-			// Use Claude API to classify if findings contain issues
+		// Read markdown file directly instead of using metadata
+		findingsFile := filepath.Join(worktreePath, "bots", sm.stepToMarkdownFilename(currentStep))
+		findingsContent, err := os.ReadFile(findingsFile)
+
+		if err != nil {
+			// Distinguish file-not-found from other errors
+			if os.IsNotExist(err) {
+				// File missing = no issues found, advance forward
+				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+			} else {
+				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
+				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
+			}
+		} else if len(findingsContent) < minFindingsLength {
+			// File exists but empty = no issues found, advance forward
+			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+		} else {
+			// File exists with content - classify it with Claude API
 			claudeClient := NewClaudeClient()
-			hasIssues, err := claudeClient.ClassifyFindings(findingsText)
+			hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
 
 			if err == nil {
 				if hasIssues {
 					// Issues found - loop back to fix them
-					def, err := GetWorkflowDefinition(state.Workflow)
+					workflowDef, err := GetWorkflowDefinition(state.Workflow)
 					if err == nil {
 						// Find current step's canLoopTo
-						for _, step := range def.Steps {
+						for _, step := range workflowDef.Steps {
 							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
 								// Loop to first available target
 								nextStep = step.CanLoopTo[0]
@@ -210,66 +197,47 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 					}
 				} else {
 					// No issues - advance forward
-					nextStepName, err := GetNextStep(state.Workflow, currentStep)
-					if err == nil {
-						nextStep = nextStepName
-					}
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 				}
 			} else {
-				// If classification fails, log error but don't fail the workflow
+				// If classification fails, log error and advance forward (safe default)
 				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
-				// Fall back to checking findings length
-				if len(strings.TrimSpace(findingsText)) < 10 {
-					nextStepName, err := GetNextStep(state.Workflow, currentStep)
-					if err == nil {
-						nextStep = nextStepName
-					}
-				}
+				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 			}
 		}
 	}
 
 	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
-		nextStepName, err := GetNextStep(state.Workflow, currentStep)
-		if err == nil {
-			nextStep = nextStepName
-		}
+		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 	}
 
-	// Check if this is a loop back
-	if sm.isLoopBack(state.Workflow, previousStep, nextStep) {
-		state.LoopCount++
-	}
-
-	// Update state
+	// Update state (simplified - just update current step)
 	state.CurrentStep = nextStep
-	state.UpdatedAt = time.Now()
-	state.ProgressHistory = append(state.ProgressHistory, ProgressEntry{
-		Step:      nextStep,
-		Timestamp: time.Now(),
-		Metadata:  metadata,
-	})
-
-	for k, v := range metadata {
-		state.Metadata[k] = v
-	}
 
 	if err := sm.saveState(state); err != nil {
 		return nil, err
 	}
 
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"recorded":     true,
 		"currentStep":  state.CurrentStep,
 		"previousStep": previousStep,
-		"loopCount":    state.LoopCount,
-		"timestamp":    state.UpdatedAt,
+		"loopCount":    0, // Removed loop count tracking
+		"timestamp":    time.Now(),
 		"autoRouted":   currentStep == previousStep, // Indicate if auto-routing was used
-	}, nil
+	}
+
+	// Add completion flag if workflow finished
+	if workflowCompleted {
+		result["completed"] = true
+		result["message"] = "Workflow completed"
+	}
+
+	return result, nil
 }
 
-// GetGuidance returns guidance for the current step
+// GetGuidance returns guidance for the current step (simplified)
 func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID string) (map[string]interface{}, error) {
 	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
 	state, err := sm.loadState(workflowID)
@@ -281,11 +249,6 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 	prompt, err := LoadPrompt(state.Workflow, state.CurrentStep)
 	if err != nil {
 		return nil, err
-	}
-
-	// Prepend task description if this is the initial step and description exists
-	if state.TaskDescription != "" && len(state.ProgressHistory) == 0 {
-		prompt = fmt.Sprintf("## Task Context\n\n%s\n\n---\n\n%s", state.TaskDescription, prompt)
 	}
 
 	// Append project-specific additions if they exist
@@ -310,57 +273,28 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 	}
 
 	return map[string]interface{}{
-		"currentStep":     state.CurrentStep,
-		"prompt":          prompt,
-		"taskDescription": state.TaskDescription,
-		"canLoopBack":     canLoopBack,
-		"loopCount":       state.LoopCount,
+		"currentStep": state.CurrentStep,
+		"prompt":      prompt,
+		"canLoopBack": canLoopBack,
+		"loopCount":   0, // Removed loop count tracking
 	}, nil
 }
 
-// RecordIssues records issues and determines if loop is needed
-func (sm *StateManager) RecordIssues(worktreePath, step string, issues []Issue, sessionID, agentID string) (map[string]interface{}, error) {
-	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
-	state, err := sm.loadState(workflowID)
-	if err != nil {
-		return nil, fmt.Errorf("workflow not found: %w", err)
-	}
-
-	// Add issues
-	for _, issue := range issues {
-		issue.Phase = step
-		state.Issues = append(state.Issues, issue)
-	}
-	state.UpdatedAt = time.Now()
-
-	if err := sm.saveState(state); err != nil {
-		return nil, err
-	}
-
-	// Determine if loop is needed
-	shouldLoop := len(issues) > 0
-	var loopBackTo string
-
-	if shouldLoop {
-		def, _ := GetWorkflowDefinition(state.Workflow)
-		for _, rule := range def.LoopRules {
-			if rule.FromStep == step && rule.Condition == "issues_found" {
-				loopBackTo = rule.ToStep
-				break
-			}
-		}
-	}
-
+// RecordIssues is deprecated - issues are now stored in markdown files under bots/
+// Kept for backward compatibility but does nothing
+func (sm *StateManager) RecordIssues(worktreePath, step string, issues []interface{}, sessionID, agentID string) (map[string]interface{}, error) {
 	return map[string]interface{}{
 		"recorded":    true,
-		"issueCount":  len(issues),
-		"shouldLoop":  shouldLoop,
-		"loopBackTo":  loopBackTo,
-		"totalIssues": len(state.Issues),
+		"issueCount":  0,
+		"shouldLoop":  false,
+		"loopBackTo":  "",
+		"totalIssues": 0,
+		"deprecated":  "Issues are now stored in markdown files under bots/",
 	}, nil
 }
 
 // GetStatus returns complete workflow status
+// GetStatus returns complete workflow status (simplified)
 func (sm *StateManager) GetStatus(worktreePath string, sessionID, agentID string) (map[string]interface{}, error) {
 	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
 	state, err := sm.loadState(workflowID)
@@ -369,16 +303,15 @@ func (sm *StateManager) GetStatus(worktreePath string, sessionID, agentID string
 	}
 
 	return map[string]interface{}{
-		"workflowId":      state.WorkflowID,
-		"workflow":        state.Workflow,
-		"taskDescription": state.TaskDescription,
-		"currentStep":     state.CurrentStep,
-		"loopCount":       state.LoopCount,
-		"issueCount":      len(state.Issues),
-		"progressHistory": state.ProgressHistory,
-		"issues":          state.Issues,
-		"startedAt":       state.StartedAt,
-		"updatedAt":       state.UpdatedAt,
+		"workflowId":   state.WorkflowID,
+		"workflow":     state.Workflow,
+		"worktreePath": state.WorktreePath,
+		"currentStep":  state.CurrentStep,
+		// Deprecated fields kept for backward compatibility (always empty)
+		"taskDescription": "",
+		"loopCount":       0,
+		"progressHistory": []interface{}{},
+		"updatedAt":       "",
 	}, nil
 }
 
@@ -410,29 +343,6 @@ func (sm *StateManager) worktreeToID(worktreePath, sessionID, agentID string) st
 	return baseID
 }
 
-// isLoopBack checks if moving from prevStep to currentStep is a loop back
-func (sm *StateManager) isLoopBack(workflow, prevStep, currentStep string) bool {
-	def, err := GetWorkflowDefinition(workflow)
-	if err != nil {
-		return false
-	}
-
-	// Find positions
-	prevPos := -1
-	currentPos := -1
-	for i, step := range def.Steps {
-		if step.Name == prevStep {
-			prevPos = i
-		}
-		if step.Name == currentStep {
-			currentPos = i
-		}
-	}
-
-	// Loop back if moving to earlier step
-	return currentPos < prevPos
-}
-
 // isCheckpointPhase checks if a step is a checkpoint that requires Claude classification
 func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
 	// Checkpoint phases that require findings classification
@@ -445,6 +355,14 @@ func (sm *StateManager) isCheckpointPhase(workflow, stepName string) bool {
 	}
 
 	return false
+}
+
+// stepToMarkdownFilename maps a workflow step name to its markdown filename
+// e.g., "REVIEW" -> "review.md", "TEST" -> "test.md"
+func (sm *StateManager) stepToMarkdownFilename(stepName string) string {
+	// Convert step name to lowercase for filename
+	// e.g., "REVIEW" -> "review.md", "BRAINSTORM" -> "brainstorm.md"
+	return strings.ToLower(stepName) + ".md"
 }
 
 // workflowIDToFilename converts a workflow ID to a safe, collision-free filename
@@ -488,7 +406,7 @@ func (sm *StateManager) saveState(state *WorkflowState) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-// ListAgents lists all agents, optionally filtered by session or worktree
+// ListAgents lists all workflows, optionally filtered by worktree (simplified)
 func (sm *StateManager) ListAgents(sessionID, worktreePath string) (map[string]interface{}, error) {
 	files, err := os.ReadDir(sm.stateDir)
 	if err != nil {
@@ -513,26 +431,16 @@ func (sm *StateManager) ListAgents(sessionID, worktreePath string) (map[string]i
 			continue
 		}
 
-		// Apply filters
-		if sessionID != "" && state.SessionID != sessionID {
-			continue
-		}
+		// Apply filter (only worktreePath filter now, sessionID ignored)
 		if worktreePath != "" && state.WorktreePath != worktreePath {
 			continue
 		}
 
 		agents = append(agents, map[string]interface{}{
-			"workflowId":      state.WorkflowID,
-			"sessionId":       state.SessionID,
-			"agentId":         state.AgentID,
-			"workflow":        state.Workflow,
-			"worktreePath":    state.WorktreePath,
-			"currentStep":     state.CurrentStep,
-			"taskDescription": state.TaskDescription,
-			"loopCount":       state.LoopCount,
-			"issueCount":      len(state.Issues),
-			"startedAt":       state.StartedAt,
-			"updatedAt":       state.UpdatedAt,
+			"workflowId":   state.WorkflowID,
+			"workflow":     state.Workflow,
+			"worktreePath": state.WorktreePath,
+			"currentStep":  state.CurrentStep,
 		})
 	}
 
@@ -542,80 +450,17 @@ func (sm *StateManager) ListAgents(sessionID, worktreePath string) (map[string]i
 	}, nil
 }
 
-// GetSessionStatus returns aggregated status of all agents in a session
+// GetSessionStatus is deprecated - sessions are no longer tracked
+// Kept for backward compatibility but returns minimal info
 func (sm *StateManager) GetSessionStatus(sessionID string) (map[string]interface{}, error) {
-	if sessionID == "" {
-		return nil, fmt.Errorf("sessionId is required")
-	}
-
-	files, err := os.ReadDir(sm.stateDir)
-	if err != nil {
-		return nil, err
-	}
-
-	var agents []map[string]interface{}
-	stepCounts := make(map[string]int)
-	var totalIssues int
-	var totalLoops int
-	var earliestStart time.Time
-	var latestUpdate time.Time
-
-	for _, file := range files {
-		if file.IsDir() || !strings.HasSuffix(file.Name(), ".json") {
-			continue
-		}
-
-		path := filepath.Join(sm.stateDir, file.Name())
-		data, err := os.ReadFile(path)
-		if err != nil {
-			continue
-		}
-
-		var state WorkflowState
-		if err := json.Unmarshal(data, &state); err != nil {
-			continue
-		}
-
-		// Filter by session ID
-		if state.SessionID != sessionID {
-			continue
-		}
-
-		// Aggregate data
-		stepCounts[state.CurrentStep]++
-		totalIssues += len(state.Issues)
-		totalLoops += state.LoopCount
-
-		if earliestStart.IsZero() || state.StartedAt.Before(earliestStart) {
-			earliestStart = state.StartedAt
-		}
-		if state.UpdatedAt.After(latestUpdate) {
-			latestUpdate = state.UpdatedAt
-		}
-
-		agents = append(agents, map[string]interface{}{
-			"agentId":     state.AgentID,
-			"workflow":    state.Workflow,
-			"currentStep": state.CurrentStep,
-			"loopCount":   state.LoopCount,
-			"issueCount":  len(state.Issues),
-			"updatedAt":   state.UpdatedAt,
-		})
-	}
-
-	if len(agents) == 0 {
-		return nil, fmt.Errorf("no agents found for session: %s", sessionID)
-	}
+	// Log deprecation warning
+	fmt.Fprintf(os.Stderr, "Warning: GetSessionStatus is deprecated and will be removed in a future version. Use GetStatus instead.\n")
 
 	return map[string]interface{}{
-		"sessionId":    sessionID,
-		"agentCount":   len(agents),
-		"agents":       agents,
-		"stepCounts":   stepCounts,
-		"totalIssues":  totalIssues,
-		"totalLoops":   totalLoops,
-		"startedAt":    earliestStart,
-		"lastActivity": latestUpdate,
+		"sessionId":  sessionID,
+		"agentCount": 0,
+		"agents":     []interface{}{},
+		"deprecated": "Session tracking removed - use ListAgents instead",
 	}, nil
 }
 
@@ -654,9 +499,9 @@ func (sm *StateManager) getOrLoadAdditionsCache(repoPath string) *AdditionsCache
 		return cache
 	}
 
-	// Evict oldest entry if at capacity (simple FIFO)
+	// Evict a random entry if at capacity (Go maps have randomized iteration)
+	// For true LRU/FIFO, use a separate timestamp or linked list structure
 	if len(sm.additionsCache) >= maxCacheSize {
-		// Remove first entry from map (Go maps don't guarantee order, but this is best effort)
 		for k := range sm.additionsCache {
 			delete(sm.additionsCache, k)
 			log.Printf("Evicted additions cache for %s (cache full)", k)
@@ -681,7 +526,7 @@ func (sm *StateManager) getOrLoadAdditionsCache(repoPath string) *AdditionsCache
 	return cache
 }
 
-// Rejoin allows resuming a workflow at any step with optional state reset
+// Rejoin allows resuming a workflow at any step (simplified)
 func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, resetSubsequent bool, sessionID, agentID string) (map[string]interface{}, error) {
 	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
 	state, err := sm.loadState(workflowID)
@@ -715,89 +560,11 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 
 	fromStep := state.CurrentStep
 
-	// Update task description if provided
-	if taskDescription != "" {
-		state.TaskDescription = taskDescription
-	}
-
-	// Reset subsequent steps if requested
-	if resetSubsequent && step != "" {
-		// Reuse the already-loaded definition from validation above
-		def, err := GetWorkflowDefinition(state.Workflow)
-		if err != nil {
-			return nil, fmt.Errorf("failed to load workflow definition for reset: %w", err)
-		}
-
-		// Find step position
-		stepPos := -1
-		for i, s := range def.Steps {
-			if s.Name == step {
-				stepPos = i
-				break
-			}
-		}
-
-		// Remove progress history entries after the rejoin step
-		if stepPos >= 0 {
-			var newHistory []ProgressEntry
-			for _, entry := range state.ProgressHistory {
-				// Find entry position
-				entryPos := -1
-				for i, s := range def.Steps {
-					if s.Name == entry.Step {
-						entryPos = i
-						break
-					}
-				}
-				// Keep entries at or before rejoin step
-				if entryPos >= 0 && entryPos <= stepPos {
-					newHistory = append(newHistory, entry)
-				}
-			}
-			state.ProgressHistory = newHistory
-		}
-
-		// Clear issues from subsequent steps
-		var remainingIssues []Issue
-		for _, issue := range state.Issues {
-			issuePos := -1
-			for i, s := range def.Steps {
-				if s.Name == issue.Phase {
-					issuePos = i
-					break
-				}
-			}
-			if issuePos >= 0 && issuePos <= stepPos {
-				remainingIssues = append(remainingIssues, issue)
-			}
-		}
-		state.Issues = remainingIssues
-	}
+	// Note: taskDescription parameter ignored (no longer stored in state)
+	// Note: resetSubsequent parameter ignored (no history to reset)
 
 	// Update current step
 	state.CurrentStep = step
-	state.UpdatedAt = time.Now()
-
-	// Add rejoin event to history
-	rejoinEvent := RejoinEvent{
-		Timestamp:       time.Now(),
-		FromStep:        fromStep,
-		ToStep:          step,
-		ResetSubsequent: resetSubsequent,
-		Reason:          fmt.Sprintf("Rejoined workflow at step %s", step),
-	}
-	state.RejoinHistory = append(state.RejoinHistory, rejoinEvent)
-
-	// Add to progress history
-	state.ProgressHistory = append(state.ProgressHistory, ProgressEntry{
-		Step:      step,
-		Timestamp: time.Now(),
-		Metadata: map[string]interface{}{
-			"rejoin":          true,
-			"fromStep":        fromStep,
-			"resetSubsequent": resetSubsequent,
-		},
-	})
 
 	if err := sm.saveState(state); err != nil {
 		return nil, err
@@ -808,72 +575,29 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 		"workflowId":      workflowID,
 		"fromStep":        fromStep,
 		"currentStep":     state.CurrentStep,
-		"resetSubsequent": resetSubsequent,
-		"timestamp":       state.UpdatedAt,
+		"resetSubsequent": resetSubsequent, // Returned for compatibility but has no effect
+		"timestamp":       time.Now(),
 	}, nil
 }
 
-// Reset clears workflow state for worktree (optionally archives before reset)
+// Reset clears workflow state for worktree (simplified - no archiving)
 func (sm *StateManager) Reset(worktreePath string, archive bool, sessionID, agentID string) (map[string]interface{}, error) {
 	workflowID := sm.worktreeToID(worktreePath, sessionID, agentID)
-	state, err := sm.loadState(workflowID)
-	if err != nil {
-		return nil, fmt.Errorf("workflow not found: %w", err)
-	}
 
-	// Archive if requested
-	var archivePath string
-	if archive {
-		timestamp := time.Now().Format("20060102-150405")
-		// Safely remove .json extension if present
-		baseFilename := strings.TrimSuffix(workflowIDToFilename(workflowID), ".json")
-		archiveFilename := fmt.Sprintf("%s-archived-%s.json", baseFilename, timestamp)
-		archivePath = filepath.Join(sm.stateDir, "archive")
-		if err := os.MkdirAll(archivePath, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create archive directory: %w", err)
-		}
-
-		archiveFullPath := filepath.Join(archivePath, archiveFilename)
-
-		// Add reset event before archiving
-		resetEvent := ResetEvent{
-			Timestamp:    time.Now(),
-			PreviousStep: state.CurrentStep,
-			Reason:       "Workflow reset",
-		}
-		state.ResetHistory = append(state.ResetHistory, resetEvent)
-		state.UpdatedAt = time.Now()
-
-		data, err := json.MarshalIndent(state, "", "  ")
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal state for archive: %w", err)
-		}
-
-		if err := os.WriteFile(archiveFullPath, data, 0644); err != nil {
-			return nil, fmt.Errorf("failed to archive state: %w", err)
-		}
-		archivePath = archiveFullPath
-	}
-
-	// Delete the state file
+	// Note: archive parameter ignored (no complex state to archive)
+	// Just delete the state file
 	filename := workflowIDToFilename(workflowID)
 	statePath := filepath.Join(sm.stateDir, filename)
 	if err := os.Remove(statePath); err != nil {
 		return nil, fmt.Errorf("failed to remove state file: %w", err)
 	}
 
-	result := map[string]interface{}{
+	return map[string]interface{}{
 		"reset":      true,
 		"workflowId": workflowID,
-		"archived":   archive,
+		"archived":   false, // Always false now
 		"timestamp":  time.Now(),
-	}
-
-	if archive {
-		result["archivePath"] = archivePath
-	}
-
-	return result, nil
+	}, nil
 }
 
 // isMainRepo checks if the given path is the main repository (not a worktree)

@@ -61,15 +61,13 @@ Keep track in bots/review.md by marking fixed issues.
 After fixing all issues:
 
 1. Tell user: "All issues fixed, running checks"
-2. Report progress to TEST:
+2. Report progress:
    ```
    workflow_report_progress(
        worktreePath: "<worktree-path>",
-       currentStep: "FIX",
-       metadata: {
-           "issuesFixed": X,
-           "testsAdded": Y
-       }
+       currentStep: "FIX"
    )
    ```
+
+**Note:** No need to pass metadata - Bob tracks progress automatically.
 

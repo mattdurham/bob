@@ -44,13 +44,13 @@ git branch
 
 Note the current branch for reference.
 
-### 3. Pull Latest Changes (if on main)
+### 3. Pull Latest Changes from Main
 ```bash
 git checkout main
 git pull origin main
 ```
 
-Only do this if you're on the main branch. This ensures you have the latest code before starting.
+Switch to main branch and pull latest changes to ensure you have the most recent code before starting.
 
 ## DO NOT
 - ❌ Do not create a worktree yet - that happens in the WORKTREE step

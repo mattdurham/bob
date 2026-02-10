@@ -64,7 +64,7 @@ func (c *ClaudeClient) ClassifyFindings(findings string) (bool, error) {
 	}
 
 	// If findings are too short, no issues
-	if len(strings.TrimSpace(findings)) < 10 {
+	if len(strings.TrimSpace(findings)) < minFindingsLength {
 		return false, nil
 	}
 

@@ -12,7 +12,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"time"
 )
 
 //go:embed templates/*.html
@@ -62,25 +61,20 @@ type DashboardData struct {
 	Error     string
 }
 
-// WorkflowSummary contains summary info for a workflow
+// WorkflowSummary contains summary info for a workflow (simplified)
 type WorkflowSummary struct {
-	WorkflowID      string
-	Workflow        string
-	TaskDescription string
-	CurrentStep     string
-	LoopCount       int
-	IssueCount      int
-	WorktreePath    string
-	LastUpdate      time.Time
-	StartedAt       time.Time
+	WorkflowID   string
+	Workflow     string
+	CurrentStep  string
+	WorktreePath string
 }
 
-// WorkflowDetailData contains data for the workflow detail page
+// WorkflowDetailData contains data for the workflow detail page (simplified)
 type WorkflowDetailData struct {
 	Summary         WorkflowSummary
-	ProgressHistory []ProgressEntry
-	Issues          []Issue
 	Metadata        map[string]interface{}
+	ProgressHistory []string // Kept for template compatibility (empty)
+	Issues          []string // Kept for template compatibility (empty)
 	Error           string
 }
 
@@ -116,6 +110,7 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 	}
 
 	// Validate workflow ID format (prevent path traversal)
+	// Defense-in-depth: this check + workflowIDToFilename's url.PathEscape()
 	// Allow "/" for workflow IDs like "bob/codex-integration", but block path traversal
 	if strings.Contains(workflowID, "..") || strings.Contains(workflowID, "\\") {
 		http.Error(w, "Invalid workflow ID", http.StatusBadRequest)
@@ -136,8 +131,6 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 		data.Error = fmt.Sprintf("Error loading workflow: %v", err)
 	} else {
 		data.Summary = workflow.Summary
-		data.ProgressHistory = workflow.ProgressHistory
-		data.Issues = workflow.Issues
 		data.Metadata = workflow.Metadata
 	}
 
@@ -189,21 +182,16 @@ func loadWorkflows() ([]WorkflowSummary, error) {
 		}
 
 		workflows = append(workflows, WorkflowSummary{
-			WorkflowID:      state.WorkflowID,
-			Workflow:        state.Workflow,
-			TaskDescription: state.TaskDescription,
-			CurrentStep:     state.CurrentStep,
-			LoopCount:       state.LoopCount,
-			IssueCount:      len(state.Issues),
-			WorktreePath:    state.WorktreePath,
-			LastUpdate:      state.UpdatedAt,
-			StartedAt:       state.StartedAt,
+			WorkflowID:   state.WorkflowID,
+			Workflow:     state.Workflow,
+			CurrentStep:  state.CurrentStep,
+			WorktreePath: state.WorktreePath,
 		})
 	}
 
-	// Sort by last update (most recent first)
+	// Sort by workflow ID (alphabetical)
 	sort.Slice(workflows, func(i, j int) bool {
-		return workflows[i].LastUpdate.After(workflows[j].LastUpdate)
+		return workflows[i].WorkflowID < workflows[j].WorkflowID
 	})
 
 	return workflows, nil
@@ -217,11 +205,10 @@ func loadWorkflowDetail(workflowID string) (*WorkflowDetailData, error) {
 		return nil, err
 	}
 
-	// Find the workflow file using safe filename encoding (prevents collisions)
-	workflowsDir := filepath.Join(homeDir, ".bob", "state")
-	// Use workflowIDToFilename() to get the safe encoded filename
-	safeFilename := workflowIDToFilename(workflowID)
-	filePath := filepath.Join(workflowsDir, safeFilename)
+	// Load state file directly
+	stateDir := filepath.Join(homeDir, ".bob", "state")
+	filename := workflowIDToFilename(workflowID)
+	filePath := filepath.Join(stateDir, filename)
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
@@ -235,19 +222,14 @@ func loadWorkflowDetail(workflowID string) (*WorkflowDetailData, error) {
 
 	return &WorkflowDetailData{
 		Summary: WorkflowSummary{
-			WorkflowID:      state.WorkflowID,
-			Workflow:        state.Workflow,
-			TaskDescription: state.TaskDescription,
-			CurrentStep:     state.CurrentStep,
-			LoopCount:       state.LoopCount,
-			IssueCount:      len(state.Issues),
-			WorktreePath:    state.WorktreePath,
-			LastUpdate:      state.UpdatedAt,
-			StartedAt:       state.StartedAt,
+			WorkflowID:   state.WorkflowID,
+			Workflow:     state.Workflow,
+			CurrentStep:  state.CurrentStep,
+			WorktreePath: state.WorktreePath,
 		},
-		ProgressHistory: state.ProgressHistory,
-		Issues:          state.Issues,
-		Metadata:        state.Metadata,
+		Metadata:        make(map[string]interface{}), // Empty metadata
+		ProgressHistory: []string{},                   // Empty for template compatibility
+		Issues:          []string{},                   // Empty for template compatibility
 	}, nil
 }
 

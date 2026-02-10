@@ -731,15 +731,21 @@ func (tm *TaskManager) UpdateTask(repoPath, taskID string, updates map[string]in
 	if assignee, ok := updates["assignee"].(string); ok {
 		task.Assignee = assignee
 	}
-	if tags, ok := updates["tags"].([]interface{}); ok {
-		// Convert []interface{} to []string
-		stringTags := make([]string, 0, len(tags))
-		for _, tag := range tags {
-			if tagStr, ok := tag.(string); ok {
-				stringTags = append(stringTags, tagStr)
+	if rawTags, ok := updates["tags"]; ok {
+		switch tags := rawTags.(type) {
+		case []string:
+			// Already a []string, assign directly
+			task.Tags = tags
+		case []interface{}:
+			// Convert []interface{} to []string
+			stringTags := make([]string, 0, len(tags))
+			for _, tag := range tags {
+				if tagStr, ok := tag.(string); ok {
+					stringTags = append(stringTags, tagStr)
+				}
 			}
+			task.Tags = stringTags
 		}
-		task.Tags = stringTags
 	}
 
 	task.UpdatedAt = time.Now()

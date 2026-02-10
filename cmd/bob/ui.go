@@ -71,9 +71,11 @@ type WorkflowSummary struct {
 
 // WorkflowDetailData contains data for the workflow detail page (simplified)
 type WorkflowDetailData struct {
-	Summary  WorkflowSummary
-	Metadata map[string]interface{}
-	Error    string
+	Summary         WorkflowSummary
+	Metadata        map[string]interface{}
+	ProgressHistory []string // Kept for template compatibility (empty)
+	Issues          []string // Kept for template compatibility (empty)
+	Error           string
 }
 
 func handleDashboard(w http.ResponseWriter, r *http.Request, tmpl *template.Template) {
@@ -224,9 +226,10 @@ func loadWorkflowDetail(workflowID string) (*WorkflowDetailData, error) {
 			Workflow:     state.Workflow,
 			CurrentStep:  state.CurrentStep,
 			WorktreePath: state.WorktreePath,
-			// Removed fields: TaskDescription, LoopCount, IssueCount, LastUpdate, StartedAt
 		},
-		Metadata: make(map[string]interface{}), // Empty metadata
+		Metadata:        make(map[string]interface{}), // Empty metadata
+		ProgressHistory: []string{},                   // Empty for template compatibility
+		Issues:          []string{},                   // Empty for template compatibility
 	}, nil
 }
 

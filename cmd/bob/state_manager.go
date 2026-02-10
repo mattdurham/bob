@@ -307,6 +307,11 @@ func (sm *StateManager) GetStatus(worktreePath string, sessionID, agentID string
 		"workflow":     state.Workflow,
 		"worktreePath": state.WorktreePath,
 		"currentStep":  state.CurrentStep,
+		// Deprecated fields kept for backward compatibility (always empty)
+		"taskDescription": "",
+		"loopCount":       0,
+		"progressHistory": []interface{}{},
+		"updatedAt":       "",
 	}, nil
 }
 

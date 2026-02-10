@@ -198,7 +198,7 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 	// workflow_record_issues
 	s.AddTool(
 		mcp.NewTool("workflow_record_issues",
-			mcp.WithDescription("Record issues found during workflow execution for tracking and resolution."),
+			mcp.WithDescription("DEPRECATED: Issues are now stored in markdown files (bots/<step>.md). This tool is kept for backward compatibility but does nothing."),
 			mcp.WithString("worktreePath",
 				mcp.Required(),
 				mcp.Description("Absolute path to the git worktree"),

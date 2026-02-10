@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -302,4 +303,157 @@ func TestRejoinTimestamps(t *testing.T) {
 	if timestamp.IsZero() {
 		t.Error("Expected non-zero timestamp")
 	}
+}
+
+func TestFileBasedRouting(t *testing.T) {
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Register workflow (using "work" workflow which has REVIEW as a checkpoint phase)
+	_, err := sm.Register("work", worktreePath, "Test file-based routing", "", "", "")
+	if err != nil {
+		t.Fatalf("Failed to register workflow: %v", err)
+	}
+
+	// Create bots directory
+	botsDir := filepath.Join(worktreePath, "bots")
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create bots directory: %v", err)
+	}
+
+	// Advance to REVIEW step (a checkpoint phase)
+	// First advance through INIT -> WORKTREE -> BRAINSTORM -> PLAN -> EXECUTE -> TEST -> REVIEW
+	// Create dummy findings files for checkpoint phases
+	checkpointPhases := []string{"TEST"}
+	for _, phase := range checkpointPhases {
+		findingsFile := filepath.Join(botsDir, strings.ToLower(phase)+".md")
+		if err := os.WriteFile(findingsFile, []byte("# Review\n\nNo issues found.\n"), 0644); err != nil {
+			t.Fatalf("Failed to create findings file for %s: %v", phase, err)
+		}
+	}
+
+	steps := []string{"INIT", "WORKTREE", "BRAINSTORM", "PLAN", "EXECUTE", "TEST"}
+	for _, step := range steps {
+		_, err := sm.ReportProgress(worktreePath, step, nil, "", "")
+		if err != nil {
+			t.Fatalf("Failed to advance through %s: %v", step, err)
+		}
+	}
+
+	// Test 1: Missing file for checkpoint phase (should error with new enforcement)
+	t.Run("MissingFileForCheckpoint", func(t *testing.T) {
+		// Ensure no review.md file exists
+		reviewFile := filepath.Join(botsDir, "review.md")
+		_ = os.Remove(reviewFile)
+
+		// Report progress on REVIEW step without findings file
+		_, err := sm.ReportProgress(worktreePath, "REVIEW", nil, "", "")
+		if err == nil {
+			t.Error("Expected error for missing findings file in checkpoint phase")
+		}
+		if err != nil && !strings.Contains(err.Error(), "findings file not found") {
+			t.Errorf("Expected 'findings file not found' error, got: %v", err)
+		}
+	})
+
+	// Test 2: Empty/short file (should advance forward)
+	t.Run("EmptyFile", func(t *testing.T) {
+		reviewFile := filepath.Join(botsDir, "review.md")
+
+		// Write empty file
+		if err := os.WriteFile(reviewFile, []byte(""), 0644); err != nil {
+			t.Fatalf("Failed to write empty review file: %v", err)
+		}
+
+		result, err := sm.ReportProgress(worktreePath, "REVIEW", nil, "", "")
+		if err != nil {
+			t.Errorf("Empty file should advance forward, got error: %v", err)
+		}
+
+		// Should have advanced to next step
+		if result["currentStep"].(string) == "REVIEW" {
+			t.Error("Expected to advance past REVIEW step with empty file")
+		}
+	})
+
+	// Test 3: Short file (< minFindingsLength, should advance)
+	t.Run("ShortFile", func(t *testing.T) {
+		// Reset to REVIEW step
+		state, _ := sm.loadState(sm.worktreeToID(worktreePath, "", ""))
+		state.CurrentStep = "REVIEW"
+		_ = sm.saveState(state)
+
+		reviewFile := filepath.Join(botsDir, "review.md")
+
+		// Write file with less than minFindingsLength (10 bytes)
+		if err := os.WriteFile(reviewFile, []byte("OK"), 0644); err != nil {
+			t.Fatalf("Failed to write short review file: %v", err)
+		}
+
+		result, err := sm.ReportProgress(worktreePath, "REVIEW", nil, "", "")
+		if err != nil {
+			t.Errorf("Short file should advance forward, got error: %v", err)
+		}
+
+		// Should have advanced
+		if result["currentStep"].(string) == "REVIEW" {
+			t.Error("Expected to advance past REVIEW step with short file")
+		}
+	})
+
+	// Test 4: File with "no issues" content (should advance)
+	t.Run("NoIssuesFound", func(t *testing.T) {
+		// Reset to REVIEW step
+		state, _ := sm.loadState(sm.worktreeToID(worktreePath, "", ""))
+		state.CurrentStep = "REVIEW"
+		_ = sm.saveState(state)
+
+		reviewFile := filepath.Join(botsDir, "review.md")
+
+		// Write file indicating no issues
+		noIssuesContent := "# Code Review\n\nTotal Issues: 0\n\nNo issues found."
+		if err := os.WriteFile(reviewFile, []byte(noIssuesContent), 0644); err != nil {
+			t.Fatalf("Failed to write no-issues review file: %v", err)
+		}
+
+		result, err := sm.ReportProgress(worktreePath, "REVIEW", nil, "", "")
+		if err != nil {
+			t.Errorf("No-issues file should advance forward, got error: %v", err)
+		}
+
+		// Should have advanced (assuming fallback classification works)
+		currentStep := result["currentStep"].(string)
+		if currentStep == "REVIEW" {
+			// This might stay at REVIEW if Claude API classifies it, which is OK
+			// The important thing is no error occurred
+			t.Logf("Stayed at REVIEW (classification may have detected false positive)")
+		}
+	})
+}
+
+func TestNonCheckpointPhaseRouting(t *testing.T) {
+	// Create temporary directory and git repo
+	tmpDir, worktreePath, sm := setupTestGitRepo(t)
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	// Register workflow
+	_, err := sm.Register("work", worktreePath, "Test non-checkpoint routing", "", "", "")
+	if err != nil {
+		t.Fatalf("Failed to register workflow: %v", err)
+	}
+
+	// Test: Non-checkpoint phases should auto-advance without checking files
+	t.Run("NonCheckpointAutoAdvance", func(t *testing.T) {
+		// Report progress on INIT (non-checkpoint phase) without any files
+		result, err := sm.ReportProgress(worktreePath, "INIT", nil, "", "")
+		if err != nil {
+			t.Errorf("Non-checkpoint phase should advance without error: %v", err)
+		}
+
+		// Should have advanced
+		if result["currentStep"].(string) == "INIT" {
+			t.Error("Expected to advance past INIT step automatically")
+		}
+	})
 }

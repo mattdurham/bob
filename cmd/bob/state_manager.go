@@ -286,12 +286,13 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 // Kept for backward compatibility but does nothing
 func (sm *StateManager) RecordIssues(worktreePath, step string, issues []interface{}, sessionID, agentID string) (map[string]interface{}, error) {
 	return map[string]interface{}{
-		"recorded":    true,
+		"recorded":    false,
 		"issueCount":  0,
 		"shouldLoop":  false,
 		"loopBackTo":  "",
 		"totalIssues": 0,
-		"deprecated":  "Issues are now stored in markdown files under bots/",
+		"deprecated":  true,
+		"warning":     "This function is deprecated. Issues are now stored in markdown files under bots/<step>.md. Write findings to those files instead.",
 	}, nil
 }
 

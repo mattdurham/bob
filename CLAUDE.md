@@ -7,7 +7,7 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration via MCP (Mo
 Bob integrates with three MCP servers:
 1. **Bob** - Workflow orchestration, task management, and workflow guidance
 2. **Filesystem** - Secure filesystem operations (official ModelContextProtocol server)
-3. **GitHub** - GitHub API access via Copilot MCP endpoint
+3. **GitHub** - GitHub API access via official GitHub MCP server
 
 ### Complete Configuration
 
@@ -36,14 +36,22 @@ Your MCP configuration will include:
 
 #### 2. Add GitHub API access:
 
+The official GitHub MCP server provides GitHub API access with authentication.
+
+**Installation:**
+
 ```bash
-claude mcp add-json github '{"type":"http","url":"https://api.githubcopilot.com/mcp","headers":{"Authorization":"Bearer '"$(grep GITHUB_PAT .env | cut -d '=' -f2)"'"}}'
+# Install the GitHub MCP server
+npm install -g @github/mcp-server
+
+# Add to Claude MCP configuration
+claude mcp add github -- npx -y @github/mcp-server
 ```
 
-**Prerequisites**: Create a `.env` file in your home directory with your GitHub Personal Access Token (PAT):
-```bash
-echo "GITHUB_PAT=your_github_token_here" > ~/.env
-```
+**Prerequisites**:
+- You'll need a GitHub Personal Access Token (PAT) with appropriate scopes
+- The server will prompt for authentication on first use
+- See https://github.com/github/github-mcp-server for detailed setup
 
 All three servers run independently and can be used simultaneously in your Claude sessions.
 

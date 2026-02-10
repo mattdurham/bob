@@ -338,3 +338,7 @@ MIT License - See LICENSE file
 ---
 
 *🏴‍☠️ Fair winds and following seas! - Captain Bob*
+
+# Developing Bob
+
+Note all development work in Bob must go through a bob workflow session.

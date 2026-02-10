@@ -225,27 +225,11 @@ func registerWorkflowTools(s *server.MCPServer, stateManager *StateManager, task
 			issuesRaw, _ := args["issues"].([]interface{})
 			sessionID := request.GetString("sessionID", "")
 			agentID := request.GetString("agentID", "")
-
-			// Convert to []Issue
-			var issues []Issue
-			for _, issueRaw := range issuesRaw {
-				issueMap, ok := issueRaw.(map[string]interface{})
-				if !ok {
-					continue
-				}
-				issue := Issue{
-					Phase:       getString(issueMap, "phase"),
-					Description: getString(issueMap, "description"),
-					Severity:    getString(issueMap, "severity"),
-					File:        getString(issueMap, "file"),
-					Line:        getInt(issueMap, "line"),
-				}
-				issues = append(issues, issue)
-			}
-
-			// Get current step for RecordIssues
 			currentStep := request.GetString("currentStep", "")
-			result, err := stateManager.RecordIssues(worktreePath, currentStep, issues, sessionID, agentID)
+
+			// Note: Issues are now stored in markdown files under bots/
+			// This handler is kept for backward compatibility but does nothing
+			result, err := stateManager.RecordIssues(worktreePath, currentStep, issuesRaw, sessionID, agentID)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}

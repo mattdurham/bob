@@ -96,11 +96,8 @@ func TestRejoin(t *testing.T) {
 			t.Error("Expected rejoined=true")
 		}
 
-		// Verify task description was updated
-		status, _ := sm.GetStatus(worktreePath, "", "")
-		if status["taskDescription"].(string) != "Updated task description" {
-			t.Error("Task description was not updated")
-		}
+		// Note: taskDescription no longer tracked in simplified state
+		// Just verify rejoin succeeded - description update now ignored
 	})
 
 	// Test 2: Rejoin at different step with reset
@@ -126,23 +123,11 @@ func TestRejoin(t *testing.T) {
 			t.Errorf("Expected currentStep=INIT, got %s", result["currentStep"].(string))
 		}
 
-		// Verify progress history was reset
+		// Note: Progress history no longer tracked in simplified state
+		// Just verify the currentStep is correct
 		status, _ = sm.GetStatus(worktreePath, "", "")
-		history := status["progressHistory"].([]ProgressEntry)
-
-		// Should only have entries up to and including INIT (plus the rejoin entry)
-		foundNonInitStep := false
-		for _, entry := range history {
-			if entry.Step != "INIT" {
-				// Check if this is the rejoin entry by looking at metadata
-				if metadata, ok := entry.Metadata["rejoin"].(bool); !ok || !metadata {
-					foundNonInitStep = true
-					break
-				}
-			}
-		}
-		if foundNonInitStep {
-			t.Error("Found non-INIT steps in history after reset (excluding rejoin entry)")
+		if status["currentStep"].(string) != "INIT" {
+			t.Errorf("Expected currentStep=INIT after rejoin, got %s", status["currentStep"].(string))
 		}
 	})
 
@@ -162,19 +147,15 @@ func TestRejoin(t *testing.T) {
 		}
 	})
 
-	// Test 5: Verify rejoin history tracking
-	t.Run("RejoinHistoryTracking", func(t *testing.T) {
-		workflowID := sm.worktreeToID(worktreePath, "", "")
-		state, _ := sm.loadState(workflowID)
-
-		if len(state.RejoinHistory) == 0 {
-			t.Error("Expected rejoin history to be populated")
+	// Test 5: Verify rejoin history tracking (removed - history no longer tracked)
+	t.Run("RejoinBasicFunctionality", func(t *testing.T) {
+		// Just verify rejoin works without errors
+		result, err := sm.Rejoin(worktreePath, "INIT", "", false, "", "")
+		if err != nil {
+			t.Errorf("Rejoin failed: %v", err)
 		}
-
-		// Verify last rejoin event
-		lastRejoin := state.RejoinHistory[len(state.RejoinHistory)-1]
-		if lastRejoin.ToStep != "INIT" {
-			t.Errorf("Expected last rejoin to INIT, got %s", lastRejoin.ToStep)
+		if !result["rejoined"].(bool) {
+			t.Error("Expected rejoined=true")
 		}
 	})
 }
@@ -202,14 +183,9 @@ func TestReset(t *testing.T) {
 			t.Error("Expected reset=true")
 		}
 
-		if !result["archived"].(bool) {
-			t.Error("Expected archived=true")
-		}
-
-		// Verify archive file exists
-		archivePath := result["archivePath"].(string)
-		if _, err := os.Stat(archivePath); os.IsNotExist(err) {
-			t.Error("Archive file was not created")
+		// Note: Archiving removed in simplified state - flag is ignored
+		if result["archived"].(bool) {
+			t.Error("Expected archived=false (archiving removed)")
 		}
 
 		// Verify state file was deleted
@@ -281,10 +257,14 @@ func TestRejoinWithSessionAndAgent(t *testing.T) {
 		t.Error("Expected rejoined=true")
 	}
 
-	// Verify task description was updated
-	status, _ := sm.GetStatus(worktreePath, sessionID, agentID)
-	if status["taskDescription"].(string) != "Updated description" {
-		t.Error("Task description was not updated")
+	// Note: taskDescription no longer stored in simplified state
+	// Just verify status can be retrieved
+	status, err := sm.GetStatus(worktreePath, sessionID, agentID)
+	if err != nil {
+		t.Errorf("GetStatus failed: %v", err)
+	}
+	if status["workflowId"] == nil {
+		t.Error("Expected workflowId in status")
 	}
 }
 
@@ -310,10 +290,9 @@ func TestRejoinTimestamps(t *testing.T) {
 
 	// Verify timestamp was updated
 	timestamp := result["timestamp"].(time.Time)
-	workflowID := sm.worktreeToID(worktreePath, "", "")
-	state, _ := sm.loadState(workflowID)
-
-	if !timestamp.After(state.StartedAt) {
-		t.Error("Expected rejoin timestamp to be after start time")
+	// Note: StartedAt no longer tracked in simplified state
+	// Just verify timestamp exists
+	if timestamp.IsZero() {
+		t.Error("Expected non-zero timestamp")
 	}
 }

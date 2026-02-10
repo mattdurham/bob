@@ -226,38 +226,36 @@ Store this content to pass in metadata (even if empty).
 - ❌ Do not commit yet
 
 ## CRITICAL RULES
-- ✅ **ALWAYS include findings text in metadata**
-- ✅ Pass full content of bots/review.md (empty string if no issues)
+- ✅ **ALWAYS write findings to bots/review.md**
+- ✅ Bob will read bots/review.md directly for validation
 - ✅ Workflow orchestration will classify and route automatically
 - ✅ Your job is to find and report issues, not route the workflow
-- ✅ Let Claude API determine if issues exist
+- ✅ Claude API will determine if issues exist by reading the file
 
 ## When You're Done
 
-### Report Findings
+### Report Step Completion
 
-**Use workflow_report_progress with findings text:**
+**Simply report the step is complete:**
 ```
 workflow_report_progress(
     worktreePath: "<worktree-path>",
-    currentStep: "REVIEW",
-    metadata: {
-        "findings": "<full content of bots/review.md>",
-        "reviewCompleted": true
-    }
+    currentStep: "REVIEW"
 )
 ```
+
+**Note:** Bob will automatically read `bots/review.md` to determine next step.
 
 ### Tell User
 
 ```
-📋 Code review complete - findings recorded.
+📋 Code review complete - findings written to bots/review.md
 Workflow will analyze and route automatically.
 ```
 
 ## Important
 - DO NOT tell user what phase comes next
-- DO NOT call workflow_report_progress to another step
-- ONLY report progress on current step (REVIEW) with findings text
-- Claude API will classify findings and orchestration will route
-- Pass findings even if empty (empty string = no issues)
+- DO NOT pass findings in metadata (Bob reads the file directly)
+- ONLY report progress on current step (REVIEW)
+- Bob will read bots/review.md and classify with Claude API
+- Empty file or "Total Issues: 0" = no issues = advance forward

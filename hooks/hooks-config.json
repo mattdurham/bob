@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/pre-commit-checks.sh",
+            "timeout": 120,
+            "blocking": true
+          }
+        ]
+      }
+    ]
+  },
+  "_comments": {
+    "PreToolUse": "Runs before tools execute. The pre-commit hook blocks git commits if tests/linting fail.",
+    "matcher": "Pattern matching tool calls. Use 'Bash(git commit*)' to match all git commit commands.",
+    "blocking": "When true, hook must succeed (exit 0) for the tool to execute. False allows tool to run even if hook fails.",
+    "timeout": "Maximum seconds to wait for hook execution before timing out."
+  }
+}

@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-guidance allow clean
+.PHONY: help install install-skills install-agents install-lsp install-guidance allow hooks clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -16,10 +16,13 @@ help:
 	@echo "  make install-lsp              - Install Go LSP plugin"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
+	@echo "  make hooks                    - Install pre-commit hooks (tests, linting, formatting)"
 	@echo "  make clean                    - Clean temporary files"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  make install                  - Install everything"
+	@echo "  make install                  - Install everything (skills + agents + LSP)"
+	@echo "  make hooks                    - Install pre-commit hooks"
+	@echo "  make allow                    - Apply permissions"
 	@echo "  /work \"feature description\" - Start a workflow"
 
 # Install workflow skills to Claude
@@ -166,6 +169,59 @@ allow:
 	@jq -r '.permissions.allow[]' "$$HOME/.claude/settings.json" | sed 's/^/  ✓ /'
 	@echo ""
 	@echo "Default mode: $$(jq -r '.permissions.defaultMode' "$$HOME/.claude/settings.json")"
+
+# Install pre-commit hooks
+hooks:
+	@echo "🪝 Installing pre-commit hooks..."
+	@if [ ! -d "hooks" ]; then \
+		echo "❌ Error: hooks/ directory not found"; \
+		exit 1; \
+	fi
+	@if ! command -v jq >/dev/null 2>&1; then \
+		echo "❌ Error: jq is required but not installed"; \
+		echo "Install with: sudo apt-get install jq  (or your package manager)"; \
+		exit 1; \
+	fi
+	@echo "Installing hook scripts..."
+	@mkdir -p "$$HOME/.claude/hooks"
+	@cp hooks/pre-commit-checks.sh "$$HOME/.claude/hooks/"
+	@chmod +x "$$HOME/.claude/hooks/pre-commit-checks.sh"
+	@if [ -f "hooks/README.md" ]; then \
+		cp hooks/README.md "$$HOME/.claude/hooks/"; \
+	fi
+	@echo "✅ Hook scripts installed"
+	@echo ""
+	@HOOKS_CONFIG="$$HOME/.claude/hooks-config.json"; \
+	if [ ! -f "$$HOOKS_CONFIG" ]; then \
+		echo "Creating new hooks configuration..."; \
+		cp hooks/hooks-config.json "$$HOOKS_CONFIG"; \
+	else \
+		echo "Backing up existing hooks configuration..."; \
+		cp "$$HOOKS_CONFIG" "$$HOOKS_CONFIG.backup"; \
+		echo "Merging hooks configuration..."; \
+		TMP_FILE=$$(mktemp); \
+		jq -s '.[0] as $$existing | .[1] as $$new | $$existing * $$new | .hooks.PreToolUse = (($$existing.hooks.PreToolUse // []) + ($$new.hooks.PreToolUse // []) | unique_by(.matcher))' "$$HOOKS_CONFIG" hooks/hooks-config.json > "$$TMP_FILE"; \
+		if [ $$? -eq 0 ]; then \
+			mv "$$TMP_FILE" "$$HOOKS_CONFIG"; \
+			echo "✅ Backup saved to: $$HOOKS_CONFIG.backup"; \
+		else \
+			echo "❌ Merge failed, restoring from backup"; \
+			rm -f "$$TMP_FILE"; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "✅ Hooks configuration merged"
+	@echo ""
+	@echo "📋 Installed hooks:"
+	@echo "  ✓ pre-commit-checks.sh - Runs tests, linting, formatting before commits"
+	@echo ""
+	@echo "🔍 Hook will run automatically before 'git commit' commands"
+	@echo "   Blocks commits if:"
+	@echo "   - Tests fail (go test ./...)"
+	@echo "   - Linting fails (golangci-lint)"
+	@echo "   - Code not formatted (go fmt)"
+	@echo ""
+	@echo "📚 See ~/.claude/hooks/README.md for details"
 
 # Clean temporary files
 clean:

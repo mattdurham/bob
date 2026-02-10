@@ -24,7 +24,9 @@ func TestGenerateDynamicContext_EmptyFile(t *testing.T) {
 	sm := NewStateManager()
 	tempDir := t.TempDir()
 	botsDir := filepath.Join(tempDir, "bots")
-	_ = os.MkdirAll(botsDir, 0755)
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	// Create empty file
 	_ = os.WriteFile(filepath.Join(botsDir, "plan.md"), []byte(""), 0644)
@@ -40,7 +42,9 @@ func TestGenerateDynamicContext_SmallFile(t *testing.T) {
 	sm := NewStateManager()
 	tempDir := t.TempDir()
 	botsDir := filepath.Join(tempDir, "bots")
-	_ = os.MkdirAll(botsDir, 0755)
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	// Create file with less than minFindingsLength bytes
 	_ = os.WriteFile(filepath.Join(botsDir, "plan.md"), []byte("ok"), 0644)
@@ -56,7 +60,9 @@ func TestGenerateDynamicContext_ReviewWithIssues(t *testing.T) {
 	sm := NewStateManager()
 	tempDir := t.TempDir()
 	botsDir := filepath.Join(tempDir, "bots")
-	_ = os.MkdirAll(botsDir, 0755)
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	// Create review.md with issues
 	reviewContent := `# Review Findings
@@ -91,7 +97,9 @@ func TestGenerateDynamicContext_CleanStep(t *testing.T) {
 	sm := NewStateManager()
 	tempDir := t.TempDir()
 	botsDir := filepath.Join(tempDir, "bots")
-	_ = os.MkdirAll(botsDir, 0755)
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create directory: %v", err)
+	}
 
 	// Create brainstorm.md (not a checkpoint phase)
 	brainstormContent := `# Brainstorm
@@ -115,21 +123,55 @@ func TestGetGuidance_WithDynamicContext(t *testing.T) {
 	sm := NewStateManager()
 	tempDir := t.TempDir()
 	worktreeDir := filepath.Join(tempDir, "worktree")
-	_ = os.MkdirAll(worktreeDir, 0755)
+	// Don't create worktreeDir yet - let git worktree add create it (Issue #3)
+
+	// Initialize git repo for main (Issue #4 fixed: use cmd.Dir instead of os.Chdir)
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to init git: %v", err)
+	}
+
+	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to config email: %v", err)
+	}
+
+	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to config name: %v", err)
+	}
+
+	if err := os.WriteFile(filepath.Join(tempDir, "README.md"), []byte("test"), 0644); err != nil {
+		t.Fatalf("Failed to write README: %v", err)
+	}
+
+	cmd = exec.Command("git", "add", "README.md")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to add README: %v", err)
+	}
+
+	cmd = exec.Command("git", "commit", "-m", "init")
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to commit: %v", err)
+	}
+
+	// Create worktree (Issue #3 fixed: check error, create bots/ after)
+	cmd = exec.Command("git", "worktree", "add", "-b", "test-branch", worktreeDir)
+	cmd.Dir = tempDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to create worktree: %v", err)
+	}
+
+	// Now create bots/ directory inside the worktree
 	botsDir := filepath.Join(worktreeDir, "bots")
-	_ = os.MkdirAll(botsDir, 0755)
-
-	// Initialize git repo for main
-	_ = os.Chdir(tempDir)
-	_ = exec.Command("git", "init").Run()
-	_ = exec.Command("git", "config", "user.email", "test@test.com").Run()
-	_ = exec.Command("git", "config", "user.name", "Test").Run()
-	_ = os.WriteFile("README.md", []byte("test"), 0644)
-	_ = exec.Command("git", "add", "README.md").Run()
-	_ = exec.Command("git", "commit", "-m", "init").Run()
-
-	// Create worktree
-	_ = exec.Command("git", "worktree", "add", "-b", "test-branch", worktreeDir).Run()
+	if err := os.MkdirAll(botsDir, 0755); err != nil {
+		t.Fatalf("Failed to create bots directory: %v", err)
+	}
 
 	// Register workflow on worktree
 	_, err := sm.Register("work", worktreeDir, "Test task", "", "", "")
@@ -144,10 +186,15 @@ func TestGetGuidance_WithDynamicContext(t *testing.T) {
 `
 	_ = os.WriteFile(filepath.Join(botsDir, "plan.md"), []byte(planContent), 0644)
 
-	// Move to PLAN step
-	state, _ := sm.loadState(sm.worktreeToID(worktreeDir, "", ""))
+	// Move to PLAN step (Issue #6 fixed: handle loadState error)
+	state, err := sm.loadState(sm.worktreeToID(worktreeDir, "", ""))
+	if err != nil {
+		t.Fatalf("Failed to load state: %v", err)
+	}
 	state.CurrentStep = "PLAN"
-	_ = sm.saveState(state)
+	if err := sm.saveState(state); err != nil {
+		t.Fatalf("Failed to save state: %v", err)
+	}
 
 	// Get guidance
 	result, err := sm.GetGuidance(worktreeDir, "", "")

@@ -419,7 +419,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("Task description"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("Priority: low, medium, high, critical"),
+				mcp.Description("Priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("Array of tag strings"),
@@ -433,7 +433,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			title, _ := request.RequireString("title")
 			description, _ := request.RequireString("description")
 			priority := request.GetString("priority", "medium")
-			taskType := request.GetString("taskType", "task")
+			taskType := request.GetString("taskType", "feature")
 
 			args := request.GetArguments()
 			tagsRaw, _ := args["tags"].([]interface{})
@@ -516,7 +516,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("Filter by state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("Filter by priority: low, medium, high, critical"),
+				mcp.Description("Filter by priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("Filter by tags (match any)"),
@@ -559,7 +559,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				mcp.Description("New state: pending, in_progress, completed, blocked, cancelled"),
 			),
 			mcp.WithString("priority",
-				mcp.Description("New priority: low, medium, high, critical"),
+				mcp.Description("New priority: low, medium, high"),
 			),
 			mcp.WithArray("tags",
 				mcp.Description("New tags array"),

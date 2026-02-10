@@ -747,19 +747,27 @@ func (sm *StateManager) generateDynamicContext(worktreePath, workflow, currentSt
 	var content string
 	var err error
 
-	// Try to detect loop back by checking if previous step files exist with issues
-	// For PLAN step, check if review.md exists (common loop: REVIEW -> PLAN)
-	// For EXECUTE step, check if test.md exists (common loop: TEST -> EXECUTE)
-	previousStepFiles := map[string][]string{
-		"PLAN":    {"review", "test"}, // Could have looped from REVIEW or TEST
-		"EXECUTE": {"test", "review"}, // Could have looped from TEST or REVIEW
-		"REVIEW":  {"monitor"},        // Could have looped from MONITOR
+	// Issue #2 fixed: Derive previous steps from workflow definition's canLoopTo
+	// Find which steps can loop TO currentStep (reverse lookup)
+	repoPath, _ := sm.getRepoPath(worktreePath)
+	workflowDef, err := GetWorkflowDefinition(workflow, repoPath)
+	var previousStepNames []string
+	if err == nil {
+		for _, step := range workflowDef.Steps {
+			for _, loopTarget := range step.CanLoopTo {
+				if loopTarget == currentStep {
+					previousStepNames = append(previousStepNames, step.Name)
+					break
+				}
+			}
+		}
 	}
 
-	// First try previous step files
-	if prevSteps, ok := previousStepFiles[currentStep]; ok {
-		for _, prevStep := range prevSteps {
-			content, err = sm.readBotsFile(worktreePath, prevStep)
+	// First try previous step files (steps that can loop to current)
+	if len(previousStepNames) > 0 {
+		for _, prevStepName := range previousStepNames {
+			prevStepFile := strings.ToLower(prevStepName)
+			content, err = sm.readBotsFile(worktreePath, prevStepFile)
 			if err == nil && len(content) >= minFindingsLength {
 				// Found previous step's file with content - use it
 				break
@@ -781,8 +789,8 @@ func (sm *StateManager) generateDynamicContext(worktreePath, workflow, currentSt
 		return ""
 	}
 
-	// Format context based on step
-	return sm.formatContextForStep(currentStep, findings)
+	// Format context based on step (Issue #1: pass workflow)
+	return sm.formatContextForStep(workflow, currentStep, findings)
 }
 
 // readBotsFile reads a markdown file from the bots/ directory
@@ -843,15 +851,15 @@ func (sm *StateManager) parseMarkdownFindings(content string) []string {
 }
 
 // formatContextForStep formats findings into a context message based on the step
-func (sm *StateManager) formatContextForStep(step string, findings []string) string {
+func (sm *StateManager) formatContextForStep(workflow, step string, findings []string) string {
 	if len(findings) == 0 {
 		return ""
 	}
 
 	var sb strings.Builder
 
-	// Check if this is a checkpoint step that might have looped back
-	checkpoint := sm.isCheckpointPhase("work", step)
+	// Check if this is a checkpoint step that might have looped back (Issue #1: use workflow param)
+	checkpoint := sm.isCheckpointPhase(workflow, step)
 
 	if checkpoint {
 		sb.WriteString("⚠️ Issues found that need attention\n\n")
@@ -900,4 +908,87 @@ func (sm *StateManager) formatContextForStep(step string, findings []string) str
 	}
 
 	return sb.String()
+}
+
+// PRStatus represents the status of a pull request
+type PRStatus struct {
+	State             string // OPEN, CLOSED, MERGED
+	Merged            bool
+	HasIssues         bool
+	FailedChecks      []string
+	UnresolvedThreads int
+}
+
+// checkPRStatus checks the actual PR status using gh CLI
+func (sm *StateManager) checkPRStatus(worktreePath string) (*PRStatus, error) {
+	// Get repo path to determine branch name
+	repoPath, err := sm.getRepoPath(worktreePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repo path: %w", err)
+	}
+
+	// Get current branch name
+	cmd := exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
+	cmd.Dir = repoPath
+	branchBytes, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch name: %w", err)
+	}
+	branch := strings.TrimSpace(string(branchBytes))
+
+	// Check if PR exists for this branch using gh CLI
+	// gh pr view --json state,merged,statusCheckRollup,reviews
+	prCmd := exec.Command("gh", "pr", "view", branch,
+		"--json", "state,merged,statusCheckRollup,reviews")
+	prCmd.Dir = repoPath
+	output, err := prCmd.Output()
+	if err != nil {
+		// No PR found or gh CLI error
+		return nil, fmt.Errorf("failed to get PR status: %w", err)
+	}
+
+	// Parse JSON response
+	var prData struct {
+		State             string `json:"state"`
+		Merged            bool   `json:"merged"`
+		StatusCheckRollup []struct {
+			Status     string `json:"status"`
+			Conclusion string `json:"conclusion"`
+			Name       string `json:"name"`
+		} `json:"statusCheckRollup"`
+		Reviews []struct {
+			State string `json:"state"`
+		} `json:"reviews"`
+	}
+
+	if err := json.Unmarshal(output, &prData); err != nil {
+		return nil, fmt.Errorf("failed to parse PR data: %w", err)
+	}
+
+	status := &PRStatus{
+		State:             prData.State,
+		Merged:            prData.Merged,
+		HasIssues:         false,
+		FailedChecks:      []string{},
+		UnresolvedThreads: 0,
+	}
+
+	// Check for failed CI checks
+	for _, check := range prData.StatusCheckRollup {
+		if check.Conclusion != "SUCCESS" && check.Conclusion != "SKIPPED" && check.Conclusion != "" {
+			status.HasIssues = true
+			status.FailedChecks = append(status.FailedChecks,
+				fmt.Sprintf("%s: %s", check.Name, check.Conclusion))
+		}
+	}
+
+	// Check for change requests in reviews
+	for _, review := range prData.Reviews {
+		if review.State == "CHANGES_REQUESTED" {
+			status.HasIssues = true
+			status.UnresolvedThreads++
+		}
+	}
+
+	return status, nil
 }

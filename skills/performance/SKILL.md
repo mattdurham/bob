@@ -126,9 +126,9 @@ Task(subagent_type: "workflow-tester",
 
 ## Phase 6: REVIEW
 
-**Goal:** Comprehensive code review of optimized code by 7 specialized agents
+**Goal:** Comprehensive code review of optimized code by 9 specialized agents
 
-Spawn 7 reviewer agents in parallel (single message, 7 Task calls):
+Spawn 9 reviewer agents in parallel (single message, 9 Task calls):
 ```
 Task(subagent_type: "workflow-reviewer",
      description: "Code quality review",
@@ -171,9 +171,27 @@ Task(subagent_type: "golang-pro",
      run_in_background: true,
      prompt: "Review Go optimizations for idiomatic patterns.
              Write findings to bots/review-go.md with severity levels.")
+
+Task(subagent_type: "debugger",
+     description: "Bug diagnosis and debugging review",
+     run_in_background: true,
+     prompt: "Analyze optimized code for potential bugs:
+             - Race conditions introduced by concurrency optimizations
+             - Resource leaks from performance changes
+             - Logic errors in optimized algorithms
+             Write findings to bots/review-debug.md with severity levels.")
+
+Task(subagent_type: "error-detective",
+     description: "Error pattern analysis review",
+     run_in_background: true,
+     prompt: "Review error handling in optimized code:
+             - Error handling consistency in performance-critical paths
+             - Failure recovery patterns in optimized code
+             - Timeout and deadline handling
+             Write findings to bots/review-errors.md with severity levels.")
 ```
 
-After all 7 agents complete, consolidate findings into `bots/review.md`.
+After all 9 agents complete, consolidate findings into `bots/review.md`.
 
 **Output:** `bots/review.md` (consolidated report)
 

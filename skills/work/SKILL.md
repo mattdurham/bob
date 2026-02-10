@@ -215,11 +215,11 @@ Checks:
 
 ## Phase 6: REVIEW (Parallel Multi-Agent Review)
 
-**Goal:** Comprehensive code review by 7 specialized agents in parallel
+**Goal:** Comprehensive code review by 9 specialized agents in parallel
 
 **Actions:**
 
-Spawn 7 reviewer agents in parallel (single message, 7 Task calls):
+Spawn 9 reviewer agents in parallel (single message, 9 Task calls):
 
 ```
 Task(subagent_type: "workflow-reviewer",
@@ -293,9 +293,33 @@ Task(subagent_type: "golang-pro",
              - Performance and race condition analysis
              - Go-specific security concerns
              Write findings to bots/review-go.md with severity levels.")
+
+Task(subagent_type: "debugger",
+     description: "Bug diagnosis and debugging review",
+     run_in_background: true,
+     prompt: "Perform systematic debugging analysis on the code:
+             - Potential null pointer dereferences and panic conditions
+             - Race conditions and concurrency bugs
+             - Off-by-one errors and boundary conditions
+             - Resource leaks (connections, file handles, memory)
+             - Logic errors in control flow and state management
+             - Error propagation and handling gaps
+             Write findings to bots/review-debug.md with severity levels.")
+
+Task(subagent_type: "error-detective",
+     description: "Error pattern analysis review",
+     run_in_background: true,
+     prompt: "Analyze code for error handling patterns and potential failure modes:
+             - Error handling consistency across the codebase
+             - Missing error checks and silent failures
+             - Error message clarity and actionability
+             - Retry logic and failure recovery patterns
+             - Timeout and deadline handling
+             - Circuit breaker and fallback patterns
+             Write findings to bots/review-errors.md with severity levels.")
 ```
 
-**Wait for ALL 7 agents to complete.** If any agent fails, abort and report error.
+**Wait for ALL 9 agents to complete.** If any agent fails, abort and report error.
 
 **Input:** Code changes, `bots/plan.md`
 **Output:**
@@ -306,13 +330,15 @@ Task(subagent_type: "golang-pro",
 - `bots/review-architecture.md` (architecture findings)
 - `bots/review-code-quality.md` (comprehensive code quality findings)
 - `bots/review-go.md` (Go-specific findings)
+- `bots/review-debug.md` (debugging and bug diagnosis findings)
+- `bots/review-errors.md` (error handling pattern findings)
 - `bots/review.md` (consolidated report - created in next step)
 
 **Step 2: Consolidate Findings**
 
-After all 7 agents complete successfully:
+After all 9 agents complete successfully:
 
-1. **Read all 7 review files:**
+1. **Read all 9 review files:**
    ```
    Read(file_path: "/path/to/worktree/bots/review-code.md")
    Read(file_path: "/path/to/worktree/bots/review-security.md")
@@ -321,6 +347,8 @@ After all 7 agents complete successfully:
    Read(file_path: "/path/to/worktree/bots/review-architecture.md")
    Read(file_path: "/path/to/worktree/bots/review-code-quality.md")
    Read(file_path: "/path/to/worktree/bots/review-go.md")
+   Read(file_path: "/path/to/worktree/bots/review-debug.md")
+   Read(file_path: "/path/to/worktree/bots/review-errors.md")
    ```
 
 2. **Parse and merge findings:**
@@ -366,10 +394,10 @@ After all 7 agents complete successfully:
    ## Summary
 
    **Total Issues:** 15
-   - CRITICAL: 2 (security: 2, code: 0, performance: 0, docs: 0, architecture: 0, code-quality: 0, go: 0)
-   - HIGH: 4 (security: 1, code: 1, performance: 1, docs: 0, architecture: 1, code-quality: 0, go: 0)
-   - MEDIUM: 6 (security: 0, code: 2, performance: 1, docs: 2, architecture: 0, code-quality: 1, go: 0)
-   - LOW: 3 (security: 0, code: 0, performance: 0, docs: 2, architecture: 0, code-quality: 0, go: 1)
+   - CRITICAL: 2 (security: 2, code: 0, performance: 0, docs: 0, architecture: 0, code-quality: 0, go: 0, debug: 0, errors: 0)
+   - HIGH: 4 (security: 1, code: 1, performance: 1, docs: 0, architecture: 1, code-quality: 0, go: 0, debug: 0, errors: 0)
+   - MEDIUM: 6 (security: 0, code: 2, performance: 1, docs: 2, architecture: 0, code-quality: 1, go: 0, debug: 0, errors: 0)
+   - LOW: 3 (security: 0, code: 0, performance: 0, docs: 2, architecture: 0, code-quality: 0, go: 1, debug: 0, errors: 0)
 
    **Agents Executed:**
    - Code Quality Review: ✓ (workflow-reviewer)
@@ -379,6 +407,8 @@ After all 7 agents complete successfully:
    - Architecture Review: ✓ (architect-reviewer)
    - Code Quality Deep Review: ✓ (code-reviewer)
    - Go-Specific Review: ✓ (golang-pro)
+   - Debugging Review: ✓ (debugger)
+   - Error Pattern Review: ✓ (error-detective)
 
    **Recommendation:** BRAINSTORM (2 CRITICAL issues require architectural review)
    ```
@@ -427,7 +457,7 @@ else:
 - **Empty results:** Valid (agent found no issues)
 - **Consolidation fails:** Show individual files to user, ask for manual review
 
-**Note:** This replaces the simple single-agent review with parallel multi-agent review while maintaining backward compatibility (still produces `bots/review.md`).
+**Note:** This replaces the simple single-agent review with parallel multi-agent review (9 specialized agents) while maintaining backward compatibility (still produces `bots/review.md`).
 
 
 ---
@@ -543,7 +573,7 @@ EXECUTE:
 TEST:
   workflow-tester(code) → bots/test-results.md
 
-REVIEW (7 agents in parallel):
+REVIEW (9 agents in parallel):
   workflow-reviewer(code, bots/plan.md) → bots/review-code.md
   security-reviewer(code) → bots/review-security.md
   performance-analyzer(code) → bots/review-performance.md
@@ -551,6 +581,8 @@ REVIEW (7 agents in parallel):
   architect-reviewer(code, design) → bots/review-architecture.md
   code-reviewer(code) → bots/review-code-quality.md
   golang-pro(*.go files) → bots/review-go.md
+  debugger(code) → bots/review-debug.md
+  error-detective(code) → bots/review-errors.md
   → Consolidate all → bots/review.md
 ```
 

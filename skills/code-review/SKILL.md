@@ -48,9 +48,9 @@ mkdir -p bots
 
 ## Phase 2: REVIEW
 
-**Goal:** Comprehensive code review by 7 specialized agents in parallel
+**Goal:** Comprehensive code review by 9 specialized agents in parallel
 
-Spawn 7 reviewer agents in parallel (single message, 7 Task calls):
+Spawn 9 reviewer agents in parallel (single message, 9 Task calls):
 ```
 Task(subagent_type: "workflow-reviewer",
      description: "Code quality review",
@@ -93,9 +93,27 @@ Task(subagent_type: "golang-pro",
      run_in_background: true,
      prompt: "Review Go code for idiomatic patterns and best practices.
              Write findings to bots/review-go.md with severity levels.")
+
+Task(subagent_type: "debugger",
+     description: "Bug diagnosis and debugging review",
+     run_in_background: true,
+     prompt: "Perform systematic debugging analysis on the code:
+             - Potential null pointer dereferences and panic conditions
+             - Race conditions and concurrency bugs
+             - Resource leaks and error handling gaps
+             Write findings to bots/review-debug.md with severity levels.")
+
+Task(subagent_type: "error-detective",
+     description: "Error pattern analysis review",
+     run_in_background: true,
+     prompt: "Analyze code for error handling patterns and potential failure modes:
+             - Error handling consistency and missing error checks
+             - Retry logic and failure recovery patterns
+             - Timeout and circuit breaker patterns
+             Write findings to bots/review-errors.md with severity levels.")
 ```
 
-After all 7 agents complete, consolidate findings into `bots/review.md`.
+After all 9 agents complete, consolidate findings into `bots/review.md`.
 
 **Output:** `bots/review.md` (consolidated report)
 

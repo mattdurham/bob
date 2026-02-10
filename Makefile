@@ -238,7 +238,6 @@ install-mcp-full: install-skills install-agents install-lsp install-mcp-servers
 	@echo "  ✓ Workflow skills → ~/.claude/skills/"
 	@echo "  ✓ Specialized subagents → ~/.claude/agents/"
 	@echo "  ✓ Go LSP plugin (gopls)"
-	@echo "  ✓ GitHub MCP server"
 	@echo "  ✓ Filesystem MCP server"
 	@echo ""
 	@echo "🔄 Restart Claude/Codex to activate all components"
@@ -247,7 +246,7 @@ install-agents:
 	@echo "🤖 Installing workflow subagents..."
 	@AGENTS_DIR="$$HOME/.claude/agents"; \
 	mkdir -p "$$AGENTS_DIR"; \
-	for agent in planner coder tester reviewer performance-analyzer security-reviewer docs-reviewer architecture-review code-review go-reviewer; do \
+	for agent in planner coder tester reviewer performance-analyzer security-reviewer docs-reviewer architecture-review code-review go-reviewer error-detective debugger; do \
 		echo "   Installing $$agent agent..."; \
 		mkdir -p "$$AGENTS_DIR/$$agent"; cp "agents/$$agent/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
 	done
@@ -264,3 +263,5 @@ install-agents:
 	@echo "  architect-reviewer            - Architecture and design review"
 	@echo "  code-reviewer                 - Comprehensive code quality review"
 	@echo "  golang-pro                    - Go-specific code review"
+	@echo "  error-detective               - Error pattern analysis and root cause investigation"
+	@echo "  debugger                      - Bug diagnosis and systematic debugging"

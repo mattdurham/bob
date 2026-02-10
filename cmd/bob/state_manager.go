@@ -78,8 +78,13 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 		return nil, fmt.Errorf("workflow already registered for this worktree")
 	}
 
-	// Get workflow definition
-	def, err := GetWorkflowDefinition(workflow)
+	// Get workflow definition (with custom workflow support)
+	repoPath, err := sm.getRepoPath(actualWorktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+		repoPath = ""
+	}
+	def, err := GetWorkflowDefinition(workflow, repoPath)
 	if err != nil {
 		return nil, err
 	}
@@ -130,8 +135,13 @@ func (sm *StateManager) Register(workflow, worktreePath, taskDescription, featur
 // tryAdvanceStep attempts to get the next step in workflow
 // Returns (nextStep, isCompleted). If final step reached, returns (currentStep, true)
 // Logs error if advancement fails for reasons other than reaching final step
-func (sm *StateManager) tryAdvanceStep(workflow, currentStep string) (string, bool) {
-	nextStep, err := GetNextStep(workflow, currentStep)
+func (sm *StateManager) tryAdvanceStep(workflow, worktreePath, currentStep string) (string, bool) {
+	repoPath, err := sm.getRepoPath(worktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+		repoPath = ""
+	}
+	nextStep, err := GetNextStep(workflow, currentStep, repoPath)
 	if err != nil {
 		// Check if this is the final step
 		if strings.Contains(err.Error(), "final step") {
@@ -168,14 +178,14 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 			// Distinguish file-not-found from other errors
 			if os.IsNotExist(err) {
 				// File missing = no issues found, advance forward
-				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 			} else {
 				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
 				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
 			}
 		} else if len(findingsContent) < minFindingsLength {
 			// File exists but empty = no issues found, advance forward
-			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 		} else {
 			// File exists with content - classify it with Claude API
 			claudeClient := NewClaudeClient()
@@ -184,8 +194,15 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 			if err == nil {
 				if hasIssues {
 					// Issues found - loop back to fix them
-					workflowDef, err := GetWorkflowDefinition(state.Workflow)
-					if err == nil {
+					repoPath, err := sm.getRepoPath(state.WorktreePath)
+					if err != nil {
+						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						repoPath = ""
+					}
+					workflowDef, err := GetWorkflowDefinition(state.Workflow, repoPath)
+					if err != nil {
+						log.Printf("Warning: failed to get workflow definition: %v", err)
+					} else {
 						// Find current step's canLoopTo
 						for _, step := range workflowDef.Steps {
 							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
@@ -197,18 +214,18 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 					}
 				} else {
 					// No issues - advance forward
-					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 				}
 			} else {
 				// If classification fails, log error and advance forward (safe default)
 				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
-				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 			}
 		}
 	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
 }
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
-		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 	}
 
 	// Update state (simplified - just update current step)
@@ -252,7 +269,11 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 
 	// Append project-specific additions if they exist
 	repoPath, err := sm.getRepoPath(worktreePath)
-	if err == nil {
+	if err != nil {
+		log.Printf("Warning: failed to get repo path for additions: %v", err)
+		repoPath = ""
+	}
+	if repoPath != "" {
 		cache := sm.getOrLoadAdditionsCache(repoPath)
 		if cache != nil {
 			if addition := cache.GetAddition(state.Workflow, state.CurrentStep); addition != "" {
@@ -267,8 +288,17 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 		prompt = fmt.Sprintf("%s\n\n---\n\n## Current Context\n\n%s", prompt, dynamicContext)
 	}
 
-	// Get loop targets
-	def, _ := GetWorkflowDefinition(state.Workflow)
+	// Get loop targets (get repoPath again for workflow definition)
+	repoPath, err = sm.getRepoPath(worktreePath)
+	if err != nil {
+		log.Printf("Warning: failed to get repo path for workflow definition: %v", err)
+		repoPath = ""
+	}
+	def, err := GetWorkflowDefinition(state.Workflow, repoPath)
+	if err != nil {
+		log.Printf("Warning: failed to get workflow definition: %v", err)
+		return nil, fmt.Errorf("failed to load workflow definition: %w", err)
+	}
 	var canLoopBack []string
 	for _, step := range def.Steps {
 		if step.Name == state.CurrentStep {
@@ -541,7 +571,12 @@ func (sm *StateManager) Rejoin(worktreePath, step, taskDescription string, reset
 
 	// Validate step if provided
 	if step != "" {
-		def, err := GetWorkflowDefinition(state.Workflow)
+		repoPath, err := sm.getRepoPath(worktreePath)
+		if err != nil {
+			log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+			repoPath = ""
+		}
+		def, err := GetWorkflowDefinition(state.Workflow, repoPath)
 		if err != nil {
 			return nil, err
 		}

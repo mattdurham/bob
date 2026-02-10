@@ -136,13 +136,13 @@ install-mcp: build
 		fi; \
 		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
 			claude mcp remove filesystem 2>/dev/null || true; \
-			if claude mcp add filesystem -- mcp-filesystem-server "$$HOME/source" /tmp 2>&1; then \
+			if claude mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
 				echo "   ✅ Filesystem server registered with Claude"; \
 				CONFIGURED=1; \
 			else \
 				EXIT_CODE=$$?; \
 				echo "   ❌ Failed to register filesystem with Claude (exit code: $${EXIT_CODE})"; \
-				echo "   Try manually: claude mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+				echo "   Try manually: claude mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
 			fi; \
 		fi; \
 	else \
@@ -162,13 +162,13 @@ install-mcp: build
 		fi; \
 		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
 			codex mcp remove filesystem 2>/dev/null || true; \
-			if codex mcp add filesystem -- mcp-filesystem-server "$$HOME/source" /tmp 2>&1; then \
+			if codex mcp add filesystem -- mcp-filesystem-server --full-access "$$HOME/source" /tmp 2>&1; then \
 				echo "   ✅ Filesystem server registered with Codex"; \
 				CONFIGURED=1; \
 			else \
 				EXIT_CODE=$$?; \
 				echo "   ❌ Failed to register filesystem with Codex (exit code: $${EXIT_CODE})"; \
-				echo "   Try manually: codex mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+				echo "   Try manually: codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
 			fi; \
 		fi; \
 	else \
@@ -190,7 +190,7 @@ install-mcp: build
 		echo "  Claude Bob: claude mcp add bob -- \"$${BOB_PATH}\" --serve"; \
 		echo "  Codex Bob:  codex mcp add bob -- \"$${BOB_PATH}\" --serve"; \
 		if [ "$${FILESYSTEM_INSTALLED}" = "1" ]; then \
-			echo "  Claude Filesystem: claude mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
-			echo "  Codex Filesystem:  codex mcp add filesystem -- mcp-filesystem-server \"$$HOME/source\" /tmp"; \
+			echo "  Claude Filesystem: claude mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
+			echo "  Codex Filesystem:  codex mcp add filesystem -- mcp-filesystem-server --full-access \"$$HOME/source\" /tmp"; \
 		fi; \
 	fi

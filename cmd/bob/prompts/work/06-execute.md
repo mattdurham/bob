@@ -91,4 +91,4 @@ If looping from MONITOR or TEST phases:
 
 ## End Step
 
-Ask bob what to do next based on the metadata you provided with bob_workflow_get_guidance.
+Ask bob what to do next based on the metadata you provided with workflow_get_guidance.

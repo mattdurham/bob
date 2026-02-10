@@ -28,6 +28,27 @@ INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONI
 
 **Never skip REVIEW** - Always review before commit, even if tests pass.
 
+---
+
+## Execution Rules
+
+**CRITICAL: All subagents MUST run in background**
+
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **After spawning agents, STOP** - do not poll or check status
+- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ❌ **Never use foreground execution** - it blocks the workflow
+
+**Example:**
+```
+Task(subagent_type: "any-agent",
+     description: "Brief description",
+     run_in_background: true,  // ← REQUIRED
+     prompt: "Detailed instructions...")
+```
+
+**Why?** Background execution allows the workflow to continue and enables true parallelism when spawning multiple agents.
+
 
 
 
@@ -86,6 +107,7 @@ Spawn Explore agent for codebase research:
 ```
 Task(subagent_type: "Explore",
      description: "Research similar implementations",
+     run_in_background: true,
      prompt: "Search codebase for patterns related to [task].
              Find existing implementations, identify patterns to follow.
              Document findings.")
@@ -110,24 +132,26 @@ Write consolidated findings to `bots/brainstorm.md`:
 
 **Actions:**
 
-Spawn workflow-planner agent:
+Use the writing-plans skill to spawn a planner subagent:
 ```
-Task(subagent_type: "workflow-planner",
-     description: "Create implementation plan",
-     prompt: "Read findings in bots/brainstorm.md.
-             Create detailed implementation plan following TDD.
-             Write plan to bots/plan.md.")
+Invoke: /writing-plans
 ```
 
-**Input:** `bots/brainstorm.md`
+The skill will:
+1. Spawn workflow-planner subagent in background
+2. Subagent reads design from `bots/design.md` (or `bots/brainstorm.md`)
+3. Subagent creates concrete, bite-sized implementation plan
+4. Subagent writes plan to `bots/plan.md`
+
+**Input:** `bots/design.md` or `bots/brainstorm.md`
 **Output:** `bots/plan.md`
 
-Plan should include:
-- Files to create/modify
-- Implementation steps (tests first!)
-- Edge cases to handle
-- Test strategy
-- Risks and mitigations
+Plan includes:
+- Exact file paths
+- Complete code snippets
+- Step-by-step actions (2-5 min each)
+- TDD approach (test first!)
+- Verification steps
 
 **If looping from REVIEW:** Update plan to address review findings
 
@@ -143,6 +167,7 @@ Spawn workflow-coder agent(s):
 ```
 Task(subagent_type: "workflow-coder",
      description: "Implement feature",
+     run_in_background: true,
      prompt: "Follow plan in bots/plan.md.
              Use TDD: write tests first, verify they fail, then implement.
              Keep functions small (complexity < 40).
@@ -168,6 +193,7 @@ Spawn workflow-tester agent:
 ```
 Task(subagent_type: "workflow-tester",
      description: "Run all tests and checks",
+     run_in_background: true,
      prompt: "Run complete test suite and quality checks.
              Report results in bots/test-results.md.")
 ```
@@ -187,36 +213,179 @@ Checks:
 
 ---
 
-## Phase 6: REVIEW
+## Phase 6: REVIEW (Parallel Multi-Agent Review)
 
-**Goal:** Comprehensive code review
+**Goal:** Comprehensive code review by 4 specialized agents in parallel
 
 **Actions:**
 
-Spawn workflow-reviewer agent:
+Spawn 4 reviewer agents in parallel (single message, 4 Task calls):
+
 ```
 Task(subagent_type: "workflow-reviewer",
-     description: "Code review",
-     prompt: "Perform 3-pass code review:
+     description: "Code quality review",
+     run_in_background: true,
+     prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
              Pass 1: Cross-file consistency
-             Pass 2: Code quality and security
-             Pass 3: Documentation accuracy
-             Write findings to bots/review.md.")
+             Pass 2: Code quality and logic errors
+             Pass 3: Best practices compliance
+             Write findings to bots/review-code.md with severity levels.")
+
+Task(subagent_type: "security-reviewer",
+     description: "Security vulnerability review",
+     run_in_background: true,
+     prompt: "Scan code for security vulnerabilities:
+             - OWASP Top 10 (injection, XSS, CSRF, etc.)
+             - Secret detection (API keys, passwords)
+             - Authentication/authorization issues
+             - Input validation gaps
+             Write findings to bots/review-security.md with severity levels.")
+
+Task(subagent_type: "workflow-performance-analyzer",
+     description: "Performance bottleneck review",
+     run_in_background: true,
+     prompt: "Analyze code for performance issues:
+             - Algorithmic complexity (O(n²) opportunities)
+             - Memory leaks and inefficient allocations
+             - N+1 patterns and missing caching
+             - Expensive operations in loops
+             Write findings to bots/review-performance.md with severity levels.")
+
+Task(subagent_type: "docs-reviewer",
+     description: "Documentation accuracy review",
+     run_in_background: true,
+     prompt: "Review documentation for accuracy and completeness:
+             - README accuracy (features match implementation)
+             - Example validity (code examples work)
+             - API documentation alignment
+             - Comment correctness
+             Write findings to bots/review-docs.md with severity levels.")
 ```
 
+**Wait for ALL 4 agents to complete.** If any agent fails, abort and report error.
+
 **Input:** Code changes, `bots/plan.md`
-**Output:** `bots/review.md`
+**Output:**
+- `bots/review-code.md` (code quality findings)
+- `bots/review-security.md` (security findings)
+- `bots/review-performance.md` (performance findings)
+- `bots/review-docs.md` (documentation findings)
+- `bots/review.md` (consolidated report - created in next step)
 
-Review covers:
-- Semantic correctness
-- Security issues
-- Code quality
-- Best practices
-- Documentation alignment
+**Step 2: Consolidate Findings**
 
-**Decision based on bots/review.md:**
-- No issues → COMMIT
-- Issues found → BRAINSTORM (re-brainstorm with review feedback)
+After all 4 agents complete successfully:
+
+1. **Read all 4 review files:**
+   ```
+   Read(file_path: "/path/to/worktree/bots/review-code.md")
+   Read(file_path: "/path/to/worktree/bots/review-security.md")
+   Read(file_path: "/path/to/worktree/bots/review-performance.md")
+   Read(file_path: "/path/to/worktree/bots/review-docs.md")
+   ```
+
+2. **Parse and merge findings:**
+   - Extract all issues from each file
+   - Sort by severity (CRITICAL, HIGH, MEDIUM, LOW)
+   - Deduplicate similar issues:
+     - Same file:line → Merge descriptions
+     - Keep highest severity
+     - Note which agents found it
+
+3. **Generate consolidated report:**
+   Write to `bots/review.md`:
+   ```markdown
+   # Consolidated Code Review Report
+
+   ## Critical Issues (Must Fix Before Commit)
+
+   ### Issue 1: SQL Injection in Login Handler
+   **Severity:** CRITICAL
+   **Category:** security
+   **Found by:** security-reviewer, workflow-reviewer
+   **Files:** auth/login.go:45
+   **Description:** User input directly concatenated into SQL query...
+   **Impact:** Database compromise possible
+   **Fix:** Use parameterized queries
+
+   ## High Priority Issues
+
+   ### Issue 2: O(n²) Algorithm
+   **Severity:** HIGH
+   **Category:** performance
+   **Found by:** workflow-performance-analyzer
+   ...
+
+   ## Medium Priority Issues
+
+   [List MEDIUM severity issues]
+
+   ## Low Priority Issues
+
+   [List LOW severity issues]
+
+   ## Summary
+
+   **Total Issues:** 12
+   - CRITICAL: 2 (security: 2, code: 0, performance: 0, docs: 0)
+   - HIGH: 3 (security: 1, code: 1, performance: 1, docs: 0)
+   - MEDIUM: 5 (security: 0, code: 2, performance: 1, docs: 2)
+   - LOW: 2 (security: 0, code: 0, performance: 0, docs: 2)
+
+   **Agents Executed:**
+   - Code Quality Review: ✓ (3 issues found)
+   - Security Review: ✓ (3 issues found)
+   - Performance Review: ✓ (2 issues found)
+   - Documentation Review: ✓ (4 issues found)
+
+   **Recommendation:** BRAINSTORM (2 CRITICAL issues require architectural review)
+   ```
+
+**Step 3: Severity-Based Routing**
+
+Based on the consolidated findings:
+
+```
+if (any CRITICAL or HIGH issues):
+  → Loop to BRAINSTORM
+  Reason: Major issues require re-thinking approach
+
+elif (any MEDIUM or LOW issues):
+  → Loop to EXECUTE
+  Reason: Quick fixes needed, no architectural changes
+
+else:
+  → Continue to COMMIT
+  Reason: Clean code, ready to commit
+```
+
+**Routing Logic:**
+
+1. **CRITICAL or HIGH issues → BRAINSTORM**
+   - Security vulnerabilities
+   - Major bugs or logic errors
+   - Severe performance problems
+   - Breaking API changes
+   - These require re-thinking the approach
+
+2. **MEDIUM or LOW issues → EXECUTE**
+   - Minor bugs
+   - Missing validation
+   - Documentation issues
+   - Style improvements
+   - These are quick fixes
+
+3. **No issues → COMMIT**
+   - All checks passed
+   - Code is ready
+
+**Error Handling:**
+
+- **Any agent fails:** Abort review, report to user, retry once
+- **Empty results:** Valid (agent found no issues)
+- **Consolidation fails:** Show individual files to user, ask for manual review
+
+**Note:** This replaces the simple single-agent review with parallel multi-agent review while maintaining backward compatibility (still produces `bots/review.md`).
 
 
 ---

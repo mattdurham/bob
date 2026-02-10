@@ -82,34 +82,48 @@ Answer with ONLY one word: "yes" if the statement is FALSE (issues exist), or "n
 Answer:`, findings)
 	} else {
 		// Regular code review findings - STRICT validation
-		prompt = fmt.Sprintf(`You are a STRICT binary classifier for code review validation.
+		prompt = fmt.Sprintf(`You are a balanced classifier for code review validation.
 
-Analyze the following code review and determine if it represents a LEGITIMATE "no issues" review or if there are issues/problems.
+Analyze the following code review and determine if there are ACTUAL ISSUES that need to be fixed.
 
 Code Review Findings:
 %s
 
-STRICT RULES:
-1. Answer "yes" (has issues) if the review contains ANY of:
-   - Actual issues, bugs, or problems listed
-   - TODO items or action items
-   - Severity markers (HIGH, MEDIUM, LOW, CRITICAL)
-   - Any numbered or bulleted list of problems
-   - Recommendations to fix things
+BALANCED RULES:
 
-2. Answer "yes" (has issues) if the review is LAZY or INSUFFICIENT:
-   - Too short (< 20 characters like "OK", "LGTM", "Good", "Fine")
+1. Answer "no" (no issues) if ANY of these are true:
+   - Explicitly states "Total Issues: 0" or "no issues found"
+   - Contains approval statement (APPROVE, LGTM, Ready to merge/commit)
+   - Lists only positive findings with checkmarks (✅)
+   - Summary indicates clean/passing status
+   - All checks passing, no problems listed
+
+2. Answer "yes" (has issues) if ANY of these are true:
+   - Lists actual bugs, errors, or problems to fix
+   - Contains severity markers (HIGH, MEDIUM, CRITICAL) with REAL issues
+   - Has TODO items or action items that block progress
+   - Test failures, build errors, or broken functionality
+   - Security vulnerabilities or bugs listed
+
+3. IGNORE these (they are NOT issues):
+   - Positive checkmarks (✅ Tests pass, ✅ Code compiles, ✅ Clean)
+   - Verification statements (Code works, No regressions)
+   - Documentation of what was checked
+   - Summary of passing checks
+
+4. Answer "yes" if review is LAZY/INSUFFICIENT:
+   - Too short (< 20 characters like "OK", "LGTM" alone)
    - No meaningful content or analysis
-   - Just a single word or phrase
-   - Lacks proper review structure
+   - Just a single word
 
-3. Answer "no" (no issues) ONLY if:
-   - Review explicitly states "no issues found" or "0 issues"
-   - Review has meaningful content explaining what was checked
-   - Review shows actual analysis was performed
-   - Summary clearly indicates clean/ready status
+EXAMPLES:
+- "Total Issues: 0. All tests pass." → Answer: "no"
+- "✅ Code compiles ✅ Tests pass ✅ Ready to merge" → Answer: "no"
+- "Bug in line 45: null pointer" → Answer: "yes"
+- "CRITICAL: Security vulnerability found" → Answer: "yes"
+- "OK" → Answer: "yes" (too short)
 
-Answer with ONLY one word: "yes" if there are issues OR if review is insufficient, "no" ONLY if legitimately clean.
+Answer with ONLY one word: "yes" if there are actual issues OR if review is insufficient, "no" if clean and approved.
 
 Answer:`, findings)
 	}

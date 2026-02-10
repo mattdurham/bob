@@ -222,8 +222,8 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 			}
 		}
-	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
-}
+		// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
+	}
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
 		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 	}

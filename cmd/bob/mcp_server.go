@@ -457,7 +457,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 				result["dependencyErrors"] = []string{} // Initialize before use
 				for _, depID := range deps {
 					// Add dependency: this task depends on depID
-					_, err := taskManager.AddDependency(repoPath, taskID, depID)
+					_, err := taskManager.AddDependency(repoPath, depID, taskID)
 					if err != nil {
 						// Log error but don't fail task creation
 						result["dependencyErrors"] = append(
@@ -620,7 +620,7 @@ func registerTaskTools(s *server.MCPServer, taskManager *TaskManager) {
 			taskID, _ := request.RequireString("taskId")
 			dependsOn, _ := request.RequireString("dependsOn")
 
-			result, err := taskManager.AddDependency(repoPath, taskID, dependsOn)
+			result, err := taskManager.AddDependency(repoPath, dependsOn, taskID)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}

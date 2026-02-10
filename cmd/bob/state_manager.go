@@ -169,61 +169,109 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 
 	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
 	// check if this is a checkpoint phase and classify findings from markdown file
+	// AUTO-ROUTING: If agent is reporting on current step (not transitioning),
+	// check if this is a checkpoint phase and classify findings from markdown file
 	if currentStep == previousStep && sm.isCheckpointPhase(state.Workflow, currentStep) {
-		// Read markdown file directly instead of using metadata
-		findingsFile := filepath.Join(worktreePath, "bots", sm.stepToMarkdownFilename(currentStep))
-		findingsContent, err := os.ReadFile(findingsFile)
-
-		if err != nil {
-			// Distinguish file-not-found from other errors
-			if os.IsNotExist(err) {
-				// File missing = no issues found, advance forward
-				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
-			} else {
-				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
-				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
-			}
-		} else if len(findingsContent) < minFindingsLength {
-			// File exists but empty = no issues found, advance forward
-			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
-		} else {
-			// File exists with content - classify it with Claude API
-			claudeClient := NewClaudeClient()
-			hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
-
+		var useFallback bool
+		// SPECIAL HANDLING FOR MONITOR PHASE: Check actual PR status
+		if currentStep == "MONITOR" {
+			prStatus, err := sm.checkPRStatus(state.WorktreePath)
 			if err == nil {
-				if hasIssues {
-					// Issues found - loop back to fix them
+				// Successfully checked PR status
+				if prStatus.Merged {
+					// PR is merged - advance to COMPLETE
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					log.Printf("MONITOR: PR merged, advancing to COMPLETE")
+				} else if prStatus.HasIssues {
+					// PR has CI failures or change requests - loop back to REVIEW
 					repoPath, err := sm.getRepoPath(state.WorktreePath)
 					if err != nil {
-						log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+						log.Printf("Warning: failed to get repo path: %v", err)
 						repoPath = ""
 					}
 					workflowDef, err := GetWorkflowDefinition(state.Workflow, repoPath)
-					if err != nil {
-						log.Printf("Warning: failed to get workflow definition: %v", err)
-					} else {
-						// Find current step's canLoopTo
+					if err == nil {
 						for _, step := range workflowDef.Steps {
 							if step.Name == currentStep && len(step.CanLoopTo) > 0 {
-								// Loop to first available target
 								nextStep = step.CanLoopTo[0]
+								log.Printf("MONITOR: PR has issues (%d failed checks, %d change requests), looping to %s",
+									len(prStatus.FailedChecks), prStatus.UnresolvedThreads, nextStep)
 								break
 							}
 						}
 					}
 				} else {
-					// No issues - advance forward
-					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					// PR is open, no issues - stay in MONITOR and wait
+					nextStep = currentStep
+					log.Printf("MONITOR: PR open, no issues, staying in MONITOR (waiting for merge)")
 				}
 			} else {
-				// If classification fails, log error and advance forward (safe default)
-				fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+				// Failed to check PR status - fall back to reading bots/monitor.md
+				log.Printf("MONITOR: Failed to check PR status (%v), falling back to bots/monitor.md", err)
+				useFallback = true
+			}
+		} else {
+			useFallback = true
+		}
+
+		// Fallback for non-MONITOR checkpoints or MONITOR failures
+		if useFallback {
+			// Read markdown file directly instead of using metadata
+			findingsFile := filepath.Join(worktreePath, "bots", sm.stepToMarkdownFilename(currentStep))
+			findingsContent, err := os.ReadFile(findingsFile)
+
+			if err != nil {
+				// Distinguish file-not-found from other errors
+				if os.IsNotExist(err) {
+					// File missing = no issues found, advance forward
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+				} else {
+					// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
+					return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
+				}
+			} else if len(findingsContent) < minFindingsLength {
+				// File exists but empty = no issues found, advance forward
 				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+			} else {
+				// File exists with content - classify it with Claude API
+				claudeClient := NewClaudeClient()
+				hasIssues, err := claudeClient.ClassifyFindings(string(findingsContent))
+
+				if err == nil {
+					if hasIssues {
+						// Issues found - loop back to fix them
+						repoPath, err := sm.getRepoPath(state.WorktreePath)
+						if err != nil {
+							log.Printf("Warning: failed to get repo path, using embedded workflows: %v", err)
+							repoPath = ""
+						}
+						workflowDef, err := GetWorkflowDefinition(state.Workflow, repoPath)
+						if err != nil {
+							log.Printf("Warning: failed to get workflow definition: %v", err)
+						} else {
+							// Find current step's canLoopTo
+							for _, step := range workflowDef.Steps {
+								if step.Name == currentStep && len(step.CanLoopTo) > 0 {
+									// Loop to first available target
+									nextStep = step.CanLoopTo[0]
+									break
+								}
+							}
+						}
+					} else {
+						// No issues - advance forward
+						nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+					}
+				} else {
+					// If classification fails, log error and advance forward (safe default)
+					fmt.Fprintf(os.Stderr, "Warning: Claude classification failed: %v\n", err)
+					nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
+				}
 			}
 		}
-		// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
 	}
+
+	// AUTO-ADVANCE: For non-checkpoint phases, if agent reports current step, auto-advance
 	if currentStep == previousStep && !sm.isCheckpointPhase(state.Workflow, currentStep) {
 		nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, state.WorktreePath, currentStep)
 	}
@@ -280,12 +328,6 @@ func (sm *StateManager) GetGuidance(worktreePath string, sessionID, agentID stri
 				prompt = fmt.Sprintf("%s\n\n---\n\n### Project-Specific Guidance\n\n%s", prompt, addition)
 			}
 		}
-	}
-
-	// Append dynamic context based on bots/*.md files
-	dynamicContext := sm.generateDynamicContext(worktreePath, state.Workflow, state.CurrentStep)
-	if dynamicContext != "" {
-		prompt = fmt.Sprintf("%s\n\n---\n\n## Current Context\n\n%s", prompt, dynamicContext)
 	}
 
 	// Get loop targets (get repoPath again for workflow definition)
@@ -739,177 +781,6 @@ func (sm *StateManager) createWorktree(repoPath, featureName string) (string, st
 	return worktreePath, branchName, nil
 }
 
-// generateDynamicContext reads bots/*.md files and generates contextual guidance
-// based on current workflow state and step
-func (sm *StateManager) generateDynamicContext(worktreePath, workflow, currentStep string) string {
-	// Check if we can loop back from this step (meaning we might have looped TO this step)
-	// Read previous step's file if we just looped back
-	var content string
-	var err error
-
-	// Issue #2 fixed: Derive previous steps from workflow definition's canLoopTo
-	// Find which steps can loop TO currentStep (reverse lookup)
-	repoPath, _ := sm.getRepoPath(worktreePath)
-	workflowDef, err := GetWorkflowDefinition(workflow, repoPath)
-	var previousStepNames []string
-	if err == nil {
-		for _, step := range workflowDef.Steps {
-			for _, loopTarget := range step.CanLoopTo {
-				if loopTarget == currentStep {
-					previousStepNames = append(previousStepNames, step.Name)
-					break
-				}
-			}
-		}
-	}
-
-	// First try previous step files (steps that can loop to current)
-	if len(previousStepNames) > 0 {
-		for _, prevStepName := range previousStepNames {
-			prevStepFile := strings.ToLower(prevStepName)
-			content, err = sm.readBotsFile(worktreePath, prevStepFile)
-			if err == nil && len(content) >= minFindingsLength {
-				// Found previous step's file with content - use it
-				break
-			}
-		}
-	}
-
-	// If no previous step content, try current step
-	if content == "" || err != nil {
-		content, err = sm.readBotsFile(worktreePath, currentStep)
-		if err != nil || len(content) < minFindingsLength {
-			return "" // No meaningful content
-		}
-	}
-
-	// Parse findings from markdown
-	findings := sm.parseMarkdownFindings(content)
-	if len(findings) == 0 {
-		return ""
-	}
-
-	// Format context based on step (Issue #1: pass workflow)
-	return sm.formatContextForStep(workflow, currentStep, findings)
-}
-
-// readBotsFile reads a markdown file from the bots/ directory
-func (sm *StateManager) readBotsFile(worktreePath, step string) (string, error) {
-	filename := sm.stepToMarkdownFilename(step)
-	filePath := filepath.Join(worktreePath, "bots", filename)
-
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
-	}
-
-	return string(content), nil
-}
-
-// parseMarkdownFindings extracts key findings from markdown content
-// Looks for bullet points, numbered lists, and extracts them as findings
-func (sm *StateManager) parseMarkdownFindings(content string) []string {
-	var findings []string
-	lines := strings.Split(content, "\n")
-
-	for _, line := range lines {
-		trimmed := strings.TrimSpace(line)
-
-		// Skip empty lines
-		if trimmed == "" {
-			continue
-		}
-
-		// Extract bullet points (-, *, +)
-		if strings.HasPrefix(trimmed, "- ") || strings.HasPrefix(trimmed, "* ") || strings.HasPrefix(trimmed, "+ ") {
-			finding := strings.TrimSpace(trimmed[2:])
-			if finding != "" {
-				findings = append(findings, finding)
-			}
-			continue
-		}
-
-		// Extract numbered lists (1., 2., etc.)
-		for i := 1; i <= 99; i++ {
-			prefix := fmt.Sprintf("%d. ", i)
-			if strings.HasPrefix(trimmed, prefix) {
-				finding := strings.TrimSpace(trimmed[len(prefix):])
-				if finding != "" {
-					findings = append(findings, finding)
-				}
-				break
-			}
-		}
-
-		// Limit to first 10 findings
-		if len(findings) >= 10 {
-			break
-		}
-	}
-
-	return findings
-}
-
-// formatContextForStep formats findings into a context message based on the step
-func (sm *StateManager) formatContextForStep(workflow, step string, findings []string) string {
-	if len(findings) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-
-	// Check if this is a checkpoint step that might have looped back (Issue #1: use workflow param)
-	checkpoint := sm.isCheckpointPhase(workflow, step)
-
-	if checkpoint {
-		sb.WriteString("⚠️ Issues found that need attention\n\n")
-	}
-
-	// Format findings based on step type
-	switch step {
-	case "PLAN":
-		sb.WriteString("Issues to address in your plan:\n")
-	case "EXECUTE":
-		sb.WriteString("Issues to fix in your implementation:\n")
-	case "REVIEW":
-		sb.WriteString("Issues found during review:\n")
-	case "TEST":
-		sb.WriteString("Test failures to address:\n")
-	default:
-		sb.WriteString("Issues found:\n")
-	}
-
-	// List findings
-	for i, finding := range findings {
-		sb.WriteString(fmt.Sprintf("%d. %s\n", i+1, finding))
-	}
-
-	// Add task instruction based on step
-	sb.WriteString("\nYour task:\n")
-	switch step {
-	case "PLAN":
-		sb.WriteString("- Update your plan to address these issues\n")
-		sb.WriteString("- Consider impacts and dependencies\n")
-		sb.WriteString("- Write updated plan to bots/plan.md\n")
-	case "EXECUTE":
-		sb.WriteString("- Fix these issues in your implementation\n")
-		sb.WriteString("- Ensure tests pass after fixes\n")
-		sb.WriteString("- Follow TDD principles\n")
-	case "REVIEW":
-		sb.WriteString("- Review code for these issues\n")
-		sb.WriteString("- Document findings in bots/review.md\n")
-		sb.WriteString("- Suggest specific fixes\n")
-	case "TEST":
-		sb.WriteString("- Fix failing tests\n")
-		sb.WriteString("- Verify all tests pass\n")
-		sb.WriteString("- Check test coverage\n")
-	default:
-		sb.WriteString("- Address these issues before proceeding\n")
-	}
-
-	return sb.String()
-}
-
 // PRStatus represents the status of a pull request
 type PRStatus struct {
 	State             string // OPEN, CLOSED, MERGED
@@ -936,21 +807,19 @@ func (sm *StateManager) checkPRStatus(worktreePath string) (*PRStatus, error) {
 	}
 	branch := strings.TrimSpace(string(branchBytes))
 
-	// Check if PR exists for this branch using gh CLI
-	// gh pr view --json state,merged,statusCheckRollup,reviews
+	// Check PR status using gh CLI
 	prCmd := exec.Command("gh", "pr", "view", branch,
-		"--json", "state,merged,statusCheckRollup,reviews")
+		"--json", "state,mergedAt,statusCheckRollup,reviews")
 	prCmd.Dir = repoPath
 	output, err := prCmd.Output()
 	if err != nil {
-		// No PR found or gh CLI error
 		return nil, fmt.Errorf("failed to get PR status: %w", err)
 	}
 
 	// Parse JSON response
 	var prData struct {
-		State             string `json:"state"`
-		Merged            bool   `json:"merged"`
+		State             string  `json:"state"`
+		MergedAt          *string `json:"mergedAt"` // Null if not merged
 		StatusCheckRollup []struct {
 			Status     string `json:"status"`
 			Conclusion string `json:"conclusion"`
@@ -967,7 +836,7 @@ func (sm *StateManager) checkPRStatus(worktreePath string) (*PRStatus, error) {
 
 	status := &PRStatus{
 		State:             prData.State,
-		Merged:            prData.Merged,
+		Merged:            prData.MergedAt != nil, // If mergedAt is not null, PR is merged
 		HasIssues:         false,
 		FailedChecks:      []string{},
 		UnresolvedThreads: 0,
@@ -987,6 +856,29 @@ func (sm *StateManager) checkPRStatus(worktreePath string) (*PRStatus, error) {
 		if review.State == "CHANGES_REQUESTED" {
 			status.HasIssues = true
 			status.UnresolvedThreads++
+		}
+	}
+
+	// Check for inline review comments (any comments = issues to address)
+	// First get PR number from branch
+	prNumCmd := exec.Command("gh", "pr", "view", branch, "--json", "number", "-q", ".number")
+	prNumCmd.Dir = repoPath
+	prNumOutput, err := prNumCmd.Output()
+	if err == nil {
+		prNumber := strings.TrimSpace(string(prNumOutput))
+		// Get inline review comments count
+		commentsCmd := exec.Command("gh", "api", fmt.Sprintf("repos/{owner}/{repo}/pulls/%s/comments", prNumber), "--jq", "length")
+		commentsCmd.Dir = repoPath
+		commentsOutput, err := commentsCmd.Output()
+		if err == nil {
+			commentCount := strings.TrimSpace(string(commentsOutput))
+			if commentCount != "0" && commentCount != "" {
+				status.HasIssues = true
+				// Parse comment count for logging
+				var count int
+				_, _ = fmt.Sscanf(commentCount, "%d", &count)
+				status.UnresolvedThreads += count
+			}
 		}
 	}
 

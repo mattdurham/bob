@@ -201,10 +201,20 @@ Bob manages tasks in `.bob/issues/` with git branch integration:
 - `id` - Unique identifier
 - `title` - Task title
 - `description` - Detailed description
-- `state` - open, in_progress, completed, blocked
-- `priority` - low, medium, high, critical
+- `state` - open, in_progress, completed, blocked, cancelled
+- `priority` - low, medium, high
 - `dependencies` - Task IDs this depends on
 - `tags` - Categorization tags
+- `type` - feature, bug, chore, refactor, docs, test
+- `assignee` - Person or agent assigned to task
+- `blocks` - Array of task IDs this task blocks
+- `blockedBy` - Array of task IDs blocking this task
+- `comments` - Array of comment objects
+- `metadata` - Key-value pairs for arbitrary data
+- `workflowState` - Workflow-specific state data
+- `createdAt` - ISO timestamp when task was created
+- `updatedAt` - ISO timestamp of last update
+- `completedAt` - ISO timestamp when task was completed
 
 ## Custom Workflows
 
@@ -283,22 +293,32 @@ make clean
 ## Available MCP Tools
 
 ### Workflow Management
-- `bob_workflow_list_workflows` - List available workflows
-- `bob_workflow_get_definition` - Get workflow definition
-- `bob_workflow_register` - Start new workflow session
-- `bob_workflow_get_guidance` - Get current step guidance
-- `bob_workflow_report_progress` - Advance to next step
-- `bob_workflow_get_status` - Get workflow status
-- `bob_workflow_get_session_status` - Get session-specific status
+- `workflow_list_workflows` - List available workflows
+- `workflow_get_definition` - Get workflow definition
+- `workflow_register` - Start new workflow session
+- `workflow_get_guidance` - Get current step guidance
+- `workflow_report_progress` - Advance to next step
+- `workflow_get_status` - Get workflow status
+- `workflow_get_session_status` - Get session-specific status
+- `workflow_rejoin` - Rejoin workflow at specific step
+- `workflow_reset` - Clear workflow state
+- `workflow_list_agents` - List active agents
+- `workflow_record_issues` - Record issues found during execution
 
 ### Task Management
-- `bob_task_create` - Create new task
-- `bob_task_get` - Get task by ID
-- `bob_task_list` - List all tasks with filters
-- `bob_task_update` - Update task properties
-- `bob_task_add_dependency` - Add task dependency
-- `bob_task_add_comment` - Add comment to task
-- `bob_task_get_ready` - Get ready-to-work tasks
+- `task_create` - Create new task
+- `task_get` - Get task by ID
+- `task_list` - List all tasks with filters
+- `task_update` - Update task properties
+- `task_add_dependency` - Add task dependency
+- `task_add_comment` - Add comment to task
+- `task_get_ready` - Get ready-to-work tasks
+- `task_delete` - Delete a task
+- `task_set_workflow_state` - Set workflow state for task
+- `task_get_workflow_state` - Get workflow state for task
+- `task_delete_workflow_state_key` - Delete workflow state key
+
+**Note:** When calling through MCP, tools are automatically prefixed with the server name (e.g., `bob.workflow_list_workflows` or `bob.task_create`).
 
 ### Filesystem Operations (mark3labs/mcp-filesystem-server)
 - `filesystem_read_file` - Read file contents

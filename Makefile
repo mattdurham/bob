@@ -368,12 +368,12 @@ install-mcp-full: build install-skills install-agents install-lsp
 install-agents:
 	@echo "🤖 Installing workflow subagents..."
 	@AGENTS_DIR="$$HOME/.claude/agents"; \
-	mkdir -p "$$AGENTS_DIR/workflow"; \
+	mkdir -p "$$AGENTS_DIR"; \
 	for agent in planner coder tester reviewer performance-analyzer; do \
-		echo "   Installing workflow-$$agent agent..."; \
-		cp "agents/workflow/$$agent.md" "$$AGENTS_DIR/workflow/$$agent.md"; \
+		echo "   Installing $$agent agent..."; \
+		mkdir -p "$$AGENTS_DIR/$$agent"; cp "agents/$$agent/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
 	done
-	@echo "✅ Subagents installed to ~/.claude/agents/workflow/"
+	@echo "✅ Subagents installed to ~/.claude/agents/"
 	@echo ""
 	@echo "Available subagents:"
 	@echo "  workflow-planner           - Implementation planning"

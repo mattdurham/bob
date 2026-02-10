@@ -36,15 +36,22 @@ func setupTestGitRepo(t *testing.T) (tmpDir string, worktreePath string, sm *Sta
 
 	cmd = exec.Command("git", "add", ".")
 	cmd.Dir = repoDir
-	_ = cmd.Run()
+	// Ignore error - git add may fail if no changes, which is OK
+	if err := cmd.Run(); err != nil {
+		t.Logf("git add returned error (may be OK if no changes): %v", err)
+	}
 
 	cmd = exec.Command("git", "config", "user.email", "test@example.com")
 	cmd.Dir = repoDir
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to set git user.email: %v", err)
+	}
 
 	cmd = exec.Command("git", "config", "user.name", "Test User")
 	cmd.Dir = repoDir
-	_ = cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to set git user.name: %v", err)
+	}
 
 	cmd = exec.Command("git", "commit", "-m", "Initial commit")
 	cmd.Dir = repoDir

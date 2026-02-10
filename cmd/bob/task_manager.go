@@ -731,6 +731,16 @@ func (tm *TaskManager) UpdateTask(repoPath, taskID string, updates map[string]in
 	if assignee, ok := updates["assignee"].(string); ok {
 		task.Assignee = assignee
 	}
+	if tags, ok := updates["tags"].([]interface{}); ok {
+		// Convert []interface{} to []string
+		stringTags := make([]string, 0, len(tags))
+		for _, tag := range tags {
+			if tagStr, ok := tag.(string); ok {
+				stringTags = append(stringTags, tagStr)
+			}
+		}
+		task.Tags = stringTags
+	}
 
 	task.UpdatedAt = time.Now()
 
@@ -876,6 +886,24 @@ func (tm *TaskManager) AddDependency(repoPath, taskID, blocksTaskID string) (map
 	}
 	if task2 == nil {
 		return nil, fmt.Errorf("task not found: %s", blocksTaskID)
+	}
+
+	// Prevent self-dependency
+	if taskID == blocksTaskID {
+		return nil, fmt.Errorf("cannot create self-dependency: task %s cannot block itself", taskID)
+	}
+
+	// Check for circular dependencies
+	// Load all tasks to traverse the dependency graph
+	allTasks, err := tm.loadTasks(repoPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load tasks for cycle detection: %w", err)
+	}
+
+	// Check if blocksTaskID already (directly or indirectly) depends on taskID
+	visited := make(map[string]bool)
+	if tm.hasCircularDependency(allTasks, blocksTaskID, taskID, visited) {
+		return nil, fmt.Errorf("circular dependency detected: %s -> %s would create a cycle", taskID, blocksTaskID)
 	}
 
 	// Add to blocks list
@@ -1103,5 +1131,33 @@ func contains(slice []string, item string) bool {
 			return true
 		}
 	}
+	return false
+}
+
+// hasCircularDependency checks if adding a dependency from->to would create a cycle
+// It checks if 'to' already (directly or indirectly) blocks 'from'
+func (tm *TaskManager) hasCircularDependency(tasks []Task, from, to string, visited map[string]bool) bool {
+	// If we've reached our target, we found a cycle
+	if from == to {
+		return true
+	}
+
+	// If we've already visited this node, no cycle through this path
+	if visited[from] {
+		return false
+	}
+	visited[from] = true
+
+	// Find the 'from' task and check all tasks it blocks
+	for _, task := range tasks {
+		if task.ID == from {
+			for _, blockedID := range task.Blocks {
+				if tm.hasCircularDependency(tasks, blockedID, to, visited) {
+					return true
+				}
+			}
+		}
+	}
+
 	return false
 }

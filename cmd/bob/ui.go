@@ -108,6 +108,7 @@ func handleWorkflowDetail(w http.ResponseWriter, r *http.Request, tmpl *template
 	}
 
 	// Validate workflow ID format (prevent path traversal)
+	// Defense-in-depth: this check + workflowIDToFilename's url.PathEscape()
 	// Allow "/" for workflow IDs like "bob/codex-integration", but block path traversal
 	if strings.Contains(workflowID, "..") || strings.Contains(workflowID, "\\") {
 		http.Error(w, "Invalid workflow ID", http.StatusBadRequest)

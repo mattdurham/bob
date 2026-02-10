@@ -166,12 +166,13 @@ func (sm *StateManager) ReportProgress(worktreePath, currentStep string, metadat
 
 		if err != nil {
 			// Distinguish file-not-found from other errors
-			if !os.IsNotExist(err) {
-				// Log unexpected errors (permissions, I/O, etc.)
-				fmt.Fprintf(os.Stderr, "Warning: failed to read findings file %s: %v\n", findingsFile, err)
+			if os.IsNotExist(err) {
+				// File missing = no issues found, advance forward
+				nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
+			} else {
+				// Unexpected I/O error (permissions, disk full, etc.) - fail loudly
+				return nil, fmt.Errorf("failed to read findings file (permissions/I/O error): %w", err)
 			}
-			// File missing or unreadable = no issues found, advance forward
-			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
 		} else if len(findingsContent) < minFindingsLength {
 			// File exists but empty = no issues found, advance forward
 			nextStep, workflowCompleted = sm.tryAdvanceStep(state.Workflow, currentStep)
@@ -493,9 +494,9 @@ func (sm *StateManager) getOrLoadAdditionsCache(repoPath string) *AdditionsCache
 		return cache
 	}
 
-	// Evict oldest entry if at capacity (simple FIFO)
+	// Evict a random entry if at capacity (Go maps have randomized iteration)
+	// For true LRU/FIFO, use a separate timestamp or linked list structure
 	if len(sm.additionsCache) >= maxCacheSize {
-		// Remove first entry from map (Go maps don't guarantee order, but this is best effort)
 		for k := range sm.additionsCache {
 			delete(sm.additionsCache, k)
 			log.Printf("Evicted additions cache for %s (cache full)", k)

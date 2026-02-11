@@ -260,7 +260,7 @@ You MUST use the **Write tool** to create the review file. Do NOT use Bash, echo
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/review-code.md",
+Write(file_path: "/path/to/worktree/bots/review-code.md",
       content: "[Your complete review in markdown format]")
 ```
 

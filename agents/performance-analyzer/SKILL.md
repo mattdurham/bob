@@ -353,7 +353,7 @@ You MUST use the **Write tool** to create the analysis file. Do NOT use Bash, ec
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/review-performance.md",
+Write(file_path: "/path/to/worktree/bots/review-performance.md",
       content: "[Your complete analysis in markdown format]")
 ```
 

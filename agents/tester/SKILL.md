@@ -504,7 +504,7 @@ You MUST use the **Write tool** to create the results file. Do NOT use Bash, ech
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/test-results.md",
+Write(file_path: "/path/to/worktree/bots/test-results.md",
       content: "[Your complete test results in markdown format]")
 ```
 

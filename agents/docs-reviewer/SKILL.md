@@ -214,7 +214,7 @@ Always write your complete documentation review to `bots/review-docs.md` using t
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/review-docs.md",
+Write(file_path: "/path/to/worktree/bots/review-docs.md",
       content: "[Your complete docs review in markdown format]")
 ```
 

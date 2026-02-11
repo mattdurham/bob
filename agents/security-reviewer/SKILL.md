@@ -222,7 +222,7 @@ Always write your complete security review to `bots/review-security.md` using th
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/review-security.md",
+Write(file_path: "/path/to/worktree/bots/review-security.md",
       content: "[Your complete security review in markdown format]")
 ```
 

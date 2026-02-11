@@ -482,13 +482,13 @@ You MUST use the **Write** and **Edit** tools for file operations. Do NOT use Ba
 
 **For new files:**
 ```
-Write(file_path: "/home/matt/source/bob/path/to/new_file.go",
+Write(file_path: "/path/to/worktree/src/new_file.go",
       content: "[Complete file content]")
 ```
 
 **For modifying existing files:**
 ```
-Edit(file_path: "/home/matt/source/bob/path/to/existing.go",
+Edit(file_path: "/path/to/worktree/src/existing.go",
      old_string: "[Exact text to replace]",
      new_string: "[New text]")
 ```

@@ -337,7 +337,7 @@ You MUST use the **Write tool** to create the plan file. Do NOT use Bash, echo, 
 
 **Correct approach:**
 ```
-Write(file_path: "/home/matt/source/bob/bots/plan.md",
+Write(file_path: "/path/to/worktree/bots/plan.md",
       content: "[Your complete plan in markdown format]")
 ```
 

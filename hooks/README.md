@@ -13,8 +13,11 @@ make hooks
 This installs:
 - `pre-commit-checks.sh` → `~/.claude/hooks/`
 - Merges hooks config into `~/.claude/hooks-config.json`
+- Enables hookify plugin in `~/.claude/settings.json`
 - Creates automatic backup
 - Deduplicates existing hooks
+
+**After installation:** Restart Claude Code for hooks to take effect.
 
 **Safe to run multiple times** - intelligent merge preserves existing hooks.
 

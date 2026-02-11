@@ -295,8 +295,17 @@ hooks:
 	fi
 	@echo "✅ Hooks configuration merged"
 	@echo ""
+	@echo "Enabling hookify plugin..."
+	@SETTINGS_FILE="$$HOME/.claude/settings.json"; \
+	if [ -f "$$SETTINGS_FILE" ]; then \
+		TMP_FILE=$$(mktemp); \
+		jq '.enabledPlugins."hookify@claude-plugins-official" = true' "$$SETTINGS_FILE" > "$$TMP_FILE" && mv "$$TMP_FILE" "$$SETTINGS_FILE"; \
+		echo "✅ Hookify plugin enabled"; \
+	fi
+	@echo ""
 	@echo "📋 Installed hooks:"
 	@echo "  ✓ pre-commit-checks.sh - Runs tests, linting, formatting before commits"
+	@echo "  ✓ hookify plugin enabled"
 	@echo ""
 	@echo "🔍 Hook will run automatically before 'git commit' commands"
 	@echo "   Blocks commits if:"
@@ -304,6 +313,7 @@ hooks:
 	@echo "   - Linting fails (golangci-lint)"
 	@echo "   - Code not formatted (go fmt)"
 	@echo ""
+	@echo "🔄 Restart Claude Code for hooks to take effect"
 	@echo "📚 See ~/.claude/hooks/README.md for details"
 
 # Clean temporary files

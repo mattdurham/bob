@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-guidance allow hooks clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -14,14 +14,16 @@ help:
 	@echo "  make install-skills           - Install workflow skills only"
 	@echo "  make install-agents           - Install specialized subagents"
 	@echo "  make install-lsp              - Install Go LSP plugin"
+	@echo "  make install-mcp              - Install filesystem MCP server (required for Bob)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
-	@echo "  make hooks                    - Install pre-commit hooks (tests, linting, formatting)"
+	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
 	@echo "  make clean                    - Clean temporary files"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
-	@echo "  make hooks                    - Install pre-commit hooks"
+	@echo "  make install-mcp              - Install filesystem MCP server (required)"
+	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
 	@echo "  /work \"feature description\" - Start a workflow"
 
@@ -50,6 +52,11 @@ install-skills:
 	BOB_REPO_PATH=$$(pwd); \
 	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
 	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+	if [ -f "$$HOME/.claude/hooks-config.json" ] && [ -f "$$HOME/.claude/hooks/pre-commit-checks.sh" ]; then \
+		HOOKS_STATUS="**Hooks:** ✓ Installed\n- Pre-commit quality checks (tests, linting, formatting)\n- Run \`make hooks\` to reinstall or update"; \
+	else \
+		HOOKS_STATUS="**Hooks:** ✗ Not installed\n- Run \`make hooks\` to install pre-commit quality checks"; \
+	fi; \
 	mkdir -p "$$SKILLS_DIR/bob-version"; \
 	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
 	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
@@ -59,6 +66,7 @@ install-skills:
 	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
+	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
 	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
@@ -115,6 +123,26 @@ install-lsp:
 		echo "   ⚠️  LSP installation script not found, skipping..."; \
 	fi
 
+# Install filesystem MCP server (required for Bob workflows)
+install-mcp:
+	@echo "📁 Installing filesystem MCP server..."
+	@if ! command -v claude >/dev/null 2>&1; then \
+		echo "❌ Error: claude command not found"; \
+		echo "   Please install Claude Code first"; \
+		exit 1; \
+	fi
+	@if claude mcp list | grep -q "filesystem:"; then \
+		echo "   ✓ Filesystem MCP server already installed"; \
+	else \
+		echo "   Installing filesystem MCP server..."; \
+		claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$$HOME/source" /tmp; \
+		echo "   ✅ Filesystem MCP server installed"; \
+	fi
+	@echo ""
+	@echo "Configured directories:"
+	@echo "  ✓ $$HOME/source"
+	@echo "  ✓ /tmp"
+
 # Install everything (skills, agents, LSP) - PRIMARY COMMAND
 install: install-skills install-agents install-lsp
 	@echo ""
@@ -124,6 +152,9 @@ install: install-skills install-agents install-lsp
 	@echo "  ✓ Workflow skills → ~/.claude/skills/"
 	@echo "  ✓ Specialized subagents → ~/.claude/agents/"
 	@echo "  ✓ Go LSP plugin (if available)"
+	@echo ""
+	@echo "Optional (not installed by default):"
+	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
 	@echo ""
 	@echo "🔄 Restart Claude to activate all components"
 	@echo ""

@@ -74,6 +74,18 @@ make install-agents   # Subagents only
 make install-lsp      # Go LSP only
 ```
 
+**Optional components (not installed by default):**
+```bash
+make hooks            # Pre-commit hooks for quality checks
+```
+
+Pre-commit hooks enforce quality gates before commits:
+- Run tests (`go test ./...`)
+- Check linting (`golangci-lint`)
+- Verify formatting (`go fmt`)
+
+Hooks are opt-in to give you control over your workflow. Install them when you want automatic quality enforcement.
+
 ### 2. Required MCP Server (Filesystem Only)
 
 Bob workflows require the filesystem MCP server for file operations:

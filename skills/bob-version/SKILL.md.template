@@ -39,8 +39,7 @@ category: utility
 - performance-analyzer, security-reviewer, docs-reviewer, architect-reviewer
 - code-reviewer, golang-pro, error-detective, debugger
 
-**Hooks:** Pre-commit quality checks
-- Tests, linting, formatting enforcement before commits
+{{HOOKS_STATUS}}
 
 ## Update Bob
 

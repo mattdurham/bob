@@ -88,18 +88,23 @@ Hooks are opt-in to give you control over your workflow. Install them when you w
 
 ### 2. Required MCP Server (Filesystem Only)
 
-Bob workflows require the filesystem MCP server for file operations:
+Bob workflows require the filesystem MCP server for file operations.
 
+**Quick install (recommended):**
 ```bash
-# The filesystem server should already be configured in Claude
-claude mcp list
+# Default directories ($HOME/source and /tmp)
+make install-mcp
 
-# Should show:
-# filesystem: npx -y @modelcontextprotocol/server-filesystem /home/matt/source /tmp
+# Custom directories (comma-delimited)
+make install-mcp DIRS="/home/matt/projects,/home/matt/work,/tmp"
 ```
 
-If not installed:
+**Manual install:**
 ```bash
+# Check if already installed
+claude mcp list
+
+# Install manually if needed
 claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$HOME/source" /tmp
 ```
 

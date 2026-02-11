@@ -14,7 +14,8 @@ help:
 	@echo "  make install-skills           - Install workflow skills only"
 	@echo "  make install-agents           - Install specialized subagents"
 	@echo "  make install-lsp              - Install Go LSP plugin"
-	@echo "  make install-mcp              - Install filesystem MCP server (required for Bob)"
+	@echo "  make install-mcp [DIRS=...]   - Install filesystem MCP server (required for Bob)"
+	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
@@ -26,6 +27,10 @@ help:
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
 	@echo "  /work \"feature description\" - Start a workflow"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make install-mcp DIRS=\"/home/matt/projects,/tmp\""
+	@echo "  make install-guidance PATH=/home/matt/myproject"
 
 # Install workflow skills to Claude
 install-skills:
@@ -124,6 +129,8 @@ install-lsp:
 	fi
 
 # Install filesystem MCP server (required for Bob workflows)
+# Usage: make install-mcp [DIRS=/path1,/path2,/path3]
+# If DIRS not specified, defaults to $HOME/source and /tmp
 install-mcp:
 	@echo "📁 Installing filesystem MCP server..."
 	@if ! command -v claude >/dev/null 2>&1; then \
@@ -131,17 +138,24 @@ install-mcp:
 		echo "   Please install Claude Code first"; \
 		exit 1; \
 	fi
-	@if claude mcp list | grep -q "filesystem:"; then \
-		echo "   ✓ Filesystem MCP server already installed"; \
+	@if [ -n "$(DIRS)" ]; then \
+		MCP_DIRS=$$(echo "$(DIRS)" | tr ',' ' '); \
+	else \
+		MCP_DIRS="$$HOME/source /tmp"; \
+	fi; \
+	if claude mcp list | grep -q "filesystem:"; then \
+		echo "   ⚠️  Filesystem MCP server already installed"; \
+		echo "   Remove it first with: claude mcp remove filesystem"; \
 	else \
 		echo "   Installing filesystem MCP server..."; \
-		claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$$HOME/source" /tmp; \
+		claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem $$MCP_DIRS; \
 		echo "   ✅ Filesystem MCP server installed"; \
+		echo ""; \
+		echo "Configured directories:"; \
+		for dir in $$MCP_DIRS; do \
+			echo "  ✓ $$dir"; \
+		done; \
 	fi
-	@echo ""
-	@echo "Configured directories:"
-	@echo "  ✓ $$HOME/source"
-	@echo "  ✓ /tmp"
 
 # Install everything (skills, agents, LSP) - PRIMARY COMMAND
 install: install-skills install-agents install-lsp

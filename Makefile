@@ -138,6 +138,22 @@ install-mcp:
 		echo "   Please install Claude Code first"; \
 		exit 1; \
 	fi
+	@if ! command -v npm >/dev/null 2>&1; then \
+		echo "❌ Error: npm not found"; \
+		echo "   Please install Node.js and npm first:"; \
+		echo "   - Ubuntu/Debian: sudo apt-get install nodejs npm"; \
+		echo "   - macOS: brew install node"; \
+		echo "   - Or visit: https://nodejs.org/"; \
+		exit 1; \
+	fi
+	@if ! command -v npx >/dev/null 2>&1; then \
+		echo "❌ Error: npx not found"; \
+		echo "   Please install Node.js (npx comes with npm 5.2+):"; \
+		echo "   - Ubuntu/Debian: sudo apt-get install nodejs npm"; \
+		echo "   - macOS: brew install node"; \
+		echo "   - Or visit: https://nodejs.org/"; \
+		exit 1; \
+	fi
 	@if [ -n "$(DIRS)" ]; then \
 		MCP_DIRS=$$(echo "$(DIRS)" | tr ',' ' '); \
 	else \

@@ -1,0 +1,65 @@
+---
+name: bob:version
+description: Display Bob version and installation information
+user-invocable: true
+category: utility
+---
+
+# Bob Version Information
+
+**Bob** - Workflow orchestration system implemented through Claude skills and subagents.
+
+## Installation Details
+
+- **Git Commit:** `{{GIT_HASH}}`
+- **Commit Date:** {{GIT_DATE}}
+- **Branch:** {{GIT_BRANCH}}
+- **Installed:** {{INSTALL_DATE}}
+- **Repository:** {{GIT_REMOTE}}
+
+## Available Workflows
+
+- `/bob:work` - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+- `/bob:code-review` - Code review workflow (REVIEW → FIX → TEST → loop)
+- `/bob:performance` - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+- `/bob:explore` - Read-only codebase exploration
+
+## Core Skills
+
+- `/brainstorming` - Interactive ideation before implementation
+- `/writing-plans` - Spawn planner subagent for detailed plans
+
+## Installed Components
+
+**Skills:** {{SKILL_COUNT}} workflow skills installed
+- work, code-review, performance, explore, brainstorming, writing-plans, bob:version
+
+**Subagents:** {{AGENT_COUNT}} specialized subagents installed
+- workflow-planner, workflow-coder, workflow-tester, workflow-reviewer
+- performance-analyzer, security-reviewer, docs-reviewer, architect-reviewer
+- code-reviewer, golang-pro, error-detective, debugger
+
+**Hooks:** Pre-commit quality checks
+- Tests, linting, formatting enforcement before commits
+
+## Update Bob
+
+To update to the latest version:
+
+```bash
+cd {{BOB_REPO_PATH}}
+git pull
+make install
+```
+
+After updating, run `/bob:version` again to verify the new commit hash.
+
+## Support
+
+- **Repository:** https://github.com/mattdurham/bob
+- **Issues:** Report bugs and feature requests on GitHub
+- **Documentation:** See CLAUDE.md in the repository
+
+---
+
+*🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents*

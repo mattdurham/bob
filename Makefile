@@ -39,15 +39,37 @@ install-skills:
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
 	done
+	@SKILLS_DIR="$$HOME/.claude/skills"; \
+	echo "   Generating bob:version skill..."; \
+	GIT_HASH=$$(git rev-parse HEAD); \
+	GIT_SHORT=$$(git rev-parse --short HEAD); \
+	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
+	INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
+	BOB_REPO_PATH=$$(pwd); \
+	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
+	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+	mkdir -p "$$SKILLS_DIR/bob-version"; \
+	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
+	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
+	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
+	    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
+	    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
+	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
+	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
+	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
+	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"
-	@echo "  /work            - Full development workflow"
-	@echo "  /code-review     - Code review workflow"
-	@echo "  /performance     - Performance optimization"
-	@echo "  /explore         - Codebase exploration"
+	@echo "  /bob:work        - Full development workflow"
+	@echo "  /bob:code-review - Code review workflow"
+	@echo "  /bob:performance - Performance optimization"
+	@echo "  /bob:explore     - Codebase exploration"
 	@echo "  /brainstorming   - Creative ideation"
 	@echo "  /writing-plans   - Implementation planning"
+	@echo "  /bob:version     - Show Bob version info"
 
 # Install specialized subagents
 install-agents:

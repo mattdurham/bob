@@ -145,11 +145,11 @@ Bob will automatically discover custom workflows in `.bob/workflows/`.
 
 ## Planning Documents
 
-All planning documents, brainstorming notes, and workflow artifacts should be stored in the `bots/` folder at the root of your repository. This folder is ignored by git and provides a clean workspace for agent-generated planning materials.
+All planning documents, brainstorming notes, and workflow artifacts should be stored in the `.bob/` folder at the root of your repository. This folder is ignored by git and provides a clean workspace for agent-generated planning materials.
 
 ```
 your-repo/
-├── bots/              # All planning docs go here (git ignored)
+├── .bob/              # All planning docs go here (git ignored)
 │   ├── plans/
 │   ├── notes/
 │   └── research/

@@ -24,7 +24,7 @@ When spawned by a workflow skill, you:
 2. Verify examples match implementation
 3. Check API documentation accuracy
 4. Validate code comments
-5. Report findings in `bots/review-docs.md`
+5. Report findings in `.bob/state/review-docs.md`
 
 ## Documentation Checklist
 
@@ -101,7 +101,7 @@ grep -rn "^[[:space:]]*//.*func\|^[[:space:]]*//.*if\|^[[:space:]]*//.*for" . --
 
 ## Report Format
 
-Write ALL documentation findings to `bots/review-docs.md`:
+Write ALL documentation findings to `.bob/state/review-docs.md`:
 
 ```markdown
 # Documentation Review Report
@@ -210,11 +210,11 @@ Your job is ensuring users can successfully use the software - be thorough!
 
 ## Output
 
-Always write your complete documentation review to `bots/review-docs.md` using the Write tool.
+Always write your complete documentation review to `.bob/state/review-docs.md` using the Write tool.
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/review-docs.md",
+Write(file_path: "/path/to/worktree/.bob/state/review-docs.md",
       content: "[Your complete docs review in markdown format]")
 ```
 

@@ -28,7 +28,7 @@ Bob is a workflow orchestration system implemented entirely through **Claude ski
 - 🎯 **Workflow Orchestration** - Multi-step workflows with loop-back rules
 - 🤖 **Specialized Subagents** - 12+ domain-expert agents for each workflow phase
 - 🌳 **Git Worktrees** - Isolated development environments
-- 📁 **Artifact Management** - Persistent state in `bots/` directory
+- 📁 **Artifact Management** - Persistent state in `.bob/` directory
 - 🔄 **Flow Control** - Automatic routing based on severity levels
 - 🔍 **9-Agent Parallel Review** - Comprehensive multi-perspective code review
 - 📊 **Quality Gates** - TDD, testing, security, performance checks
@@ -153,7 +153,7 @@ The REVIEW phase spawns 9 specialized reviewers in parallel:
 8. **Debugging** - Potential bugs, race conditions
 9. **Error Patterns** - Error handling consistency
 
-Results are consolidated into `bots/review.md` with severity-based routing:
+Results are consolidated into `.bob/review.md` with severity-based routing:
 - **CRITICAL/HIGH** → Loop to BRAINSTORM
 - **MEDIUM/LOW** → Loop to EXECUTE
 - **No issues** → Continue to COMMIT
@@ -167,10 +167,10 @@ Results are consolidated into `bots/review.md` with severity-based routing:
 ~/source/bob/                    # Main repo
 ~/source/bob-worktrees/
   ├── add-auth/                  # Feature 1 worktree
-  │   ├── bots/                  # Workflow artifacts
+  │   ├── .bob/                  # Workflow artifacts
   │   └── ...                    # Feature code
   └── fix-parser/                # Feature 2 worktree
-      ├── bots/
+      ├── .bob/
       └── ...
 ```
 
@@ -182,13 +182,13 @@ Results are consolidated into `bots/review.md` with severity-based routing:
 
 ## Workflow Artifacts
 
-All workflows store state in `bots/` directory:
+All workflows store state in `.bob/` directory:
 
-- `bots/brainstorm.md` - Research and approach
-- `bots/plan.md` - Implementation plan
-- `bots/test-results.md` - Test results
-- `bots/review.md` - Consolidated code review
-- `bots/review-*.md` - Individual agent reviews
+- `.bob/brainstorm.md` - Research and approach
+- `.bob/plan.md` - Implementation plan
+- `.bob/test-results.md` - Test results
+- `.bob/review.md` - Consolidated code review
+- `.bob/review-*.md` - Individual agent reviews
 
 These files persist across Claude sessions and serve as context for subsequent phases.
 
@@ -231,18 +231,18 @@ You: /work "Add rate limiting to API"
 Claude: I'll orchestrate the work workflow...
 
 [INIT Phase]
-Creating bots/ directory...
+Creating .bob directory...
 ✓ Ready to brainstorm
 
 [BRAINSTORM Phase]
 Spawning brainstorming skill...
 Creating worktree at ../bob-worktrees/add-rate-limiting...
 Spawning Explore agent to research patterns...
-✓ Research complete, findings in bots/brainstorm.md
+✓ Research complete, findings in .bob/brainstorm.md
 
 [PLAN Phase]
 Spawning workflow-planner agent...
-✓ Implementation plan in bots/plan.md
+✓ Implementation plan in .bob/plan.md
 
 [EXECUTE Phase]
 Spawning workflow-coder agent...
@@ -250,7 +250,7 @@ Spawning workflow-coder agent...
 
 [TEST Phase]
 Spawning workflow-tester agent...
-✓ All tests passing, results in bots/test-results.md
+✓ All tests passing, results in .bob/test-results.md
 
 [REVIEW Phase]
 Spawning 9 parallel reviewers...
@@ -264,7 +264,7 @@ Spawning 9 parallel reviewers...
   ✓ Debugging review
   ✓ Error pattern review
 Consolidating findings...
-✓ 3 medium issues found in bots/review.md
+✓ 3 medium issues found in .bob/review.md
 
 [Loop to EXECUTE]
 Spawning workflow-coder to fix medium issues...
@@ -306,7 +306,7 @@ category: workflow
 
 **Orchestration:**
 - Let subagents do the work
-- Pass context via `bots/*.md` files
+- Pass context via `.bob/*.md` files
 - Clear input/output for each phase
 - Chain agents together systematically
 

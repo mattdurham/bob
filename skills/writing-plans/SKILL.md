@@ -13,9 +13,10 @@ Spawn a subagent to write comprehensive implementation plans assuming the engine
 
 **Process:**
 1. Spawn workflow-planner subagent with background execution
-2. Subagent reads design from `bots/design.md`
-3. Subagent writes plan to `bots/plan.md`
-4. Wait for completion notification
+2. Subagent reads design from `.bob/state/design.md`
+3. If `.bob/planning/` exists, subagent also reads `.bob/planning/PROJECT.md` and `.bob/planning/REQUIREMENTS.md` for project context and acceptance criteria
+4. Subagent writes plan to `.bob/state/plan.md`
+5. Wait for completion notification
 
 ## Bite-Sized Task Granularity
 
@@ -100,7 +101,10 @@ Spawn the planner subagent with this exact structure:
 Task(subagent_type: "workflow-planner",
      description: "Create implementation plan",
      run_in_background: true,
-     prompt: "Read the design from bots/design.md.
+     prompt: "Read the design from .bob/state/design.md.
+             If .bob/planning/ directory exists, also read .bob/planning/PROJECT.md
+             and .bob/planning/REQUIREMENTS.md for project context and acceptance criteria.
+             Reference REQ-IDs in tasks where applicable.
 
      Create a concrete, bite-sized implementation plan.
 
@@ -117,11 +121,11 @@ Task(subagent_type: "workflow-planner",
      - Exact code to write
      - Verification steps
 
-     Write the complete plan to bots/plan.md using the Write tool.")
+     Write the complete plan to .bob/state/plan.md using the Write tool.")
 ```
 
 ## Execution Handoff
 
 After subagent completes, confirm:
 
-**"Plan complete and saved to `bots/plan.md`. Ready to move to EXECUTE phase?"**
+**"Plan complete and saved to `.bob/state/plan.md`. Ready to move to EXECUTE phase?"**

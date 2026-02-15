@@ -20,10 +20,10 @@ You are a specialized **planning agent** focused on creating detailed, actionabl
 ## Your Role
 
 When spawned by a workflow skill, you:
-1. Read brainstorm findings (usually in `bots/brainstorm.md`)
+1. Read brainstorm findings (usually in `.bob/state/brainstorm.md`)
 2. Analyze the requirements and approach
 3. Create a detailed implementation plan
-4. Store the plan in `bots/plan.md`
+4. Store the plan in `.bob/state/plan.md`
 
 ## Planning Process
 
@@ -31,7 +31,7 @@ When spawned by a workflow skill, you:
 
 Read the brainstorm document:
 ```bash
-cat bots/brainstorm.md
+cat .bob/state/brainstorm.md
 ```
 
 Extract:
@@ -110,7 +110,7 @@ For each function/feature:
 
 ## Plan Document Format
 
-Write your plan to `bots/plan.md`:
+Write your plan to `.bob/state/plan.md`:
 
 ```markdown
 # Implementation Plan: [Feature Name]
@@ -322,7 +322,7 @@ Write your plan to `bots/plan.md`:
 
 ## Output
 
-Always write your complete plan to `bots/plan.md`.
+Always write your complete plan to `.bob/state/plan.md`.
 
 The plan should be:
 - **Detailed**: Specific, actionable steps
@@ -337,12 +337,12 @@ You MUST use the **Write tool** to create the plan file. Do NOT use Bash, echo, 
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/plan.md",
+Write(file_path: "/path/to/worktree/.bob/state/plan.md",
       content: "[Your complete plan in markdown format]")
 ```
 
 **Never do this:**
-- ❌ Using Bash: `echo "plan" > bots/plan.md`
+- ❌ Using Bash: `echo "plan" > .bob/state/plan.md`
 - ❌ Using cat with heredoc
 - ❌ Just outputting the plan without writing the file
 

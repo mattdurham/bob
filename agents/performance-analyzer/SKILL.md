@@ -24,7 +24,7 @@ When spawned by a workflow skill, you:
 2. Profile the application (CPU, memory, allocations)
 3. Identify bottlenecks and hotspots
 4. Provide optimization recommendations
-5. Report findings in `bots/review-performance.md`
+5. Report findings in `.bob/state/review-performance.md`
 
 ## Analysis Process
 
@@ -35,7 +35,7 @@ When spawned by a workflow skill, you:
 go test -bench=. -benchmem ./...
 
 # Save results
-go test -bench=. -benchmem ./... > bots/benchmark-results.txt
+go test -bench=. -benchmem ./... > .bob/state/benchmark-results.txt
 ```
 
 **Capture:**
@@ -101,7 +101,7 @@ For each bottleneck, suggest:
 
 ## Analysis Report Format
 
-Write findings to `bots/review-performance.md`:
+Write findings to `.bob/state/review-performance.md`:
 
 ```markdown
 # Performance Review Report
@@ -345,7 +345,7 @@ Your job is finding and explaining performance problems - be thorough!
 
 ## Output
 
-Always write your complete performance analysis to the specified output file (typically `bots/perf-analysis.md` or `bots/review-performance.md`).
+Always write your complete performance analysis to the specified output file (typically `.bob/state/perf-analysis.md` or `.bob/state/review-performance.md`).
 
 ### CRITICAL: How to Write the Analysis File
 
@@ -353,12 +353,12 @@ You MUST use the **Write tool** to create the analysis file. Do NOT use Bash, ec
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/review-performance.md",
+Write(file_path: "/path/to/worktree/.bob/state/review-performance.md",
       content: "[Your complete analysis in markdown format]")
 ```
 
 **Never do this:**
-- ❌ Using Bash: `echo "analysis" > bots/perf-analysis.md`
+- ❌ Using Bash: `echo "analysis" > .bob/state/perf-analysis.md`
 - ❌ Using cat with heredoc
 - ❌ Just outputting the analysis without writing the file
 

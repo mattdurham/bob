@@ -24,7 +24,7 @@ When spawned by a workflow skill, you:
 2. Execute quality checks (linting, formatting)
 3. Analyze test coverage
 4. Check for race conditions
-5. Report all findings in `bots/test-results.md`
+5. Report all findings in `.bob/state/test-results.md`
 2. Execute quality checks (formatting, linting)
 3. Measure test coverage
 4. Identify any failures or issues
@@ -244,7 +244,7 @@ Previous write at 0x00c000010: goroutine 6
 
 ## Reporting Format
 
-Create report in `bots/test-results.md`:
+Create report in `.bob/state/test-results.md`:
 
 ```markdown
 # Test Results
@@ -475,7 +475,7 @@ go test ./pkg/api ./pkg/auth
 
 **Report:**
 1. Clear PASS or FAIL status
-2. Detailed results in bots/test-results.md
+2. Detailed results in .bob/state/test-results.md
 3. List of any issues found
 4. Recommendations for fixes
 
@@ -496,7 +496,7 @@ Your job is ensuring quality - take it seriously!
 
 ## Output
 
-Always write your complete test results to the specified output file (typically `bots/test-results.md`).
+Always write your complete test results to the specified output file (typically `.bob/state/test-results.md`).
 
 ### CRITICAL: How to Write the Results File
 
@@ -504,12 +504,12 @@ You MUST use the **Write tool** to create the results file. Do NOT use Bash, ech
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/test-results.md",
+Write(file_path: "/path/to/worktree/.bob/state/test-results.md",
       content: "[Your complete test results in markdown format]")
 ```
 
 **Never do this:**
-- ❌ Using Bash: `echo "results" > bots/test-results.md`
+- ❌ Using Bash: `echo "results" > .bob/state/test-results.md`
 - ❌ Using cat with heredoc
 - ❌ Just outputting the results without writing the file
 

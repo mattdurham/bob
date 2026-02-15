@@ -18,6 +18,8 @@ INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR �
                     (loop if targets not met)
 ```
 
+**NEVER commit or push before the COMMIT phase.** No `git add`, `git commit`, `git push`, or `gh pr create` until you reach Phase 7: COMMIT. Subagents must not commit either.
+
 ---
 
 ## Execution Rules
@@ -38,9 +40,9 @@ Understand performance goals:
 - Current vs target metrics?
 - Acceptable trade-offs?
 
-Create bots/ and isolated worktree:
+Create .bob/ and isolated worktree:
 ```bash
-mkdir -p bots
+mkdir -p .bob/state .bob/planning
 
 # Create worktree for isolated performance optimization
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
@@ -57,7 +59,7 @@ git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
 cd "$WORKTREE_DIR"
 ```
 
-Write targets to `bots/perf-targets.md`
+Write targets to `.bob/state/perf-targets.md`
 
 ---
 
@@ -71,10 +73,10 @@ Task(subagent_type: "workflow-tester",
      description: "Run benchmarks",
      run_in_background: true,
      prompt: "Run performance benchmarks.
-             Save results to bots/benchmark-before.txt.")
+             Save results to .bob/state/benchmark-before.txt.")
 ```
 
-**Output:** `bots/benchmark-before.txt`
+**Output:** `.bob/state/benchmark-before.txt`
 
 ---
 
@@ -87,13 +89,13 @@ Spawn workflow-performance-analyzer:
 Task(subagent_type: "workflow-performance-analyzer",
      description: "Analyze performance",
      run_in_background: true,
-     prompt: "Analyze benchmarks in bots/benchmark-before.txt.
+     prompt: "Analyze benchmarks in .bob/state/benchmark-before.txt.
              Identify bottlenecks and recommend optimizations.
-             Write findings to bots/perf-analysis.md.")
+             Write findings to .bob/state/perf-analysis.md.")
 ```
 
-**Input:** `bots/benchmark-before.txt`, `bots/perf-targets.md`
-**Output:** `bots/perf-analysis.md`
+**Input:** `.bob/state/benchmark-before.txt`, `.bob/state/perf-targets.md`
+**Output:** `.bob/state/perf-analysis.md`
 
 ---
 
@@ -106,11 +108,11 @@ Spawn workflow-coder:
 Task(subagent_type: "workflow-coder",
      description: "Implement optimizations",
      run_in_background: true,
-     prompt: "Implement optimizations from bots/perf-analysis.md.
+     prompt: "Implement optimizations from .bob/state/perf-analysis.md.
              Keep code readable, add comments for complex changes.")
 ```
 
-**Input:** `bots/perf-analysis.md`
+**Input:** `.bob/state/perf-analysis.md`
 **Output:** Optimized code
 
 ---
@@ -124,12 +126,20 @@ Spawn workflow-tester:
 Task(subagent_type: "workflow-tester",
      description: "Verify optimizations",
      run_in_background: true,
-     prompt: "Run tests and new benchmarks.
-             Compare to baseline in bots/benchmark-before.txt.
-             Write results to bots/perf-results.md.")
+     prompt: "Run the complete test suite, all quality checks, and new benchmarks:
+             1. go test ./... (all tests must pass)
+             2. go test -race ./... (no race conditions)
+             3. go test -cover ./... (report coverage)
+             4. go fmt ./... (code must be formatted)
+             5. golangci-lint run (no lint issues)
+             6. gocyclo -over 40 . (no complex functions)
+             7. go test -bench=. -benchmem ./... (run benchmarks)
+             Compare benchmarks to baseline in .bob/state/benchmark-before.txt.
+             Report all results in .bob/state/perf-results.md.
+             Working directory: [worktree-path]")
 ```
 
-**Output:** `bots/perf-results.md`
+**Output:** `.bob/state/perf-results.md`
 
 **Decision:**
 - Targets met + tests pass → REVIEW
@@ -148,43 +158,43 @@ Task(subagent_type: "workflow-reviewer",
      description: "Code quality review",
      run_in_background: true,
      prompt: "Review optimized code for logic, bugs, and best practices.
-             Write findings to bots/review-code.md with severity levels.")
+             Write findings to .bob/state/review-code.md with severity levels.")
 
 Task(subagent_type: "security-reviewer",
      description: "Security vulnerability review",
      run_in_background: true,
      prompt: "Scan for security vulnerabilities introduced by optimizations.
-             Write findings to bots/review-security.md with severity levels.")
+             Write findings to .bob/state/review-security.md with severity levels.")
 
 Task(subagent_type: "performance-analyzer",
      description: "Performance bottleneck review",
      run_in_background: true,
      prompt: "Verify optimizations didn't introduce new bottlenecks.
-             Write findings to bots/review-performance.md with severity levels.")
+             Write findings to .bob/state/review-performance.md with severity levels.")
 
 Task(subagent_type: "docs-reviewer",
      description: "Documentation accuracy review",
      run_in_background: true,
      prompt: "Ensure performance changes are documented correctly.
-             Write findings to bots/review-docs.md with severity levels.")
+             Write findings to .bob/state/review-docs.md with severity levels.")
 
 Task(subagent_type: "architect-reviewer",
      description: "Architecture and design review",
      run_in_background: true,
      prompt: "Evaluate if optimizations maintain good architecture.
-             Write findings to bots/review-architecture.md with severity levels.")
+             Write findings to .bob/state/review-architecture.md with severity levels.")
 
 Task(subagent_type: "code-reviewer",
      description: "Comprehensive code quality review",
      run_in_background: true,
      prompt: "Deep review of optimization quality and maintainability.
-             Write findings to bots/review-code-quality.md with severity levels.")
+             Write findings to .bob/state/review-code-quality.md with severity levels.")
 
 Task(subagent_type: "golang-pro",
      description: "Go-specific code review",
      run_in_background: true,
      prompt: "Review Go optimizations for idiomatic patterns.
-             Write findings to bots/review-go.md with severity levels.")
+             Write findings to .bob/state/review-go.md with severity levels.")
 
 Task(subagent_type: "debugger",
      description: "Bug diagnosis and debugging review",
@@ -193,7 +203,7 @@ Task(subagent_type: "debugger",
              - Race conditions introduced by concurrency optimizations
              - Resource leaks from performance changes
              - Logic errors in optimized algorithms
-             Write findings to bots/review-debug.md with severity levels.")
+             Write findings to .bob/state/review-debug.md with severity levels.")
 
 Task(subagent_type: "error-detective",
      description: "Error pattern analysis review",
@@ -202,12 +212,12 @@ Task(subagent_type: "error-detective",
              - Error handling consistency in performance-critical paths
              - Failure recovery patterns in optimized code
              - Timeout and deadline handling
-             Write findings to bots/review-errors.md with severity levels.")
+             Write findings to .bob/state/review-errors.md with severity levels.")
 ```
 
-After all 9 agents complete, consolidate findings into `bots/review.md`.
+After all 9 agents complete, consolidate findings into `.bob/state/review.md`.
 
-**Output:** `bots/review.md` (consolidated report)
+**Output:** `.bob/state/review.md` (consolidated report)
 
 **Decision:**
 - No issues → COMMIT
@@ -217,22 +227,39 @@ After all 9 agents complete, consolidate findings into `bots/review.md`.
 
 ## Phase 7: COMMIT
 
-Create commit with metrics:
-```bash
-git commit -m "perf: optimize [component]
+**This is the FIRST phase where git operations are allowed.**
 
-Improvements:
-- Speed: [before] → [after] ([X]% faster)
-- Memory: [before] → [after] ([X]% reduction)
+**PREREQUISITE:** `.bob/state/review.md` MUST exist. If it does not, STOP and go back to REVIEW. Never commit unreviewed code.
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-```
+1. Verify review was completed:
+   ```bash
+   test -f .bob/state/review.md || { echo "REVIEW not completed"; exit 1; }
+   ```
+
+2. Show the user a summary of all changes, review findings, and performance improvements.
+
+3. Create PR (default — no need to ask):
+   ```bash
+   git add [relevant-files]
+   git commit -m "$(cat <<'EOF'
+   perf: optimize [component]
+
+   Improvements:
+   - Speed: [before] → [after] ([X]% faster)
+   - Memory: [before] → [after] ([X]% reduction)
+
+   Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+   EOF
+   )"
+   git push -u origin $(git branch --show-current)
+   gh pr create --title "perf: optimize [component]" --body "Description with metrics"
+   ```
 
 ---
 
 ## Phase 8: MONITOR
 
-Monitor CI performance tests.
+Monitor CI performance tests (only if a PR was created).
 
 **If failures:** Loop to ANALYZE
 

@@ -37,9 +37,9 @@ Understand exploration goal:
 - Specific feature/component?
 - Architecture overview?
 
-Create bots/:
+Create .bob/:
 ```bash
-mkdir -p bots
+mkdir -p .bob/state .bob/planning
 ```
 
 ---
@@ -55,10 +55,10 @@ Task(subagent_type: "Explore",
      run_in_background: true,
      prompt: "Find code related to [exploration goal].
              Map file structure, key components, relationships.
-             Write findings to bots/discovery.md.")
+             Write findings to .bob/state/discovery.md.")
 ```
 
-**Output:** `bots/discovery.md`
+**Output:** `.bob/state/discovery.md`
 
 ---
 
@@ -71,13 +71,13 @@ Spawn researcher:
 Task(subagent_type: "researcher",
      description: "Analyze codebase",
      run_in_background: true,
-     prompt: "Read files in bots/discovery.md.
+     prompt: "Read files in .bob/state/discovery.md.
              Understand logic, patterns, architecture.
-             Write analysis to bots/analysis.md.")
+             Write analysis to .bob/state/analysis.md.")
 ```
 
-**Input:** `bots/discovery.md`
-**Output:** `bots/analysis.md`
+**Input:** `.bob/state/discovery.md`
+**Output:** `.bob/state/analysis.md`
 
 ---
 
@@ -85,7 +85,7 @@ Task(subagent_type: "researcher",
 
 **Goal:** Create clear documentation
 
-Create comprehensive report in `bots/exploration-report.md`:
+Create comprehensive report in `.bob/state/exploration-report.md`:
 - Overview of what was explored
 - Architecture and structure
 - Key components explained

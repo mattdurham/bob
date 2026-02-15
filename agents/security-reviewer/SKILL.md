@@ -24,7 +24,7 @@ When spawned by a workflow skill, you:
 2. Check for common attack vectors
 3. Identify credential exposure risks
 4. Validate security best practices
-5. Report findings in `bots/review-security.md`
+5. Report findings in `.bob/state/review-security.md`
 
 ## Security Checklist
 
@@ -110,7 +110,7 @@ grep -rn "crypto/md5\|crypto/sha1\|rand.Intn\|math/rand" . --include="*.go"
 
 ## Report Format
 
-Write ALL security findings to `bots/review-security.md`:
+Write ALL security findings to `.bob/state/review-security.md`:
 
 ```markdown
 # Security Review Report
@@ -218,11 +218,11 @@ Your job is preventing security breaches - be paranoid!
 
 ## Output
 
-Always write your complete security review to `bots/review-security.md` using the Write tool.
+Always write your complete security review to `.bob/state/review-security.md` using the Write tool.
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/review-security.md",
+Write(file_path: "/path/to/worktree/.bob/state/review-security.md",
       content: "[Your complete security review in markdown format]")
 ```
 

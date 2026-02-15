@@ -8,17 +8,18 @@ Bob gives Claude access to:
 
 - **Workflow Skills** - User-invocable workflows (bob:work, bob:code-review, bob:performance, bob:explore)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
-- **State Management** - Persistent workflow artifacts in `bots/` directory
+- **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
 
 ## Available Workflows
 
 Invoke these workflows with slash commands:
 
-1. **`/bob:work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-2. **`/bob:code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
-3. **`/bob:performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
-4. **`/bob:explore`** - Read-only codebase exploration
+1. **`/bob:project`** - Project initialization (INIT → DISCOVER → QUESTION → RESEARCH → DEFINE → COMPLETE)
+2. **`/bob:work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+3. **`/bob:code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
+4. **`/bob:performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+5. **`/bob:explore`** - Read-only codebase exploration
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -29,7 +30,7 @@ See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 ```
 Skill (/bob:work)
   ↓
-Creates worktree & bots/ directory
+Creates worktree & .bob directory
   ↓
 Spawns specialized subagents:
   - Explore agent (research patterns)
@@ -38,11 +39,13 @@ Spawns specialized subagents:
   - workflow-tester agent (run tests)
   - workflow-reviewer agent (code review)
   ↓
-Manages artifacts in bots/:
-  - bots/brainstorm.md
-  - bots/plan.md
-  - bots/test-results.md
-  - bots/review.md
+Manages artifacts in .bob/:
+  - .bob/planning/PROJECT.md (from /bob:project)
+  - .bob/planning/REQUIREMENTS.md (from /bob:project)
+  - .bob/state/brainstorm.md
+  - .bob/state/plan.md
+  - .bob/state/test-results.md
+  - .bob/state/review.md
   ↓
 Result: Complete, high-quality implementation
 ```
@@ -120,20 +123,29 @@ Simply invoke the skill:
 
 The skill will:
 1. Create isolated git worktree
-2. Set up `bots/` directory for artifacts
+2. Set up `.bob/` directory for artifacts
 3. Spawn specialized subagents for each phase
 4. Guide you through the complete workflow
 5. Enforce quality gates and loop-back rules
 
 ## Workflow Artifacts
 
-All workflows store state in `bots/` directory within the worktree:
+All workflows store artifacts in `.bob/` directory within the worktree:
 
-- `bots/brainstorm.md` - Research and approach decisions
-- `bots/plan.md` - Detailed implementation plan
-- `bots/test-results.md` - Test execution results
-- `bots/review.md` - Code review findings
-- `bots/review-*.md` - Specialized review reports (security, performance, etc.)
+```
+.bob/
+  planning/          # Project context (created by /bob:project)
+    PROJECT.md       # Vision, scope, technical decisions
+    REQUIREMENTS.md  # Traceable requirements with REQ-IDs
+    CODEBASE.md      # Existing code analysis (brownfield)
+    RESEARCH.md      # Technology research (optional)
+  state/             # Workflow progress (created by /bob:work, etc.)
+    brainstorm.md    # Research and approach decisions
+    plan.md          # Detailed implementation plan
+    test-results.md  # Test execution results
+    review.md        # Consolidated code review findings
+    review-*.md      # Specialized review reports
+```
 
 These files persist across Claude sessions and serve as context for subsequent phases.
 
@@ -185,10 +197,10 @@ Workflows enforce strict flow control:
 ~/source/bob/                    # Main repo
 ~/source/bob-worktrees/
   ├── add-auth/                  # Feature 1 worktree
-  │   ├── bots/                  # Workflow artifacts
+  │   ├── .bob/                  # Workflow artifacts
   │   └── ...                    # Feature code
   └── fix-parser/                # Feature 2 worktree
-      ├── bots/
+      ├── .bob/
       └── ...
 ```
 
@@ -196,7 +208,7 @@ Workflows enforce strict flow control:
 
 **Orchestration:**
 - Let subagents do the work
-- Pass context via `bots/*.md` files
+- Pass context via `.bob/*.md` files
 - Clear input/output for each phase
 - Chain agents together systematically
 
@@ -220,18 +232,18 @@ You: /bob:work "Add rate limiting to API"
 Claude: I'll orchestrate the work workflow...
 
 [INIT Phase]
-Creating bots/ directory...
+Creating .bob directory...
 ✓ Ready to brainstorm
 
 [BRAINSTORM Phase]
 Spawning brainstorming skill...
 Creating worktree at ../bob-worktrees/add-rate-limiting...
 Spawning Explore agent to research patterns...
-✓ Research complete, findings in bots/brainstorm.md
+✓ Research complete, findings in .bob/brainstorm.md
 
 [PLAN Phase]
 Spawning workflow-planner agent...
-✓ Implementation plan in bots/plan.md
+✓ Implementation plan in .bob/plan.md
 
 [EXECUTE Phase]
 Spawning workflow-coder agent...
@@ -239,7 +251,7 @@ Spawning workflow-coder agent...
 
 [TEST Phase]
 Spawning workflow-tester agent...
-✓ All tests passing, results in bots/test-results.md
+✓ All tests passing, results in .bob/test-results.md
 
 [REVIEW Phase]
 Spawning 9 parallel reviewers...
@@ -253,7 +265,7 @@ Spawning 9 parallel reviewers...
   ✓ Debugging review
   ✓ Error pattern review
 Consolidating findings...
-✓ 3 medium issues found in bots/review.md
+✓ 3 medium issues found in .bob/review.md
 
 [Loop to EXECUTE]
 Spawning workflow-coder to fix medium issues...
@@ -322,7 +334,7 @@ If you previously used Bob as an MCP server:
 - Pure skill-based orchestration
 - No MCP server needed
 - Automatic subagent coordination
-- Simple artifact-based state in `bots/`
+- Simple artifact-based state in `.bob/`
 
 To migrate:
 1. Remove Bob MCP server from config: `claude mcp remove bob`

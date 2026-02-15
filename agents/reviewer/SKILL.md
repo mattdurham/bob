@@ -24,7 +24,7 @@ When spawned by a workflow skill, you:
 2. Check cross-file consistency
 3. Verify code quality and security
 4. Focus on code logic, bugs, and best practices (NOT security/performance/docs)
-5. Report findings in bots/review-code.md
+5. Report findings in .bob/state/review-code.md
 
 ## Review Process (3 Passes)
 
@@ -54,7 +54,7 @@ grep -Eroh '\u003c[a-z_]*state[a-z_]*\u003e' . --include="*.go" | sort -u
 grep -Eroh '\u003c[a-z_]*key[a-z_]*\u003e' . --include="*.go" | sort -u
 ```
 
-**Output:** bots/review-consistency.md
+**Output:** .bob/state/review-consistency.md
 
 ### PASS 2: Code Quality & Logic
 
@@ -88,7 +88,7 @@ grep -n "err :=" . -r --include="*.go" | grep -v "if err"
 grep -n "SELECT.*fmt.Sprintf" . -r --include="*.go"
 ```
 
-**Output:** bots/review-quality.md
+**Output:** .bob/state/review-quality.md
 
 ### PASS 3: Documentation Alignment
 
@@ -109,11 +109,11 @@ find . -name "*.md" -exec grep -A20 '```' {} \;
 grep -r "^func " . --include="*.go"
 ```
 
-**Output:** bots/review-docs.md
+**Output:** .bob/state/review-docs.md
 
 ## Consolidated Report Format
 
-Write ALL findings to `bots/review-code.md`:
+Write ALL findings to `.bob/state/review-code.md`:
 
 ```markdown
 # Code Review Report
@@ -252,7 +252,7 @@ Your job is preventing problems - be rigorous!
 
 ## Output
 
-Always write your complete review findings to the specified output file (typically `bots/review.md` or `bots/review-[specialty].md`).
+Always write your complete review findings to the specified output file (typically `.bob/state/review.md` or `.bob/state/review-[specialty].md`).
 
 ### CRITICAL: How to Write the Review File
 
@@ -260,12 +260,12 @@ You MUST use the **Write tool** to create the review file. Do NOT use Bash, echo
 
 **Correct approach:**
 ```
-Write(file_path: "/path/to/worktree/bots/review-code.md",
+Write(file_path: "/path/to/worktree/.bob/state/review-code.md",
       content: "[Your complete review in markdown format]")
 ```
 
 **Never do this:**
-- ❌ Using Bash: `echo "review" > bots/review.md`
+- ❌ Using Bash: `echo "review" > .bob/state/review.md`
 - ❌ Using cat with heredoc
 - ❌ Just outputting the review without writing the file
 

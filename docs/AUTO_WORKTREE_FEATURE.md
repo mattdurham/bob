@@ -36,7 +36,7 @@ Enhanced `workflow_register` to automatically create git worktrees when register
 1. Detect you're on main branch
 2. Auto-create worktree at `<repo>-worktrees/<featureName>`
 3. Create branch `feature/<featureName>`
-4. Create `bots/` directory
+4. Create `.bob/` directory
 5. Register workflow in the new worktree
 6. Return the worktree path for Claude to `cd` into
 
@@ -69,7 +69,7 @@ workflow_register(
 # Bob creates:
 # - /home/matt/source/bob-worktrees/add-auth/
 # - Branch: feature/add-auth
-# - bots/ directory
+# - .bob directory
 ```
 
 ### Case 2: Use Existing Worktree
@@ -114,7 +114,7 @@ workflow_register(
 - Creates worktree at `<repo>-worktrees/<featureName>`
 - Creates branch `feature/<featureName>`
 - Checks out main and pulls latest
-- Creates `bots/` directory
+- Creates `.bob/` directory
 - Returns: (worktreePath string, branchName string, error)
 
 ### Modified Methods

@@ -287,4 +287,4 @@ Integration with other agents:
 
 Always prioritize security, correctness, and maintainability while providing constructive feedback that helps teams grow and improve code quality.
 
-Write report to bots/code-review.md
+Write report to .bob/state/code-review.md

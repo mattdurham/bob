@@ -24,6 +24,8 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 - **TEST → REVIEW**: Re-verify after fixes
 - **MONITOR → REVIEW**: CI failures or PR feedback (review and fix again)
 
+**NEVER commit or push before the COMMIT phase.** No `git add`, `git commit`, `git push`, or `gh pr create` until you reach Phase 5: COMMIT. Subagents must not commit either.
+
 ---
 
 ## Execution Rules
@@ -39,9 +41,9 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 
 ## Phase 1: INIT
 
-Create bots/ directory and isolated worktree:
+Create .bob directory and isolated worktree:
 ```bash
-mkdir -p bots
+mkdir -p .bob/state .bob/planning
 
 # Create worktree for isolated code review
 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
@@ -70,43 +72,43 @@ Task(subagent_type: "workflow-reviewer",
      description: "Code quality review",
      run_in_background: true,
      prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
-             Write findings to bots/review-code.md with severity levels.")
+             Write findings to .bob/state/review-code.md with severity levels.")
 
 Task(subagent_type: "security-reviewer",
      description: "Security vulnerability review",
      run_in_background: true,
      prompt: "Scan code for security vulnerabilities (OWASP Top 10, secrets, input validation).
-             Write findings to bots/review-security.md with severity levels.")
+             Write findings to .bob/state/review-security.md with severity levels.")
 
 Task(subagent_type: "performance-analyzer",
      description: "Performance bottleneck review",
      run_in_background: true,
      prompt: "Analyze code for performance issues (complexity, memory, N+1 patterns).
-             Write findings to bots/review-performance.md with severity levels.")
+             Write findings to .bob/state/review-performance.md with severity levels.")
 
 Task(subagent_type: "docs-reviewer",
      description: "Documentation accuracy review",
      run_in_background: true,
      prompt: "Review documentation for accuracy and completeness.
-             Write findings to bots/review-docs.md with severity levels.")
+             Write findings to .bob/state/review-docs.md with severity levels.")
 
 Task(subagent_type: "architect-reviewer",
      description: "Architecture and design review",
      run_in_background: true,
      prompt: "Evaluate system architecture and design decisions.
-             Write findings to bots/review-architecture.md with severity levels.")
+             Write findings to .bob/state/review-architecture.md with severity levels.")
 
 Task(subagent_type: "code-reviewer",
      description: "Comprehensive code quality review",
      run_in_background: true,
      prompt: "Conduct deep code review (logic, security, performance, maintainability).
-             Write findings to bots/review-code-quality.md with severity levels.")
+             Write findings to .bob/state/review-code-quality.md with severity levels.")
 
 Task(subagent_type: "golang-pro",
      description: "Go-specific code review",
      run_in_background: true,
      prompt: "Review Go code for idiomatic patterns and best practices.
-             Write findings to bots/review-go.md with severity levels.")
+             Write findings to .bob/state/review-go.md with severity levels.")
 
 Task(subagent_type: "debugger",
      description: "Bug diagnosis and debugging review",
@@ -115,7 +117,7 @@ Task(subagent_type: "debugger",
              - Potential null pointer dereferences and panic conditions
              - Race conditions and concurrency bugs
              - Resource leaks and error handling gaps
-             Write findings to bots/review-debug.md with severity levels.")
+             Write findings to .bob/state/review-debug.md with severity levels.")
 
 Task(subagent_type: "error-detective",
      description: "Error pattern analysis review",
@@ -124,12 +126,12 @@ Task(subagent_type: "error-detective",
              - Error handling consistency and missing error checks
              - Retry logic and failure recovery patterns
              - Timeout and circuit breaker patterns
-             Write findings to bots/review-errors.md with severity levels.")
+             Write findings to .bob/state/review-errors.md with severity levels.")
 ```
 
-After all 9 agents complete, consolidate findings into `bots/review.md`.
+After all 9 agents complete, consolidate findings into `.bob/state/review.md`.
 
-**Output:** `bots/review.md` (consolidated report)
+**Output:** `.bob/state/review.md` (consolidated report)
 
 **Decision:**
 - No issues → COMMIT
@@ -146,11 +148,11 @@ Spawn workflow-coder:
 Task(subagent_type: "workflow-coder",
      description: "Fix review issues",
      run_in_background: true,
-     prompt: "Fix issues in bots/review.md.
+     prompt: "Fix issues in .bob/state/review.md.
              Keep changes minimal and focused.")
 ```
 
-**Input:** `bots/review.md`
+**Input:** `.bob/state/review.md`
 **Output:** Code fixes
 
 ---
@@ -164,11 +166,18 @@ Spawn workflow-tester:
 Task(subagent_type: "workflow-tester",
      description: "Run tests",
      run_in_background: true,
-     prompt: "Run full test suite.
-             Write results to bots/test-results.md.")
+     prompt: "Run the complete test suite and all quality checks:
+             1. go test ./... (all tests must pass)
+             2. go test -race ./... (no race conditions)
+             3. go test -cover ./... (report coverage)
+             4. go fmt ./... (code must be formatted)
+             5. golangci-lint run (no lint issues)
+             6. gocyclo -over 40 . (no complex functions)
+             Report all results in .bob/state/test-results.md.
+             Working directory: [worktree-path]")
 ```
 
-**Output:** `bots/test-results.md`
+**Output:** `.bob/state/test-results.md`
 
 **Decision:**
 - Tests pass → REVIEW (verify fixes are correct!)
@@ -178,21 +187,35 @@ Task(subagent_type: "workflow-tester",
 
 ## Phase 5: COMMIT
 
-Create commit:
-```bash
-git add [files]
-git commit -m "fix: address code review findings
+**This is the FIRST phase where git operations are allowed.**
 
-Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
-git push
-gh pr create --title "Code review fixes"
-```
+**PREREQUISITE:** `.bob/state/review.md` MUST exist. If it does not, STOP and go back to REVIEW. Never commit unreviewed code.
+
+1. Verify review was completed:
+   ```bash
+   test -f .bob/state/review.md || { echo "REVIEW not completed"; exit 1; }
+   ```
+
+2. Show the user a summary of all changes and review findings.
+
+3. Create PR (default — no need to ask):
+   ```bash
+   git add [relevant-files]
+   git commit -m "$(cat <<'EOF'
+   fix: address code review findings
+
+   Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+   EOF
+   )"
+   git push -u origin $(git branch --show-current)
+   gh pr create --title "Code review fixes" --body "Description"
+   ```
 
 ---
 
 ## Phase 6: MONITOR
 
-Check CI:
+Check CI (only if a PR was created):
 ```bash
 gh pr checks
 ```
@@ -203,4 +226,4 @@ gh pr checks
 
 ## Phase 7: COMPLETE
 
-Review complete! Ready to merge.
+Review complete!

@@ -11,10 +11,19 @@ Help turn ideas into fully formed designs and specs through natural collaborativ
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
+## .bob/planning/ Context
+
+If a `.bob/planning/` directory exists (created by `/bob:project`), read it first for project context:
+- `.bob/planning/PROJECT.md` — Vision, scope, technical decisions, constraints
+- `.bob/planning/REQUIREMENTS.md` — Requirements with REQ-IDs and acceptance criteria
+- `.bob/planning/CODEBASE.md` — Existing code analysis (if brownfield)
+
+Use this context to inform your questions and proposals. Reference REQ-IDs when discussing requirements. Skip questions that are already answered in PROJECT.md. If `.bob/planning/` does not exist, proceed normally.
+
 ## The Process
 
 **Understanding the idea:**
-- Check out the current project state first (files, docs, recent commits)
+- Check for `.bob/planning/` context first, then current project state (files, docs, recent commits)
 - Ask questions one at a time to refine the idea
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions

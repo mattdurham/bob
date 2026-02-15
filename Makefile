@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks resolve-copilot clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -19,6 +19,7 @@ help:
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
+	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
 	@echo ""
 	@echo "Quick start:"
@@ -37,7 +38,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work code-review performance explore brainstorming writing-plans; do \
+	for skill in work code-review performance explore brainstorming writing-plans project; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -76,6 +77,7 @@ install-skills:
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"
+	@echo "  /bob:project     - Project initialization (inspired by GSD)"
 	@echo "  /bob:work        - Full development workflow"
 	@echo "  /bob:code-review - Code review workflow"
 	@echo "  /bob:performance - Performance optimization"
@@ -97,6 +99,12 @@ install-agents:
 				echo "   Installing $$agent agent..."; \
 				mkdir -p "$$AGENTS_DIR/$$agent"; \
 				cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				if [ -f "$$agent_dir/style.md" ]; then \
+					cp "$$agent_dir/style.md" "$$AGENTS_DIR/$$agent/style.md"; \
+				fi; \
+				if [ -f "$$agent_dir/golang-pro.md" ]; then \
+					cp "$$agent_dir/golang-pro.md" "$$AGENTS_DIR/$$agent/golang-pro.md"; \
+				fi; \
 				AGENT_COUNT=$$((AGENT_COUNT + 1)); \
 			fi; \
 		done; \
@@ -106,18 +114,34 @@ install-agents:
 	echo "✅ $$AGENT_COUNT subagents installed to ~/.claude/agents/"
 	@echo ""
 	@echo "Specialized subagents available:"
+	@echo ""
+	@echo "Level 1 Orchestrators:"
+	@echo "  workflow-coder                - EXECUTE phase coordinator (spawns 3 Level 2 agents)"
+	@echo "  review-consolidator           - Merges 9 review findings into single report"
+	@echo "  review-router                 - Makes routing decisions based on severity"
+	@echo ""
+	@echo "Level 2 Workers - Implementation:"
+	@echo "  workflow-brainstormer         - Research & creative ideation"
 	@echo "  workflow-planner              - Implementation planning"
-	@echo "  workflow-coder                - Code implementation (TDD)"
+	@echo "  workflow-implementer          - Code implementation (TDD, golang-pro guide)"
+	@echo "  workflow-task-reviewer        - Task completion validation"
+	@echo "  workflow-code-quality         - Go idioms & best practices (Uber Style Guide)"
 	@echo "  workflow-tester               - Test execution and quality checks"
-	@echo "  workflow-reviewer             - Code quality review"
-	@echo "  performance-analyzer          - Performance analysis"
-	@echo "  security-reviewer             - Security vulnerability detection"
+	@echo ""
+	@echo "Level 2 Workers - Review (9 specialized reviewers):"
+	@echo "  workflow-reviewer             - Multi-pass code quality review"
+	@echo "  security-reviewer             - OWASP Top 10, vulnerability detection"
+	@echo "  performance-analyzer          - Performance bottlenecks & optimization"
 	@echo "  docs-reviewer                 - Documentation accuracy validation"
-	@echo "  architect-reviewer            - Architecture and design review"
-	@echo "  code-reviewer                 - Comprehensive code quality review"
-	@echo "  golang-pro                    - Go-specific code review"
-	@echo "  error-detective               - Error pattern analysis"
+	@echo "  architect-reviewer            - Architecture & design review"
+	@echo "  code-reviewer                 - Deep code quality analysis"
+	@echo "  go-reviewer                   - Go-specific code review"
 	@echo "  debugger                      - Bug diagnosis and debugging"
+	@echo "  error-detective               - Error pattern analysis"
+	@echo ""
+	@echo "Level 2 Workers - Operations:"
+	@echo "  commit-agent                  - Git operations & PR creation"
+	@echo "  monitor-agent                 - CI/CD & PR monitoring"
 
 # Install Go LSP plugin
 install-lsp:
@@ -315,6 +339,16 @@ hooks:
 	@echo ""
 	@echo "🔄 Restart Claude Code for hooks to take effect"
 	@echo "📚 See ~/.claude/hooks/README.md for details"
+
+# Resolve Copilot review comments on a PR
+# Usage: make resolve-copilot PR=https://github.com/owner/repo/pull/123
+resolve-copilot:
+	@if [ -z "$(PR)" ]; then \
+		echo "❌ Error: PR is required"; \
+		echo "Usage: make resolve-copilot PR=https://github.com/owner/repo/pull/123"; \
+		exit 1; \
+	fi
+	@bash scripts/resolve-copilot-comments.sh "$(PR)"
 
 # Clean temporary files
 clean:

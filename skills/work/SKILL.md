@@ -1,6 +1,6 @@
 ---
 name: bob:work
-description: Full development workflow orchestrator - INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR
+description: Full development workflow orchestrator - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR
 user-invocable: true
 category: workflow
 ---
@@ -13,10 +13,10 @@ You are orchestrating a **full development workflow**. You coordinate specialize
 ## Workflow Diagram
 
 ```
-INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-          ↑                                      ↓               ↓
-          └──────────────────────────────────────┴───────────────┘
-                        (loop back on issues)
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+                      ↑                                    ↓               ↓
+                      └────────────────────────────────────┴───────────────┘
+                                    (loop back on issues)
 ```
 
 ## Flow Control Rules
@@ -28,7 +28,7 @@ INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONI
 
 **Never skip REVIEW** - Always review before commit, even if tests pass.
 
-**NEVER commit or push before the COMMIT phase.** No `git add`, `git commit`, `git push`, or `gh pr create` until you reach Phase 7: COMMIT. Subagents must not commit either.
+**NEVER commit or push before the COMMIT phase.** No `git add`, `git commit`, `git push`, or `gh pr create` until you reach Phase 8: COMMIT. Subagents must not commit either.
 
 ---
 
@@ -53,39 +53,76 @@ Task(subagent_type: "any-agent",
 
 ---
 
+## Orchestrator Boundaries
+
+**The orchestrator coordinates. It never executes.**
+
+**Orchestrator CAN:**
+- ✅ Read `.bob/` files to make routing decisions
+- ✅ Spawn subagents via Task tool
+- ✅ Run `cd` to switch working directory (after WORKTREE phase)
+- ✅ Invoke skills (`/brainstorming`, `/writing-plans`)
+- ✅ Display brief status updates to the user between phases
+
+**Orchestrator CANNOT:**
+- ❌ Write or edit any files (source code OR `.bob/` state files)
+- ❌ Run git commands (except `cd` into worktree)
+- ❌ Run tests, linters, or build commands
+- ❌ Make implementation decisions
+- ❌ Consolidate or analyze data
+
+**All file writes — including `.bob/state/*.md` artifacts — MUST be performed by subagents.** The orchestrator reads those files afterward to make routing decisions.
+
+---
+
 ## Autonomous Progression Rules
 
-**CRITICAL: Progress automatically between phases without user confirmation**
+**CRITICAL: The orchestrator drives forward relentlessly. It does NOT ask for permission.**
 
-- ✅ **Automatically continue** from EXECUTE → TEST → REVIEW when agents complete successfully
-- ✅ **Only prompt user** when there's a problem, decision needed, or at critical gates
-- ❌ **Never ask "Should I continue to next phase?"** when the path is clear
-- ❌ **Never ask "Do you want me to proceed?"** for standard workflow progression
-- ❌ **NEVER skip REVIEW to go directly to COMMIT** — REVIEW must complete before COMMIT, no exceptions
-- ❌ **NEVER proceed to COMMIT unless `.bob/state/review.md` exists** — this file is proof REVIEW ran
+The workflow runs autonomously from INIT through COMMIT. The orchestrator's job is to keep the pipeline moving — spawn an agent, read the result, route to the next phase, repeat. No pauses, no confirmations, no "should I continue?" prompts.
 
-**When to ask user:**
-- ❌ NOT between EXECUTE → TEST (automatic)
-- ❌ NOT between TEST → REVIEW (automatic if tests pass)
-- ❌ NOT between REVIEW → COMMIT (automatic if no issues)
-- ✅ YES if agent fails or returns errors
-- ✅ YES at REVIEW → BRAINSTORM/EXECUTE decision (show findings, explain routing)
-- ✅ YES at COMPLETE phase (confirm merge)
-- ✅ YES if loop-back occurs (explain why and what will be fixed)
+**Auto-routing rules (inspired by GSD deviation handling):**
 
-**Standard flow without prompts:**
+| Situation | Action | Prompt user? |
+|-----------|--------|--------------|
+| Agent completes successfully | Route to next phase immediately | No |
+| Tests fail | Loop to EXECUTE with failure details | No — just log what failed and loop |
+| Review finds MEDIUM/LOW issues | Loop to EXECUTE with fix list | No — just log findings and loop |
+| Review finds CRITICAL/HIGH issues | Loop to BRAINSTORM | No — log findings, explain routing, loop |
+| Review finds no issues | Proceed to COMMIT | No |
+| Loop-back occurs | Log why, continue automatically | No |
+| MONITOR finds CI failures | Loop to BRAINSTORM | No — log failures, loop |
+| Agent fails with error | Retry once automatically | Only if retry also fails |
+| COMPLETE phase (merge PR) | Confirm with user | **Yes — only prompt in entire workflow** |
+
+**The ONLY user prompt in the standard workflow is the final merge confirmation at COMPLETE.**
+
+Everything else is automatic. The orchestrator logs brief status lines so the user can follow along, but never stops to ask. If something fails, it retries or loops back per the routing rules. If a loop-back is needed, it explains what happened and immediately continues.
+
+**Forbidden phrases (never output these):**
+- "Should I continue?"
+- "Do you want me to proceed?"
+- "Shall I move to the next phase?"
+- "Would you like me to..."
+- "Ready to continue?"
+- Any question asking permission to do what the workflow already defines
+
+**Brief status updates between phases (DO output these):**
 ```
-EXECUTE (agent completes) → TEST (tests pass) → REVIEW (all reviewers complete) → [decision]
+BRAINSTORM complete → .bob/state/brainstorm.md written by agent
+Proceeding to PLAN...
+
+PLAN complete → .bob/state/plan.md written by agent
+Proceeding to EXECUTE...
+
+REVIEW found 3 MEDIUM issues → routing to EXECUTE for fixes
 ```
 
-**Flow with problems (prompts required):**
-```
-EXECUTE (agent fails) → [PROMPT: explain error, ask if should retry/modify]
-TEST (tests fail) → [PROMPT: show failures, confirm loop to EXECUTE]
-REVIEW (issues found) → [PROMPT: show findings, explain routing to BRAINSTORM/EXECUTE]
-```
+**Hard gates (never skip):**
+- ❌ **NEVER skip REVIEW to go directly to COMMIT** — REVIEW must complete first
+- ❌ **NEVER proceed to COMMIT unless `.bob/state/review.md` exists** — proof REVIEW ran
 
---=
+---
 
 ## .bob/planning/ Context Integration
 
@@ -119,11 +156,65 @@ If `.bob/planning/` does NOT exist, proceed normally — it's optional context.
 **Actions:**
 1. Greet user and understand what they want to build
 2. Check for `.bob/planning/` directory — if it exists, read PROJECT.md and REQUIREMENTS.md for context
-3. Move to BRAINSTORM phase
+3. Move to WORKTREE phase
 
 ---
 
-## Phase 2: BRAINSTORM
+## Phase 2: WORKTREE
+
+**Goal:** Create an isolated git worktree for development
+
+**CRITICAL: You MUST create a worktree BEFORE brainstorming or writing any files. This ensures all work is isolated from the main branch.**
+
+**Actions:**
+
+Spawn a Bash agent to create the worktree:
+```
+Task(subagent_type: "Bash",
+     description: "Create git worktree",
+     run_in_background: true,
+     prompt: "Create a git worktree for isolated development.
+
+             1. Derive the repo name and worktree path:
+                REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+                FEATURE_NAME=\"<descriptive-feature-name>\"
+                WORKTREE_DIR=\"../${REPO_NAME}-worktrees/${FEATURE_NAME}\"
+
+             2. Create the worktree:
+                mkdir -p \"../${REPO_NAME}-worktrees\"
+                git worktree add \"$WORKTREE_DIR\" -b \"$FEATURE_NAME\"
+
+             3. Create .bob directory structure:
+                mkdir -p \"$WORKTREE_DIR/.bob/state\" \"$WORKTREE_DIR/.bob/planning\"
+
+             4. Print the absolute worktree path (IMPORTANT — orchestrator needs this):
+                echo \"WORKTREE_PATH=$(cd \"$WORKTREE_DIR\" && pwd)\"
+
+             5. Print the branch name for confirmation:
+                cd \"$WORKTREE_DIR\" && git branch --show-current")
+```
+
+**After agent completes:**
+
+1. Read the agent output to get `WORKTREE_PATH`
+2. Switch the orchestrator's working directory to the worktree:
+   ```bash
+   cd <WORKTREE_PATH>
+   pwd  # Verify you're in the worktree
+   ```
+
+**From this point forward, ALL file operations happen in the worktree.**
+
+**On loop-back (REVIEW → BRAINSTORM or MONITOR → BRAINSTORM):** Skip this phase — the worktree already exists and you're already in it.
+
+**Output:**
+- Isolated worktree in `../<repo>-worktrees/<feature>/`
+- `.bob/state/` and `.bob/planning/` directories created
+- Orchestrator working directory set to worktree
+
+---
+
+## Phase 3: BRAINSTORM
 
 **Goal:** Gather information and explore approaches
 
@@ -141,71 +232,31 @@ The brainstorming skill will help:
 - Identify potential issues early
 - Think through edge cases
 
-**⚠️ Step 2: CREATE ISOLATED WORKTREE (REQUIRED BEFORE ANY FILE WRITES) ⚠️**
+**Step 2: Research existing patterns and document findings**
 
-**CRITICAL: You MUST create a git worktree BEFORE writing any design documents or doing research.**
-**This ensures all work is isolated and doesn't interfere with the main branch.**
-
-Create a git worktree for isolated development:
-
-```bash
-# Get repo name and create feature name
-REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-FEATURE_NAME="<descriptive-feature-name>"  # e.g., "add-auth", "fix-parser-bug"
-
-# Create worktree directory structure
-WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
-mkdir -p "../${REPO_NAME}-worktrees"
-
-# Create new branch and worktree
-git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
-
-# Change to worktree directory
-cd "$WORKTREE_DIR"
-
-# Create bots directory in worktree
-mkdir -p .bob/state .bob/planning
-
-# Verify we're in the worktree
-pwd
-git branch --show-current
-```
-
-**After worktree creation:**
-- ✅ All subsequent file operations happen in the worktree
-- ✅ Main branch remains clean
-- ✅ Work is isolated and can be easily discarded if needed
-
-**Step 3: Research existing patterns**
-
-Now that you're in the worktree, spawn Explore agent for codebase research:
+Spawn Explore agent to research the codebase AND write the brainstorm artifact:
 ```
 Task(subagent_type: "Explore",
-     description: "Research similar implementations",
+     description: "Research patterns and write brainstorm",
      run_in_background: true,
      prompt: "Search codebase for patterns related to [task].
              Find existing implementations, identify patterns to follow.
              [If .bob/planning/ exists: Read .bob/planning/PROJECT.md for project context
               and .bob/planning/REQUIREMENTS.md for the requirements being implemented.]
-             Document findings.")
+
+             After research, write consolidated findings to .bob/state/brainstorm.md:
+             - Requirements and constraints (reference REQ-IDs if available)
+             - Existing patterns discovered
+             - Approaches considered (2-3 options with pros/cons)
+             - Recommended approach with rationale
+             - Risks and open questions")
 ```
 
-**Step 4: Document findings in the worktree**
-
-Write consolidated findings to `.bob/state/brainstorm.md` (in the worktree):
-- Requirements and constraints (reference REQ-IDs from `.bob/planning/REQUIREMENTS.md` if available)
-- Existing patterns discovered
-- Approaches considered (2-3 options with pros/cons)
-- Recommended approach with rationale
-- Risks and open questions
-
-**Output:**
-- Isolated worktree in `../<repo>-worktrees/<feature>/`
-- `.bob/state/brainstorm.md` (in worktree)
+**Output:** `.bob/state/brainstorm.md` (written by Explore agent)
 
 ---
 
-## Phase 3: PLAN
+## Phase 4: PLAN
 
 **Goal:** Create detailed implementation plan
 
@@ -237,7 +288,7 @@ Plan includes:
 
 ---
 
-## Phase 4: EXECUTE
+## Phase 5: EXECUTE
 
 **Goal:** Implement the planned changes.
 
@@ -260,9 +311,7 @@ Task(subagent_type: "workflow-coder",
 **Input:** `.bob/state/plan.md`
 **Output:** Code implementation
 
-**After completion:**
-- ✅ If agent succeeds → **Automatically proceed to TEST** (no prompt)
-- ❌ If agent fails → Prompt user with error details
+**After completion:** Proceed to TEST. If agent fails, retry once automatically. If retry also fails, prompt user.
 
 **If looping from TEST:** Spawn workflow-coder again with test failure details:
 ```
@@ -287,7 +336,7 @@ Task(subagent_type: "workflow-coder",
 
 ---
 
-## Phase 5: TEST
+## Phase 6: TEST
 
 **Goal:** Run all tests and quality checks
 
@@ -320,15 +369,13 @@ Checks:
 - Linter clean
 - Complexity < 40
 
-**After completion:**
-- ✅ If tests pass → **Automatically proceed to REVIEW** (no prompt)
-- ❌ If tests fail → Prompt user with failures, confirm loop to EXECUTE
-
-**If tests fail:** Loop to EXECUTE to fix issues
+**After completion:** Read `.bob/state/test-results.md` and route:
+- Tests pass → Proceed to REVIEW
+- Tests fail → Log failures, loop to EXECUTE immediately (no prompt)
 
 ---
 
-## Phase 6: REVIEW (Parallel Multi-Agent Review)
+## Phase 7: REVIEW (Parallel Multi-Agent Review)
 
 **Goal:** Comprehensive code review by 9 specialized agents in parallel
 
@@ -451,126 +498,41 @@ Task(subagent_type: "error-detective",
 
 **Step 2: Consolidate Findings**
 
-After all 9 agents complete successfully:
-
-1. **Read all 9 review files:**
-   ```
-   Read(file_path: "/path/to/worktree/.bob/state/review-code.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-security.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-performance.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-docs.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-architecture.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-code-quality.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-go.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-debug.md")
-   Read(file_path: "/path/to/worktree/.bob/state/review-errors.md")
-   ```
-
-2. **Parse and merge findings:**
-   - Extract all issues from each file
-   - Sort by severity (CRITICAL, HIGH, MEDIUM, LOW)
-   - Deduplicate similar issues:
-     - Same file:line → Merge descriptions
-     - Keep highest severity
-     - Note which agents found it
-
-3. **Generate consolidated report:**
-   Write to `.bob/state/review.md`:
-   ```markdown
-   # Consolidated Code Review Report
-
-   ## Critical Issues (Must Fix Before Commit)
-
-   ### Issue 1: SQL Injection in Login Handler
-   **Severity:** CRITICAL
-   **Category:** security
-   **Found by:** security-reviewer, workflow-reviewer
-   **Files:** auth/login.go:45
-   **Description:** User input directly concatenated into SQL query...
-   **Impact:** Database compromise possible
-   **Fix:** Use parameterized queries
-
-   ## High Priority Issues
-
-   ### Issue 2: O(n²) Algorithm
-   **Severity:** HIGH
-   **Category:** performance
-   **Found by:** workflow-performance-analyzer
-   ...
-
-   ## Medium Priority Issues
-
-   [List MEDIUM severity issues]
-
-   ## Low Priority Issues
-
-   [List LOW severity issues]
-
-   ## Summary
-
-   **Total Issues:** 15
-   - CRITICAL: 2 (security: 2, code: 0, performance: 0, docs: 0, architecture: 0, code-quality: 0, go: 0, debug: 0, errors: 0)
-   - HIGH: 4 (security: 1, code: 1, performance: 1, docs: 0, architecture: 1, code-quality: 0, go: 0, debug: 0, errors: 0)
-   - MEDIUM: 6 (security: 0, code: 2, performance: 1, docs: 2, architecture: 0, code-quality: 1, go: 0, debug: 0, errors: 0)
-   - LOW: 3 (security: 0, code: 0, performance: 0, docs: 2, architecture: 0, code-quality: 0, go: 1, debug: 0, errors: 0)
-
-   **Agents Executed:**
-   - Code Quality Review: ✓ (workflow-reviewer)
-   - Security Review: ✓ (security-reviewer)
-   - Performance Review: ✓ (performance-analyzer)
-   - Documentation Review: ✓ (docs-reviewer)
-   - Architecture Review: ✓ (architect-reviewer)
-   - Code Quality Deep Review: ✓ (code-reviewer)
-   - Go-Specific Review: ✓ (golang-pro)
-   - Debugging Review: ✓ (debugger)
-   - Error Pattern Review: ✓ (error-detective)
-
-   **Recommendation:** BRAINSTORM (2 CRITICAL issues require architectural review)
-   ```
-
-**Step 3: Severity-Based Routing**
-
-Based on the consolidated findings:
+After all 9 agents complete, spawn the review-consolidator to merge and deduplicate:
 
 ```
-if (any CRITICAL or HIGH issues):
-  → Loop to BRAINSTORM
-  Reason: Major issues require re-thinking approach
+Task(subagent_type: "review-consolidator",
+     description: "Consolidate review findings",
+     run_in_background: true,
+     prompt: "Read all 9 review files in .bob/state/:
+             review-code.md, review-security.md, review-performance.md,
+             review-docs.md, review-architecture.md, review-code-quality.md,
+             review-go.md, review-debug.md, review-errors.md
 
-elif (any MEDIUM or LOW issues):
-  → Loop to EXECUTE
-  Reason: Quick fixes needed, no architectural changes
+             Parse and merge findings:
+             - Extract all issues from each file
+             - Sort by severity (CRITICAL, HIGH, MEDIUM, LOW)
+             - Deduplicate: same file:line → merge descriptions, keep highest severity
+             - Note which agents found each issue
 
-else:
-  → Continue to COMMIT
-  Reason: Clean code, ready to commit
+             Write consolidated report to .bob/state/review.md with:
+             - Issues grouped by severity
+             - Summary counts
+             - Recommendation: BRAINSTORM (if CRITICAL/HIGH), EXECUTE (if MEDIUM/LOW), or COMMIT (if clean)
+             Working directory: [worktree-path]")
 ```
 
-**Routing Logic:**
+**Step 3: Read review.md and route**
 
-1. **CRITICAL or HIGH issues → BRAINSTORM**
-   - Security vulnerabilities
-   - Major bugs or logic errors
-   - Severe performance problems
-   - Breaking API changes
-   - These require re-thinking the approach
+Read `.bob/state/review.md` (read-only). The consolidator includes a **Recommendation** line. Route based on it:
 
-2. **MEDIUM or LOW issues → EXECUTE**
-   - Minor bugs
-   - Missing validation
-   - Documentation issues
-   - Style improvements
-   - These are quick fixes
+| Recommendation in review.md | Route to | Action |
+|------------------------------|----------|--------|
+| BRAINSTORM (CRITICAL/HIGH) | BRAINSTORM | Log findings summary, loop immediately |
+| EXECUTE (MEDIUM/LOW) | EXECUTE | Log findings summary, loop immediately |
+| COMMIT (clean) | COMMIT | Log "clean review", proceed immediately |
 
-3. **No issues → COMMIT**
-   - All checks passed
-   - Code is ready
-
-**After routing decision:**
-- ✅ **Always show user the findings summary** (even if no issues)
-- ✅ **Explain the routing decision** (why BRAINSTORM/EXECUTE/COMMIT)
-- ✅ If no issues found → **Automatically proceed to COMMIT** (no confirmation needed)
-- ✅ If issues found → **Explain what will be fixed** and automatically loop (no "should I continue?" prompt)
+**Auto-continue, never prompt.** Log a brief status line and proceed.
 
 **Error Handling:**
 
@@ -583,71 +545,61 @@ else:
 
 ---
 
-## Phase 7: COMMIT
+## Phase 8: COMMIT
 
 **Goal:** Commit changes and create a PR
 
-**This is the FIRST phase where git operations are allowed.**
-
-**PREREQUISITE:** `.bob/state/review.md` MUST exist. If it does not, STOP and go back to REVIEW. Never commit unreviewed code.
+**PREREQUISITE:** Read `.bob/state/review.md` — it MUST exist. If it does not, STOP and go back to REVIEW. Never commit unreviewed code.
 
 **Actions:**
 
-1. Verify review was completed:
-   ```bash
-   # HARD GATE — do not proceed if this file is missing
-   test -f .bob/state/review.md || { echo "REVIEW not completed"; exit 1; }
-   ```
+Spawn commit-agent to handle all git operations:
+```
+Task(subagent_type: "commit-agent",
+     description: "Commit and create PR",
+     run_in_background: true,
+     prompt: "1. Verify .bob/state/review.md exists (hard gate)
+             2. Run git status and git diff to review changes
+             3. Stage relevant files (never git add -A)
+             4. Create commit with descriptive message
+             5. Push branch and create PR via gh pr create
+             [If .bob/planning/REQUIREMENTS.md exists: reference REQ-IDs in PR description]
+             Working directory: [worktree-path]")
+```
 
-2. Review changes:
-   ```bash
-   git status
-   git diff
-   ```
-
-3. Show the user a summary of all changes and review findings.
-
-4. Create PR (default — no need to ask):
-   ```bash
-   git add [relevant-files]
-   git commit -m "..."
-   git push -u origin $(git branch --show-current)
-   gh pr create --title "Title" --body "Description"
-   ```
+**The orchestrator does NOT run git commands.** The commit-agent handles everything.
 
 ---
 
-## Phase 8: MONITOR
+## Phase 9: MONITOR
 
 **Goal:** Monitor CI/PR checks and handle feedback
 
 **Actions:**
 
-1. Check CI status:
-   ```bash
-   gh pr checks --json name,status,conclusion
-   ```
+Spawn monitor-agent to check CI and PR status:
+```
+Task(subagent_type: "monitor-agent",
+     description: "Check CI and PR status",
+     run_in_background: true,
+     prompt: "Check CI/CD status and PR feedback:
+             1. Run: gh pr checks --json name,status,conclusion
+             2. Check for PR review comments and requested changes
+             3. Write results to .bob/state/monitor-results.md with:
+                - STATUS: PASS or FAIL
+                - Details of any failures or feedback
+             Working directory: [worktree-path]")
+```
 
-2. Monitor for:
-   - CI check failures
-   - PR review comments
-   - Requested changes
-   - Conversation threads
+**After agent completes:** Read `.bob/state/monitor-results.md` and route:
+- STATUS: PASS → Proceed to COMPLETE
+- STATUS: FAIL → Log failures, loop to BRAINSTORM immediately (no prompt)
 
-3. **If ANY issues/failures:**
-   - **LOOP TO BRAINSTORM** (not REVIEW, not EXECUTE)
-   - Review the issues
-   - Re-brainstorm to address them
-   - Then proceed through EXECUTE → TEST → REVIEW again
-
-4. **If all checks pass and approved:**
-   - Move to COMPLETE
-
-**Critical:** MONITOR always loops to BRAINSTORM when issues found, ensuring proper re-brainstorming before fixes.
+**Critical:** MONITOR always loops to BRAINSTORM when issues found — never to REVIEW or EXECUTE directly.
 
 ---
 
-## Phase 9: COMPLETE
+## Phase 10: COMPLETE
 
 **Goal:** Workflow complete
 
@@ -711,22 +663,23 @@ REVIEW (9 agents in parallel):
 
 ## Best Practices
 
-**Orchestration:**
-- Let subagents do the work
-- Pass context via .bob/state/*.md files
-- Clear input/output for each phase
-- Chain agents together systematically
+**Orchestration (read-only coordinator):**
+- Let subagents do ALL the work — including writing `.bob/state/*.md` files
+- Read `.bob/state/*.md` files to make routing decisions
+- Chain agents together: output of one phase is input to the next
+- Stay lean — orchestrator context should remain small
 
 **Flow Control:**
+- Drive forward relentlessly — only prompt at COMPLETE (merge confirmation)
 - Enforce loop-back rules strictly
-- MONITOR → PLAN (not REVIEW or EXECUTE)
+- MONITOR → BRAINSTORM (not REVIEW or EXECUTE)
 - Never skip REVIEW phase
-- Always validate test passage
+- Always validate test passage via `.bob/state/test-results.md`
 
 **Quality:**
 - TDD throughout (tests first)
-- Comprehensive code review
-- Fix issues properly (replan if needed)
+- Comprehensive code review (9 parallel agents)
+- Fix issues properly (re-brainstorm if CRITICAL/HIGH)
 - Maintain code quality standards
 
 ---
@@ -734,12 +687,13 @@ REVIEW (9 agents in parallel):
 ## Summary
 
 **Remember:**
-- You are the **orchestrator**, not the implementer
-- Spawn **specialized subagents** for each phase
-- Use **.bob/state/*.md files** for state
+- You are the **orchestrator** — you read state files and spawn agents, nothing else
+- **Never write files** — all writes are done by subagents
+- **Never prompt the user** — except at COMPLETE to confirm merge
+- Log brief status lines between phases so the user can follow along
 - Follow **flow control rules** strictly
-- **MONITOR → PLAN** when issues found
+- **MONITOR → BRAINSTORM** when issues found
 
-**Goal:** Guide complete, high-quality feature development from idea to merged PR.
+**Goal:** Guide complete, high-quality feature development from idea to merged PR — autonomously.
 
 Good luck! 🏴‍☠️

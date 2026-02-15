@@ -347,13 +347,23 @@ Spawn workflow-tester agent:
 Task(subagent_type: "workflow-tester",
      description: "Run all tests and checks",
      run_in_background: true,
-     prompt: "Run the complete test suite and all quality checks:
-             1. go test ./... (all tests must pass)
-             2. go test -race ./... (no race conditions)
-             3. go test -cover ./... (report coverage)
-             4. go fmt ./... (code must be formatted)
-             5. golangci-lint run (no lint issues)
-             6. gocyclo -over 40 . (no complex functions)
+     prompt: "Run the complete test suite, quality checks, and CI pipeline locally.
+
+             ALL tests must pass — including pre-existing ones. You own the entire
+             test suite, not just tests for new code. If a pre-existing test fails,
+             fix it or flag it.
+
+             Steps:
+             1. Run `make ci` — this runs the full CI pipeline locally:
+                - go test ./... (ALL tests must pass)
+                - go test -race ./... (no race conditions)
+                - go test -cover ./... (report coverage)
+                - go fmt (code must be formatted)
+                - golangci-lint run (no lint issues)
+                - gocyclo -over 40 (no complex functions)
+                - GitHub Actions workflow commands (parsed from .github/workflows/)
+             2. If `make ci` is not available, run the steps individually
+
              Report all results in .bob/state/test-results.md.
              Working directory: [worktree-path]")
 ```
@@ -362,12 +372,13 @@ Task(subagent_type: "workflow-tester",
 **Output:** `.bob/state/test-results.md`
 
 Checks:
-- All tests pass
+- All tests pass (new AND pre-existing — zero tolerance for regressions)
 - No race conditions
 - Good coverage (>80%)
 - Code formatted
 - Linter clean
 - Complexity < 40
+- GitHub Actions workflows pass locally
 
 **After completion:** Read `.bob/state/test-results.md` and route:
 - Tests pass → Proceed to REVIEW

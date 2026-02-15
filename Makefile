@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks resolve-copilot clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -19,6 +19,7 @@ help:
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
+	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
 	@echo ""
@@ -349,6 +350,88 @@ resolve-copilot:
 		exit 1; \
 	fi
 	@bash scripts/resolve-copilot-comments.sh "$(PR)"
+
+# Run full CI pipeline locally (mirrors what GitHub Actions would run)
+# This is the single command that must pass before committing.
+ci:
+	@echo "🔄 Running full CI pipeline locally..."
+	@echo ""
+	@PASS=0; FAIL=0; SKIP=0; \
+	HAS_GO=$$(find . -name '*.go' -not -path './vendor/*' 2>/dev/null | head -1); \
+	if [ -n "$$HAS_GO" ]; then \
+		echo "── go test ./..."; \
+		if go test ./... > /tmp/bob-ci.log 2>&1; then \
+			echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+		else \
+			echo "   ❌ FAIL"; tail -20 /tmp/bob-ci.log | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+		fi; \
+		echo "── go test -race ./..."; \
+		if go test -race ./... > /tmp/bob-ci.log 2>&1; then \
+			echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+		else \
+			echo "   ❌ FAIL"; tail -20 /tmp/bob-ci.log | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+		fi; \
+		echo "── go test -cover ./..."; \
+		if go test -cover ./... > /tmp/bob-ci.log 2>&1; then \
+			echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+		else \
+			echo "   ❌ FAIL"; tail -20 /tmp/bob-ci.log | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+		fi; \
+		echo "── go fmt"; \
+		if test -z "$$(gofmt -l . 2>/dev/null)"; then \
+			echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+		else \
+			echo "   ❌ FAIL"; gofmt -l . 2>/dev/null | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+		fi; \
+		if command -v golangci-lint > /dev/null 2>&1; then \
+			echo "── golangci-lint"; \
+			if golangci-lint run > /tmp/bob-ci.log 2>&1; then \
+				echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+			else \
+				echo "   ❌ FAIL"; tail -20 /tmp/bob-ci.log | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+			fi; \
+		else \
+			echo "── golangci-lint"; echo "   ⏭️  SKIP (not installed)"; SKIP=$$((SKIP + 1)); \
+		fi; \
+		if command -v gocyclo > /dev/null 2>&1; then \
+			echo "── gocyclo (threshold: 40)"; \
+			if ! gocyclo -over 40 . 2>/dev/null | grep -q .; then \
+				echo "   ✅ PASS"; PASS=$$((PASS + 1)); \
+			else \
+				echo "   ❌ FAIL"; gocyclo -over 40 . 2>/dev/null | sed 's/^/   /'; FAIL=$$((FAIL + 1)); \
+			fi; \
+		else \
+			echo "── gocyclo"; echo "   ⏭️  SKIP (not installed)"; SKIP=$$((SKIP + 1)); \
+		fi; \
+	else \
+		echo "── go tests"; echo "   ⏭️  SKIP (no .go files found)"; SKIP=$$((SKIP + 1)); \
+	fi; \
+	if [ -d ".github/workflows" ]; then \
+		for wf in .github/workflows/*.yml .github/workflows/*.yaml; do \
+			[ -f "$$wf" ] || continue; \
+			WF_NAME=$$(basename "$$wf"); \
+			echo "── GHA: $$WF_NAME"; \
+			grep -E '^\s+run:\s' "$$wf" 2>/dev/null | sed 's/.*run:\s*//' | while read -r cmd; do \
+				[ -z "$$cmd" ] && continue; \
+				echo "   → $$cmd"; \
+				if eval "$$cmd" > /tmp/bob-ci.log 2>&1; then \
+					echo "     ✅ PASS"; \
+				else \
+					echo "     ❌ FAIL"; tail -10 /tmp/bob-ci.log | sed 's/^/     /'; \
+				fi; \
+			done; \
+		done; \
+	else \
+		echo "── GitHub Actions"; echo "   ⏭️  SKIP (no .github/workflows/ directory)"; SKIP=$$((SKIP + 1)); \
+	fi; \
+	echo ""; \
+	echo "── Summary: $$PASS passed, $$FAIL failed, $$SKIP skipped"; \
+	rm -f /tmp/bob-ci.log; \
+	if [ "$$FAIL" -gt 0 ]; then \
+		echo "❌ CI pipeline FAILED"; exit 1; \
+	else \
+		echo "✅ CI pipeline PASSED"; \
+	fi
 
 # Clean temporary files
 clean:

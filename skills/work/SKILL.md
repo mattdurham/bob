@@ -19,16 +19,30 @@ INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → CO
                                     (loop back on issues)
 ```
 
+<strict_enforcement>
+All phases MUST be executed in the exact order specified.
+NO phases may be skipped under any circumstances.
+The orchestrator MUST follow each step exactly as written.
+Each phase has specific prerequisites that MUST be satisfied before proceeding.
+</strict_enforcement>
+
 ## Flow Control Rules
 
-**Loop-back paths:**
+**Loop-back paths (the ONLY exceptions to forward progression):**
 - **REVIEW → BRAINSTORM**: Issues found during review require re-brainstorming
 - **MONITOR → BRAINSTORM**: CI failures or PR feedback require re-brainstorming
 - **TEST → EXECUTE**: Test failures require code fixes
 
-**Never skip REVIEW** - Always review before commit, even if tests pass.
+<critical_gate>
+REVIEW phase is MANDATORY - it cannot be skipped even if tests pass.
+Every code change MUST go through REVIEW before COMMIT.
+</critical_gate>
 
-**NEVER commit or push before the COMMIT phase.** No `git add`, `git commit`, `git push`, or `gh pr create` until you reach Phase 8: COMMIT. Subagents must not commit either.
+<critical_gate>
+NO git operations before COMMIT phase.
+No `git add`, `git commit`, `git push`, or `gh pr create` until Phase 8: COMMIT.
+Subagents must not commit either.
+</critical_gate>
 
 ---
 
@@ -75,6 +89,63 @@ Task(subagent_type: "any-agent",
 
 ---
 
+## Subagent Boundaries
+
+**Subagents report findings. The orchestrator makes decisions.**
+
+<subagent_principle>
+Subagents MUST report findings objectively without making pass/fail determinations
+or routing recommendations (except review-consolidator which provides rule-based
+routing based on severity counts).
+
+Subagents MUST report:
+- WHAT failed/was found
+- WHY it failed (error messages, root cause, specific violations)
+- WHERE it failed (file:line, test name, check name)
+
+Subagents MUST NOT report:
+- Whether results are "acceptable" or "good enough"
+- What should be done next
+- Subjective judgments or opinions
+
+The orchestrator reads subagent findings and makes ALL routing decisions.
+</subagent_principle>
+
+**Subagent responsibilities:**
+- ✅ Execute assigned tasks (run tests, review code, check CI)
+- ✅ Report findings objectively with severity levels
+- ✅ Write results to designated `.bob/state/*.md` files
+- ✅ Include specific details: WHAT, WHY, WHERE
+  - WHAT: Test failed, lint issue found, security vulnerability detected
+  - WHY: Error message, root cause, specific violation
+  - WHERE: file:line, test name, function name, CI check name
+
+**Subagents CANNOT:**
+- ❌ Determine if results are "acceptable" or "good enough"
+- ❌ Make recommendations on next steps (except consolidator's rule-based routing)
+- ❌ Decide whether to proceed or loop back
+- ❌ Override orchestrator routing logic
+
+**Example - TEST phase:**
+- ❌ Bad: "All tests passed. You can proceed to REVIEW."
+- ❌ Bad: "Test failed in auth_test.go:42" (missing WHY)
+- ✅ Good: "Test results: 47 passed, 2 failed.
+  - auth_test.go:42 TestLogin: expected status 200, got 401. Error: 'invalid credentials'
+  - db_test.go:89 TestConnection: connection timeout after 5s. Error: 'no route to host'"
+
+**Example - REVIEW phase:**
+- ❌ Bad: "Found 3 issues but they're minor. Code is acceptable."
+- ❌ Bad: "Found 1 HIGH severity issue in auth.go:42" (missing WHY)
+- ✅ Good: "Found 3 issues:
+  - HIGH (security) - auth.go:42: SQL injection vulnerability. User input concatenated directly into query string without parameterization.
+  - MEDIUM (performance) - db.go:156: N+1 query pattern. Loading users in loop instead of batch query.
+  - MEDIUM (performance) - cache.go:89: Missing cache on expensive API call. Same data fetched repeatedly."
+
+**Exception:** The review-consolidator provides a rule-based recommendation (BRAINSTORM/EXECUTE/COMMIT)
+based solely on severity distribution, not subjective judgment.
+
+---
+
 ## Autonomous Progression Rules
 
 **CRITICAL: The orchestrator drives forward relentlessly. It does NOT ask for permission.**
@@ -118,9 +189,15 @@ Proceeding to EXECUTE...
 REVIEW found 3 MEDIUM issues → routing to EXECUTE for fixes
 ```
 
-**Hard gates (never skip):**
-- ❌ **NEVER skip REVIEW to go directly to COMMIT** — REVIEW must complete first
-- ❌ **NEVER proceed to COMMIT unless `.bob/state/review.md` exists** — proof REVIEW ran
+<hard_gate>
+NEVER skip REVIEW to go directly to COMMIT.
+REVIEW must complete first - no exceptions.
+</hard_gate>
+
+<hard_gate>
+NEVER proceed to COMMIT unless `.bob/state/review.md` exists.
+This file is proof REVIEW ran - without it, STOP and go back to REVIEW.
+</hard_gate>
 
 ---
 
@@ -164,7 +241,11 @@ If `.bob/planning/` does NOT exist, proceed normally — it's optional context.
 
 **Goal:** Create an isolated git worktree for development
 
-**CRITICAL: You MUST create a worktree BEFORE brainstorming or writing any files. This ensures all work is isolated from the main branch.**
+<critical_requirement>
+You MUST create a worktree BEFORE proceeding to BRAINSTORM.
+NO files may be written until the worktree exists and is active.
+This ensures all work is isolated from the main branch.
+</critical_requirement>
 
 **Actions:**
 
@@ -349,22 +430,37 @@ Task(subagent_type: "workflow-tester",
      run_in_background: true,
      prompt: "Run the complete test suite, quality checks, and CI pipeline locally.
 
-             ALL tests must pass — including pre-existing ones. You own the entire
-             test suite, not just tests for new code. If a pre-existing test fails,
-             fix it or flag it.
+             IMPORTANT: Report findings objectively. Do NOT make pass/fail determinations.
+             Your job is to execute tests and report results - the orchestrator will
+             decide routing based on your findings.
 
              Steps:
              1. Run `make ci` — this runs the full CI pipeline locally:
-                - go test ./... (ALL tests must pass)
-                - go test -race ./... (no race conditions)
-                - go test -cover ./... (report coverage)
-                - go fmt (code must be formatted)
-                - golangci-lint run (no lint issues)
-                - gocyclo -over 40 (no complex functions)
+                - go test ./... (report all test results)
+                - go test -race ./... (report race conditions if found)
+                - go test -cover ./... (report coverage percentages)
+                - go fmt (report formatting issues if found)
+                - golangci-lint run (report lint issues if found)
+                - gocyclo -over 40 (report complex functions if found)
                 - GitHub Actions workflow commands (parsed from .github/workflows/)
              2. If `make ci` is not available, run the steps individually
 
-             Report all results in .bob/state/test-results.md.
+             Report ALL results objectively in .bob/state/test-results.md.
+             For each finding, include WHAT, WHY, and WHERE:
+             - Test execution output: counts (pass/fail) + specific failures with error messages
+             - Race condition results: which tests, what race, stack traces
+             - Coverage percentages: overall + per-package breakdown
+             - Formatting issues: which files, what's wrong
+             - Lint findings: rule violated, file:line, explanation
+             - Complexity violations: function name, complexity score, file:line
+             - CI workflow results: check name, status, error output
+
+             Example test failure format:
+             "TestLogin (auth_test.go:42) FAILED: expected status 200, got 401. Error: 'invalid credentials'"
+
+             Do NOT include recommendations or conclusions about whether to proceed.
+             Just report what you found with full detail.
+
              Working directory: [worktree-path]")
 ```
 
@@ -380,9 +476,11 @@ Checks:
 - Complexity < 40
 - GitHub Actions workflows pass locally
 
-**After completion:** Read `.bob/state/test-results.md` and route:
-- Tests pass → Proceed to REVIEW
-- Tests fail → Log failures, loop to EXECUTE immediately (no prompt)
+<routing_rule>
+After TEST completes, read `.bob/state/test-results.md` and route:
+- Tests pass → Proceed to REVIEW (next phase in sequence)
+- Tests fail → Loop to EXECUTE immediately (no prompt, automatic)
+</routing_rule>
 
 ---
 
@@ -399,97 +497,214 @@ Task(subagent_type: "workflow-reviewer",
      description: "Code quality review",
      run_in_background: true,
      prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
+
+             IMPORTANT: Report findings objectively. Do NOT determine if code is acceptable
+             or make pass/fail judgments. The orchestrator will route based on your findings.
+
              Pass 1: Cross-file consistency
              Pass 2: Code quality and logic errors
              Pass 3: Best practices compliance
-             Write findings to .bob/state/review-code.md with severity levels.")
+
+             Write findings to .bob/state/review-code.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Type of issue (logic error, bug, violation)
+             - WHY: Explanation of the problem and impact
+             - WHERE: file:line, function/method name
+
+             Example: 'MEDIUM - auth.go:42 ValidateToken(): Missing nil check. If token is nil, will panic on line 43 when accessing token.Claims.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "security-reviewer",
      description: "Security vulnerability review",
      run_in_background: true,
      prompt: "Scan code for security vulnerabilities:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if security is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - OWASP Top 10 (injection, XSS, CSRF, etc.)
              - Secret detection (API keys, passwords)
              - Authentication/authorization issues
              - Input validation gaps
-             Write findings to .bob/state/review-security.md with severity levels.")
+
+             Write findings to .bob/state/review-security.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Type of vulnerability (SQL injection, XSS, etc.)
+             - WHY: How it can be exploited and impact
+             - WHERE: file:line, function/method name
+
+             Example: 'CRITICAL - query.go:89 BuildQuery(): SQL injection vulnerability. User input from req.Query("id") concatenated directly into SQL string. Attacker can execute arbitrary SQL.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "performance-analyzer",
      description: "Performance bottleneck review",
      run_in_background: true,
      prompt: "Analyze code for performance issues:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if performance is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Algorithmic complexity (O(n²) opportunities)
              - Memory leaks and inefficient allocations
              - N+1 patterns and missing caching
              - Expensive operations in loops
-             Write findings to .bob/state/review-performance.md with severity levels.")
+
+             Write findings to .bob/state/review-performance.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Type of performance issue (N+1, memory leak, etc.)
+             - WHY: Performance impact and bottleneck explanation
+             - WHERE: file:line, function/method name
+
+             Example: 'HIGH - users.go:123 LoadUsers(): N+1 query pattern. Fetches user details in loop (1 query per user). With 1000 users, executes 1001 database queries.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "docs-reviewer",
      description: "Documentation accuracy review",
      run_in_background: true,
      prompt: "Review documentation for accuracy and completeness:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if documentation is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - README accuracy (features match implementation)
              - Example validity (code examples work)
              - API documentation alignment
              - Comment correctness
-             Write findings to .bob/state/review-docs.md with severity levels.")
+
+             Write findings to .bob/state/review-docs.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Documentation issue (inaccuracy, missing, outdated)
+             - WHY: What's wrong and why it matters
+             - WHERE: file:line or README section
+
+             Example: 'MEDIUM - README.md:45: Example code is incorrect. Shows Connect(url) but actual function signature is Connect(url, timeout). Users will get compile error.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "architect-reviewer",
      description: "Architecture and design review",
      run_in_background: true,
      prompt: "Evaluate system architecture and design decisions:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if architecture is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Design patterns appropriateness
              - Scalability assessment
              - Technology choices justification
              - Integration patterns validation
              - Technical debt analysis
-             Write findings to .bob/state/review-architecture.md with severity levels.")
+
+             Write findings to .bob/state/review-architecture.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Architectural issue (tight coupling, violation, etc.)
+             - WHY: Impact on maintainability, scalability, or design
+             - WHERE: file:line or component/module name
+
+             Example: 'HIGH - handlers/: HTTP handlers directly call database layer. Violates layered architecture. Makes testing difficult and couples HTTP to DB schema.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "code-reviewer",
      description: "Comprehensive code quality review",
      run_in_background: true,
      prompt: "Conduct deep code review across all aspects:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if code quality is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Logic correctness and error handling
              - Code organization and readability
              - Security best practices
              - Performance optimization opportunities
              - Maintainability and test coverage
-             Write findings to .bob/state/review-code-quality.md with severity levels.")
+
+             Write findings to .bob/state/review-code-quality.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Code quality issue (readability, organization, etc.)
+             - WHY: How it impacts maintainability or correctness
+             - WHERE: file:line, function/method name
+
+             Example: 'MEDIUM - parser.go:234 Parse(): Function has 15 return statements. Makes control flow hard to follow and increases cognitive complexity.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "golang-pro",
      description: "Go-specific code review",
      run_in_background: true,
      prompt: "Review Go code for idiomatic patterns and best practices:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if Go code is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Idiomatic Go patterns (effective Go guidelines)
              - Concurrency patterns (goroutines, channels, context)
              - Error handling excellence
              - Performance and race condition analysis
              - Go-specific security concerns
-             Write findings to .bob/state/review-go.md with severity levels.")
+
+             Write findings to .bob/state/review-go.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Go-specific issue (non-idiomatic, concurrency bug, etc.)
+             - WHY: Why it violates Go best practices and impact
+             - WHERE: file:line, function/method name
+
+             Example: 'HIGH - worker.go:67 Process(): Goroutine launched without context or cancellation. If parent context cancels, goroutine leaks and continues running.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "debugger",
      description: "Bug diagnosis and debugging review",
      run_in_background: true,
      prompt: "Perform systematic debugging analysis on the code:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if bugs are acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Potential null pointer dereferences and panic conditions
              - Race conditions and concurrency bugs
              - Off-by-one errors and boundary conditions
              - Resource leaks (connections, file handles, memory)
              - Logic errors in control flow and state management
              - Error propagation and handling gaps
-             Write findings to .bob/state/review-debug.md with severity levels.")
+
+             Write findings to .bob/state/review-debug.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Potential bug (nil pointer, race condition, etc.)
+             - WHY: How the bug manifests and conditions that trigger it
+             - WHERE: file:line, function/method name
+
+             Example: 'CRITICAL - cache.go:123 Get(): Nil pointer dereference. If cache.data is nil (during initialization), accessing cache.data[key] will panic.'
+
+             Do not add recommendations or subjective judgments.")
 
 Task(subagent_type: "error-detective",
      description: "Error pattern analysis review",
      run_in_background: true,
      prompt: "Analyze code for error handling patterns and potential failure modes:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if error handling is acceptable.
+             The orchestrator will route based on severity of findings.
+
              - Error handling consistency across the codebase
              - Missing error checks and silent failures
              - Error message clarity and actionability
              - Retry logic and failure recovery patterns
              - Timeout and deadline handling
              - Circuit breaker and fallback patterns
-             Write findings to .bob/state/review-errors.md with severity levels.")
+
+             Write findings to .bob/state/review-errors.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
+             For each finding, include WHAT, WHY, WHERE:
+             - WHAT: Error handling issue (silent failure, missing check, etc.)
+             - WHY: Impact of the error handling gap
+             - WHERE: file:line, function/method name
+
+             Example: 'HIGH - api.go:234 FetchData(): Error from http.Get() ignored. If request fails, function continues with nil response and panics on line 235.'
+
+             Do not add recommendations or subjective judgments.")
 ```
 
 **Wait for ALL 9 agents to complete.** If any agent fails, abort and report error.
@@ -520,6 +735,10 @@ Task(subagent_type: "review-consolidator",
              review-docs.md, review-architecture.md, review-code-quality.md,
              review-go.md, review-debug.md, review-errors.md
 
+             IMPORTANT: Report consolidated findings objectively. Your job is to merge
+             and deduplicate findings, then provide a routing recommendation based on
+             severity distribution. Do NOT make subjective judgments about acceptability.
+
              Parse and merge findings:
              - Extract all issues from each file
              - Sort by severity (CRITICAL, HIGH, MEDIUM, LOW)
@@ -528,14 +747,24 @@ Task(subagent_type: "review-consolidator",
 
              Write consolidated report to .bob/state/review.md with:
              - Issues grouped by severity
-             - Summary counts
-             - Recommendation: BRAINSTORM (if CRITICAL/HIGH), EXECUTE (if MEDIUM/LOW), or COMMIT (if clean)
+             - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
+             - Recommendation (based solely on severity distribution):
+               * If ANY CRITICAL or HIGH issues found → Recommendation: BRAINSTORM
+               * If only MEDIUM or LOW issues found → Recommendation: EXECUTE
+               * If NO issues found → Recommendation: COMMIT
+
+             Do not add subjective conclusions like 'code quality is good' or 'acceptable to proceed'.
+             Just report counts and the rule-based recommendation.
+
              Working directory: [worktree-path]")
 ```
 
 **Step 3: Read review.md and route**
 
-Read `.bob/state/review.md` (read-only). The consolidator includes a **Recommendation** line. Route based on it:
+<routing_rule>
+Read `.bob/state/review.md` (read-only).
+The consolidator includes a **Recommendation** line.
+Route based on that recommendation - no exceptions, no override:
 
 | Recommendation in review.md | Route to | Action |
 |------------------------------|----------|--------|
@@ -543,7 +772,8 @@ Read `.bob/state/review.md` (read-only). The consolidator includes a **Recommend
 | EXECUTE (MEDIUM/LOW) | EXECUTE | Log findings summary, loop immediately |
 | COMMIT (clean) | COMMIT | Log "clean review", proceed immediately |
 
-**Auto-continue, never prompt.** Log a brief status line and proceed.
+Auto-continue - never prompt. Log a brief status line and proceed.
+</routing_rule>
 
 **Error Handling:**
 
@@ -560,7 +790,11 @@ Read `.bob/state/review.md` (read-only). The consolidator includes a **Recommend
 
 **Goal:** Commit changes and create a PR
 
-**PREREQUISITE:** Read `.bob/state/review.md` — it MUST exist. If it does not, STOP and go back to REVIEW. Never commit unreviewed code.
+<prerequisite>
+BEFORE entering COMMIT phase, verify `.bob/state/review.md` exists.
+If the file does not exist: STOP immediately and return to REVIEW phase.
+NEVER commit unreviewed code under any circumstances.
+</prerequisite>
 
 **Actions:**
 
@@ -594,19 +828,44 @@ Task(subagent_type: "monitor-agent",
      description: "Check CI and PR status",
      run_in_background: true,
      prompt: "Check CI/CD status and PR feedback:
+
+             IMPORTANT: Report findings objectively. Do NOT determine if failures are
+             acceptable or make recommendations. The orchestrator will route based on
+             your findings.
+
              1. Run: gh pr checks --json name,status,conclusion
              2. Check for PR review comments and requested changes
              3. Write results to .bob/state/monitor-results.md with:
-                - STATUS: PASS or FAIL
-                - Details of any failures or feedback
+                - STATUS: (determine from check results)
+                  * PASS if all checks succeeded and no review change requests
+                  * FAIL if any checks failed OR review changes requested
+                - All CI check results with WHAT, WHY, WHERE:
+                  * WHAT: Check name and result (passed/failed)
+                  * WHY: Error message or failure reason if failed
+                  * WHERE: Which job, step, or file caused failure
+                - All PR review comments with full context
+                - All requested changes with explanations
+
+             Example CI failure format:
+             "Test Suite (ubuntu-latest) FAILED: 3 tests failed in auth package. Error: 'TestLogin: expected 200, got 401. Invalid credentials.'"
+
+             Do not add recommendations or conclusions about what to do next.
+             Just report the status and details with full context.
+
              Working directory: [worktree-path]")
 ```
 
-**After agent completes:** Read `.bob/state/monitor-results.md` and route:
-- STATUS: PASS → Proceed to COMPLETE
-- STATUS: FAIL → Log failures, loop to BRAINSTORM immediately (no prompt)
+<routing_rule>
+After MONITOR completes, read `.bob/state/monitor-results.md` and route:
+- STATUS: PASS → Proceed to COMPLETE (next phase in sequence)
+- STATUS: FAIL → Loop to BRAINSTORM immediately (no prompt, automatic)
+</routing_rule>
 
-**Critical:** MONITOR always loops to BRAINSTORM when issues found — never to REVIEW or EXECUTE directly.
+<critical_routing>
+MONITOR ALWAYS loops to BRAINSTORM when issues are found.
+NEVER loop from MONITOR to REVIEW or EXECUTE directly.
+CI failures require re-thinking the approach from scratch.
+</critical_routing>
 
 ---
 
@@ -681,11 +940,15 @@ REVIEW (9 agents in parallel):
 - Stay lean — orchestrator context should remain small
 
 **Flow Control:**
+- Execute phases in exact order: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
 - Drive forward relentlessly — only prompt at COMPLETE (merge confirmation)
-- Enforce loop-back rules strictly
-- MONITOR → BRAINSTORM (not REVIEW or EXECUTE)
-- Never skip REVIEW phase
-- Always validate test passage via `.bob/state/test-results.md`
+- Loop-back rules are the ONLY exception to forward progression
+- MONITOR → BRAINSTORM (never to REVIEW or EXECUTE)
+- TEST → EXECUTE (never skip directly to REVIEW)
+- REVIEW → BRAINSTORM or EXECUTE (based on severity)
+- NEVER skip REVIEW phase
+- NEVER proceed to COMMIT without `.bob/state/review.md` existing
+- Validate test passage via `.bob/state/test-results.md` before REVIEW
 
 **Quality:**
 - TDD throughout (tests first)
@@ -698,13 +961,21 @@ REVIEW (9 agents in parallel):
 ## Summary
 
 **Remember:**
-- You are the **orchestrator** — you read state files and spawn agents, nothing else
+- You are the **orchestrator** — you read state files, spawn agents, and make routing decisions
 - **Never write files** — all writes are done by subagents
 - **Never prompt the user** — except at COMPLETE to confirm merge
+- **Subagents report findings objectively** — you make all pass/fail and routing determinations
 - Log brief status lines between phases so the user can follow along
-- Follow **flow control rules** strictly
-- **MONITOR → BRAINSTORM** when issues found
 
-**Goal:** Guide complete, high-quality feature development from idea to merged PR — autonomously.
+**Strict Enforcement (XML tags mark critical rules):**
+- `<strict_enforcement>` - Phases MUST be executed in exact order, no skipping
+- `<critical_gate>` - Hard gates that cannot be bypassed
+- `<hard_gate>` - Specific blocking conditions
+- `<critical_requirement>` - Prerequisites for phase entry
+- `<prerequisite>` - Required conditions before proceeding
+- `<routing_rule>` - Automatic routing logic with no override
+- `<critical_routing>` - Loop-back paths that cannot be changed
+
+**Goal:** Guide complete, high-quality feature development from idea to merged PR — autonomously, following every step exactly as written.
 
 Good luck! 🏴‍☠️

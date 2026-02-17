@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-guidance allow hooks resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance allow hooks resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -11,8 +11,10 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make install                  - Install everything (skills + agents + LSP) [RECOMMENDED]"
-	@echo "  make install-skills           - Install workflow skills only"
-	@echo "  make install-agents           - Install specialized subagents"
+	@echo "  make install-skills           - Install workflow skills to Claude Code"
+	@echo "  make install-agents           - Install specialized subagents to Claude Code"
+	@echo "  make install-crush-skills     - Install workflow skills to Crush"
+	@echo "  make install-crush-agents     - Install specialized subagents to Crush"
 	@echo "  make install-lsp              - Install Go LSP plugin"
 	@echo "  make install-mcp [DIRS=...]   - Install filesystem MCP server (required for Bob)"
 	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
@@ -86,6 +88,79 @@ install-skills:
 	@echo "  /brainstorming   - Creative ideation"
 	@echo "  /writing-plans   - Implementation planning"
 	@echo "  /bob:version     - Show Bob version info"
+
+# Install workflow skills to Crush
+install-crush-skills:
+	@echo "📚 Installing Bob workflow skills to Crush..."
+	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
+	mkdir -p "$$CRUSH_SKILLS_DIR"; \
+	for skill in work code-review performance explore brainstorming writing-plans project; do \
+		if [ -d "skills/$$skill" ]; then \
+			echo "   Installing $$skill skill..."; \
+			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \
+			cp "skills/$$skill/SKILL.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+		else \
+			echo "   ⚠️  Skill $$skill not found, skipping..."; \
+		fi; \
+	done
+	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
+	echo "   Generating bob-version skill..."; \
+	GIT_HASH=$$(git rev-parse HEAD); \
+	GIT_SHORT=$$(git rev-parse --short HEAD); \
+	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
+	INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
+	BOB_REPO_PATH=$$(pwd); \
+	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
+	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+	mkdir -p "$$CRUSH_SKILLS_DIR/bob-version"; \
+	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
+	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
+	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
+	    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
+	    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
+	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
+	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
+	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
+	    skills/bob-version/SKILL.md.template > "$$CRUSH_SKILLS_DIR/bob-version/SKILL.md"
+	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
+	echo "✅ Skills installed to $$CRUSH_SKILLS_DIR"
+	@echo ""
+	@echo "Set CRUSH_SKILLS_DIR environment variable to use a custom directory:"
+	@echo "  export CRUSH_SKILLS_DIR=/path/to/crush/skills"
+	@echo "  make install-crush-skills"
+
+# Install specialized subagents to Crush
+install-crush-agents:
+	@echo "🤖 Installing workflow subagents to Crush..."
+	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
+	mkdir -p "$$CRUSH_SKILLS_DIR"; \
+	AGENT_COUNT=0; \
+	if [ -d "agents" ]; then \
+		for agent_dir in agents/*; do \
+			if [ -d "$$agent_dir" ] && [ -f "$$agent_dir/SKILL.md" ]; then \
+				agent=$$(basename "$$agent_dir"); \
+				echo "   Installing $$agent agent..."; \
+				mkdir -p "$$CRUSH_SKILLS_DIR/$$agent"; \
+				cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				if [ -f "$$agent_dir/style.md" ]; then \
+					cp "$$agent_dir/style.md" "$$CRUSH_SKILLS_DIR/$$agent/style.md"; \
+				fi; \
+				if [ -f "$$agent_dir/golang-pro.md" ]; then \
+					cp "$$agent_dir/golang-pro.md" "$$CRUSH_SKILLS_DIR/$$agent/golang-pro.md"; \
+				fi; \
+				AGENT_COUNT=$$((AGENT_COUNT + 1)); \
+			fi; \
+		done; \
+	else \
+		echo "   ⚠️  No agents directory found"; \
+	fi; \
+	echo "✅ $$AGENT_COUNT subagents installed to $$CRUSH_SKILLS_DIR"
+	@echo ""
+	@echo "Set CRUSH_SKILLS_DIR environment variable to use a custom directory:"
+	@echo "  export CRUSH_SKILLS_DIR=/path/to/crush/skills"
+	@echo "  make install-crush-agents"
 
 # Install specialized subagents
 install-agents:
@@ -199,19 +274,25 @@ install-mcp:
 	fi
 
 # Install everything (skills, agents, LSP) - PRIMARY COMMAND
-install: install-skills install-agents install-lsp
+install: install-skills install-agents install-crush-skills install-crush-agents install-lsp
 	@echo ""
 	@echo "✅ Full installation complete!"
 	@echo ""
-	@echo "Installed:"
+	@echo "Installed to Claude Code:"
 	@echo "  ✓ Workflow skills → ~/.claude/skills/"
 	@echo "  ✓ Specialized subagents → ~/.claude/agents/"
+	@echo ""
+	@echo "Installed to Crush:"
+	@echo "  ✓ Workflow skills → ~/.config/crush/skills/"
+	@echo "  ✓ Specialized subagents → ~/.config/crush/skills/"
+	@echo ""
+	@echo "Installed:"
 	@echo "  ✓ Go LSP plugin (if available)"
 	@echo ""
 	@echo "Optional (not installed by default):"
 	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
 	@echo ""
-	@echo "🔄 Restart Claude to activate all components"
+	@echo "🔄 Restart Claude/Crush to activate all components"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  /work \"Add new feature\"     - Start full development workflow"

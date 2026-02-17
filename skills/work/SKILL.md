@@ -484,268 +484,24 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 
 ---
 
-## Phase 7: REVIEW (Parallel Multi-Agent Review)
+## Phase 7: REVIEW
 
-**Goal:** Comprehensive code review by 9 specialized agents in parallel
+**Goal:** Comprehensive code review by running each specialized reviewer sequentially
 
 **Actions:**
 
-Spawn 9 reviewer agents in parallel (single message, 9 Task calls):
-
-```
-Task(subagent_type: "workflow-reviewer",
-     description: "Code quality review",
-     run_in_background: true,
-     prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
-
-             IMPORTANT: Report findings objectively. Do NOT determine if code is acceptable
-             or make pass/fail judgments. The orchestrator will route based on your findings.
-
-             Pass 1: Cross-file consistency
-             Pass 2: Code quality and logic errors
-             Pass 3: Best practices compliance
-
-             Write findings to .bob/state/review-code.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Type of issue (logic error, bug, violation)
-             - WHY: Explanation of the problem and impact
-             - WHERE: file:line, function/method name
-
-             Example: 'MEDIUM - auth.go:42 ValidateToken(): Missing nil check. If token is nil, will panic on line 43 when accessing token.Claims.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "security-reviewer",
-     description: "Security vulnerability review",
-     run_in_background: true,
-     prompt: "Scan code for security vulnerabilities:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if security is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - OWASP Top 10 (injection, XSS, CSRF, etc.)
-             - Secret detection (API keys, passwords)
-             - Authentication/authorization issues
-             - Input validation gaps
-
-             Write findings to .bob/state/review-security.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Type of vulnerability (SQL injection, XSS, etc.)
-             - WHY: How it can be exploited and impact
-             - WHERE: file:line, function/method name
-
-             Example: 'CRITICAL - query.go:89 BuildQuery(): SQL injection vulnerability. User input from req.Query("id") concatenated directly into SQL string. Attacker can execute arbitrary SQL.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "performance-analyzer",
-     description: "Performance bottleneck review",
-     run_in_background: true,
-     prompt: "Analyze code for performance issues:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if performance is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Algorithmic complexity (O(n²) opportunities)
-             - Memory leaks and inefficient allocations
-             - N+1 patterns and missing caching
-             - Expensive operations in loops
-
-             Write findings to .bob/state/review-performance.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Type of performance issue (N+1, memory leak, etc.)
-             - WHY: Performance impact and bottleneck explanation
-             - WHERE: file:line, function/method name
-
-             Example: 'HIGH - users.go:123 LoadUsers(): N+1 query pattern. Fetches user details in loop (1 query per user). With 1000 users, executes 1001 database queries.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "docs-reviewer",
-     description: "Documentation accuracy review",
-     run_in_background: true,
-     prompt: "Review documentation for accuracy and completeness:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if documentation is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - README accuracy (features match implementation)
-             - Example validity (code examples work)
-             - API documentation alignment
-             - Comment correctness
-
-             Write findings to .bob/state/review-docs.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Documentation issue (inaccuracy, missing, outdated)
-             - WHY: What's wrong and why it matters
-             - WHERE: file:line or README section
-
-             Example: 'MEDIUM - README.md:45: Example code is incorrect. Shows Connect(url) but actual function signature is Connect(url, timeout). Users will get compile error.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "architect-reviewer",
-     description: "Architecture and design review",
-     run_in_background: true,
-     prompt: "Evaluate system architecture and design decisions:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if architecture is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Design patterns appropriateness
-             - Scalability assessment
-             - Technology choices justification
-             - Integration patterns validation
-             - Technical debt analysis
-
-             Write findings to .bob/state/review-architecture.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Architectural issue (tight coupling, violation, etc.)
-             - WHY: Impact on maintainability, scalability, or design
-             - WHERE: file:line or component/module name
-
-             Example: 'HIGH - handlers/: HTTP handlers directly call database layer. Violates layered architecture. Makes testing difficult and couples HTTP to DB schema.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "code-reviewer",
-     description: "Comprehensive code quality review",
-     run_in_background: true,
-     prompt: "Conduct deep code review across all aspects:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if code quality is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Logic correctness and error handling
-             - Code organization and readability
-             - Security best practices
-             - Performance optimization opportunities
-             - Maintainability and test coverage
-
-             Write findings to .bob/state/review-code-quality.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Code quality issue (readability, organization, etc.)
-             - WHY: How it impacts maintainability or correctness
-             - WHERE: file:line, function/method name
-
-             Example: 'MEDIUM - parser.go:234 Parse(): Function has 15 return statements. Makes control flow hard to follow and increases cognitive complexity.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "golang-pro",
-     description: "Go-specific code review",
-     run_in_background: true,
-     prompt: "Review Go code for idiomatic patterns and best practices:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if Go code is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Idiomatic Go patterns (effective Go guidelines)
-             - Concurrency patterns (goroutines, channels, context)
-             - Error handling excellence
-             - Performance and race condition analysis
-             - Go-specific security concerns
-
-             Write findings to .bob/state/review-go.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Go-specific issue (non-idiomatic, concurrency bug, etc.)
-             - WHY: Why it violates Go best practices and impact
-             - WHERE: file:line, function/method name
-
-             Example: 'HIGH - worker.go:67 Process(): Goroutine launched without context or cancellation. If parent context cancels, goroutine leaks and continues running.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "debugger",
-     description: "Bug diagnosis and debugging review",
-     run_in_background: true,
-     prompt: "Perform systematic debugging analysis on the code:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if bugs are acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Potential null pointer dereferences and panic conditions
-             - Race conditions and concurrency bugs
-             - Off-by-one errors and boundary conditions
-             - Resource leaks (connections, file handles, memory)
-             - Logic errors in control flow and state management
-             - Error propagation and handling gaps
-
-             Write findings to .bob/state/review-debug.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Potential bug (nil pointer, race condition, etc.)
-             - WHY: How the bug manifests and conditions that trigger it
-             - WHERE: file:line, function/method name
-
-             Example: 'CRITICAL - cache.go:123 Get(): Nil pointer dereference. If cache.data is nil (during initialization), accessing cache.data[key] will panic.'
-
-             Do not add recommendations or subjective judgments.")
-
-Task(subagent_type: "error-detective",
-     description: "Error pattern analysis review",
-     run_in_background: true,
-     prompt: "Analyze code for error handling patterns and potential failure modes:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if error handling is acceptable.
-             The orchestrator will route based on severity of findings.
-
-             - Error handling consistency across the codebase
-             - Missing error checks and silent failures
-             - Error message clarity and actionability
-             - Retry logic and failure recovery patterns
-             - Timeout and deadline handling
-             - Circuit breaker and fallback patterns
-
-             Write findings to .bob/state/review-errors.md with severity levels (CRITICAL, HIGH, MEDIUM, LOW).
-             For each finding, include WHAT, WHY, WHERE:
-             - WHAT: Error handling issue (silent failure, missing check, etc.)
-             - WHY: Impact of the error handling gap
-             - WHERE: file:line, function/method name
-
-             Example: 'HIGH - api.go:234 FetchData(): Error from http.Get() ignored. If request fails, function continues with nil response and panics on line 235.'
-
-             Do not add recommendations or subjective judgments.")
-```
-
-**Wait for ALL 9 agents to complete.** If any agent fails, abort and report error.
-
-**Input:** Code changes, `.bob/state/plan.md`
-**Output:**
-- `.bob/state/review-code.md` (code quality findings)
-- `.bob/state/review-security.md` (security findings)
-- `.bob/state/review-performance.md` (performance findings)
-- `.bob/state/review-docs.md` (documentation findings)
-- `.bob/state/review-architecture.md` (architecture findings)
-- `.bob/state/review-code-quality.md` (comprehensive code quality findings)
-- `.bob/state/review-go.md` (Go-specific findings)
-- `.bob/state/review-debug.md` (debugging and bug diagnosis findings)
-- `.bob/state/review-errors.md` (error handling pattern findings)
-- `.bob/state/review.md` (consolidated report - created in next step)
-
-**Step 2: Consolidate Findings**
-
-After all 9 agents complete, spawn the review-consolidator to merge and deduplicate:
+Spawn a single review-consolidator agent that runs all reviewers and consolidates results:
 
 ```
 Task(subagent_type: "review-consolidator",
-     description: "Consolidate review findings",
+     description: "Run all reviewers and consolidate findings",
      run_in_background: true,
-     prompt: "Read all 9 review files in .bob/state/:
-             review-code.md, review-security.md, review-performance.md,
-             review-docs.md, review-architecture.md, review-code-quality.md,
-             review-go.md, review-debug.md, review-errors.md
+     prompt: "Run each of the 9 specialized reviewers sequentially, then consolidate all findings.
 
-             IMPORTANT: Report consolidated findings objectively. Your job is to merge
-             and deduplicate findings, then provide a routing recommendation based on
-             severity distribution. Do NOT make subjective judgments about acceptability.
+             IMPORTANT: Report consolidated findings objectively. Provide a routing recommendation
+             based solely on severity distribution. Do NOT make subjective judgments about acceptability.
 
-             Parse and merge findings:
-             - Extract all issues from each file
-             - Sort by severity (CRITICAL, HIGH, MEDIUM, LOW)
-             - Deduplicate: same file:line → merge descriptions, keep highest severity
-             - Note which agents found each issue
-
-             Write consolidated report to .bob/state/review.md with:
+             After all reviewers complete, write consolidated report to .bob/state/review.md with:
              - Issues grouped by severity
              - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
              - Recommendation (based solely on severity distribution):
@@ -758,6 +514,9 @@ Task(subagent_type: "review-consolidator",
 
              Working directory: [worktree-path]")
 ```
+
+**Input:** Code changes, `.bob/state/plan.md`
+**Output:** `.bob/state/review.md` (consolidated report)
 
 **Step 3: Read review.md and route**
 
@@ -916,17 +675,18 @@ EXECUTE:
 TEST:
   workflow-tester(code) → .bob/state/test-results.md
 
-REVIEW (9 agents in parallel):
-  workflow-reviewer(code, .bob/state/plan.md) → .bob/state/review-code.md
-  security-reviewer(code) → .bob/state/review-security.md
-  performance-analyzer(code) → .bob/state/review-performance.md
-  docs-reviewer(code, docs) → .bob/state/review-docs.md
-  architect-reviewer(code, design) → .bob/state/review-architecture.md
-  code-reviewer(code) → .bob/state/review-code-quality.md
-  golang-pro(*.go files) → .bob/state/review-go.md
-  debugger(code) → .bob/state/review-debug.md
-  error-detective(code) → .bob/state/review-errors.md
-  → Consolidate all → .bob/state/review.md
+REVIEW:
+  review-consolidator(code, .bob/state/plan.md) →
+    workflow-reviewer → .bob/state/review-code.md
+    security-reviewer → .bob/state/review-security.md
+    performance-analyzer → .bob/state/review-performance.md
+    docs-reviewer → .bob/state/review-docs.md
+    architect-reviewer → .bob/state/review-architecture.md
+    code-reviewer → .bob/state/review-code-quality.md
+    golang-pro → .bob/state/review-go.md
+    debugger → .bob/state/review-debug.md
+    error-detective → .bob/state/review-errors.md
+    → Consolidate all → .bob/state/review.md
 ```
 
 ---
@@ -952,7 +712,7 @@ REVIEW (9 agents in parallel):
 
 **Quality:**
 - TDD throughout (tests first)
-- Comprehensive code review (9 parallel agents)
+- Comprehensive code review (9 reviewers run sequentially by consolidator)
 - Fix issues properly (re-brainstorm if CRITICAL/HIGH)
 - Maintain code quality standards
 

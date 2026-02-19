@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance allow hooks resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline allow hooks resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -19,6 +19,7 @@ help:
 	@echo "  make install-mcp [DIRS=...]   - Install filesystem MCP server (required for Bob)"
 	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
+	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
 	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
@@ -35,6 +36,7 @@ help:
 	@echo "Examples:"
 	@echo "  make install-mcp DIRS=\"/home/matt/projects,/tmp\""
 	@echo "  make install-guidance PATH=/home/matt/myproject"
+	@echo "  make install-statusline"
 
 # Install workflow skills to Claude
 install-skills:
@@ -320,6 +322,46 @@ install-guidance:
 	@echo ""
 	@echo "These files configure the repo to use Bob workflow skills."
 	@echo "Commit them to your repo so Claude knows about Bob workflows!"
+
+# Install statusline script and configure Claude Code to use it
+install-statusline:
+	@echo "📊 Installing Claude Code statusline..."
+	@if [ ! -f "scripts/statusline-command.sh" ]; then \
+		echo "❌ Error: scripts/statusline-command.sh not found"; \
+		exit 1; \
+	fi
+	@cp scripts/statusline-command.sh "$$HOME/.claude/statusline-command.sh"
+	@chmod +x "$$HOME/.claude/statusline-command.sh"
+	@echo "✅ Installed statusline script to ~/.claude/statusline-command.sh"
+	@if ! command -v jq >/dev/null 2>&1; then \
+		echo "⚠️  jq not found - skipping settings.json update"; \
+		echo "   Add this to ~/.claude/settings.json manually:"; \
+		echo '   "statusLine": {"type": "command", "command": "$$HOME/.claude/statusline-command.sh", "padding": 0}'; \
+		exit 0; \
+	fi
+	@SETTINGS_FILE="$$HOME/.claude/settings.json"; \
+	if [ ! -f "$$SETTINGS_FILE" ]; then \
+		echo '{}' > "$$SETTINGS_FILE"; \
+	fi; \
+	echo "Configuring statusLine in ~/.claude/settings.json..."; \
+	cp "$$SETTINGS_FILE" "$$SETTINGS_FILE.backup"; \
+	TMP_FILE=$$(mktemp); \
+	SCRIPT_PATH="$$HOME/.claude/statusline-command.sh"; \
+	jq --arg cmd "$$SCRIPT_PATH" '.statusLine = {"type": "command", "command": $$cmd, "padding": 0}' "$$SETTINGS_FILE" > "$$TMP_FILE"; \
+	if [ $$? -eq 0 ]; then \
+		mv "$$TMP_FILE" "$$SETTINGS_FILE"; \
+		echo "✅ Configured statusLine in ~/.claude/settings.json"; \
+		echo "✅ Backup saved to ~/.claude/settings.json.backup"; \
+	else \
+		echo "❌ Failed to update settings.json"; \
+		rm -f "$$TMP_FILE"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Statusline shows:"
+	@echo "  user@host:path (git:branch) [worktree:repo/task] +added/-removed [ctx:XX%]"
+	@echo ""
+	@echo "🔄 Restart Claude Code for the statusline to take effect"
 
 # Apply permissions from config to ~/.claude/settings.json
 allow:

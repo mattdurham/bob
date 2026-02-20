@@ -317,25 +317,24 @@ The brainstorming skill will help:
 
 **Step 2: Research existing patterns and document findings**
 
-Spawn Explore agent to research the codebase AND write the brainstorm artifact:
+Write the brainstorm prompt to `.bob/state/brainstorm-prompt.md`:
 ```
-Task(subagent_type: "Explore",
+Task description: [The feature/task to implement]
+Requirements: [Any specific constraints or acceptance criteria]
+Context: [If .bob/planning/ exists, note that PROJECT.md and REQUIREMENTS.md are available there]
+```
+
+Then spawn the workflow-brainstormer agent:
+```
+Task(subagent_type: "workflow-brainstormer",
      description: "Research patterns and write brainstorm",
      run_in_background: true,
-     prompt: "Search codebase for patterns related to [task].
-             Find existing implementations, identify patterns to follow.
-             [If .bob/planning/ exists: Read .bob/planning/PROJECT.md for project context
-              and .bob/planning/REQUIREMENTS.md for the requirements being implemented.]
-
-             After research, write consolidated findings to .bob/state/brainstorm.md:
-             - Requirements and constraints (reference REQ-IDs if available)
-             - Existing patterns discovered
-             - Approaches considered (2-3 options with pros/cons)
-             - Recommended approach with rationale
-             - Risks and open questions")
+     prompt: "Task is described in .bob/state/brainstorm-prompt.md.
+             Research the codebase, consider multiple approaches, and write
+             findings to .bob/state/brainstorm.md following the brainstormer protocol.")
 ```
 
-**Output:** `.bob/state/brainstorm.md` (written by Explore agent)
+**Output:** `.bob/state/brainstorm.md` (written by workflow-brainstormer)
 
 ---
 
@@ -344,6 +343,22 @@ Task(subagent_type: "Explore",
 **Goal:** Create detailed implementation plan
 
 **Actions:**
+
+**First visit only — pause and brief the user:**
+
+Check whether this is the first time reaching PLAN (i.e. NOT looping back from REVIEW due to critical/high issues). You can tell it is a loop-back if `.bob/state/review.md` exists and contains CRITICAL or HIGH severity findings.
+
+If this is the **first visit**, before spawning the planner:
+1. Read `.bob/state/brainstorm.md`
+2. Present the user with a concise summary:
+   - What approach was chosen and why
+   - Key decisions and trade-offs
+   - Risks identified
+   - Any open questions from brainstorm
+3. Ask the user: "Any questions or adjustments before I create the implementation plan?"
+4. Wait for the user's response and incorporate any feedback into the brainstorm context before proceeding
+
+If this is a **loop-back from REVIEW** (critical/high issues), skip the pause and proceed directly to spawning the planner.
 
 Use the writing-plans skill to spawn a planner subagent:
 ```

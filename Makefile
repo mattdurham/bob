@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline allow hooks resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree allow hooks resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -20,6 +20,7 @@ help:
 	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
+	@echo "  make install-worktree         - Install create-worktree script to ~/.local/bin"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
 	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
@@ -362,6 +363,63 @@ install-statusline:
 	@echo "  user@host:path (git:branch) [worktree:repo/task] +added/-removed [ctx:XX%]"
 	@echo ""
 	@echo "🔄 Restart Claude Code for the statusline to take effect"
+
+# Install create-worktree script to ~/.local/bin
+install-worktree:
+	@echo "🌳 Installing create-worktree script..."
+	@if [ ! -f "create-worktree.sh" ]; then \
+		echo "❌ Error: create-worktree.sh not found"; \
+		exit 1; \
+	fi
+	@mkdir -p "$$HOME/.local/bin"
+	@cp create-worktree.sh "$$HOME/.local/bin/create-worktree"
+	@chmod +x "$$HOME/.local/bin/create-worktree"
+	@echo "✅ Installed to ~/.local/bin/create-worktree"
+	@echo ""
+	@SHELL_RC=""; \
+	if [ -n "$$ZSH_VERSION" ] || [ -f "$$HOME/.zshrc" ]; then \
+		SHELL_RC="$$HOME/.zshrc"; \
+	elif [ -n "$$BASH_VERSION" ] || [ -f "$$HOME/.bashrc" ]; then \
+		SHELL_RC="$$HOME/.bashrc"; \
+	fi; \
+	if [ -n "$$SHELL_RC" ]; then \
+		if grep -q "^worktree()" "$$SHELL_RC" 2>/dev/null; then \
+			echo "✅ Shell function already exists in $$SHELL_RC"; \
+		else \
+			echo "Adding worktree() shell function to $$SHELL_RC..."; \
+			echo "" >> "$$SHELL_RC"; \
+			echo "# Git worktree helper function - creates worktree in ../<repo>-worktrees/<branch> and cd's to it" >> "$$SHELL_RC"; \
+			echo "worktree() {" >> "$$SHELL_RC"; \
+			echo "    local branch=\"\$$1\"" >> "$$SHELL_RC"; \
+			echo "    create-worktree \"\$$branch\" && cd \"\$$(git rev-parse --show-toplevel)/../\$$(basename \$$(git rev-parse --show-toplevel))-worktrees/\$$branch\"" >> "$$SHELL_RC"; \
+			echo "}" >> "$$SHELL_RC"; \
+			echo "✅ Added worktree() function to $$SHELL_RC"; \
+		fi; \
+	else \
+		echo "⚠️  Could not detect shell RC file"; \
+		echo "Add this to your ~/.bashrc or ~/.zshrc:"; \
+		echo ""; \
+		echo "  worktree() {"; \
+		echo "      local branch=\"\$$1\""; \
+		echo "      create-worktree \"\$$branch\" && cd \"\$$(git rev-parse --show-toplevel)/../\$$(basename \$$(git rev-parse --show-toplevel))-worktrees/\$$branch\""; \
+		echo "  }"; \
+	fi
+	@echo ""
+	@echo "Usage:"
+	@echo "  worktree <branch-name>    - Create worktree and switch to it"
+	@echo ""
+	@echo "🔄 Reload your shell to use the worktree command:"
+	@if [ -f "$$HOME/.zshrc" ]; then \
+		echo "  source ~/.zshrc"; \
+	elif [ -f "$$HOME/.bashrc" ]; then \
+		echo "  source ~/.bashrc"; \
+	fi
+	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
+		echo ""; \
+		echo "⚠️  Warning: ~/.local/bin is not in your PATH"; \
+		echo "Add this to your ~/.bashrc or ~/.zshrc:"; \
+		echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+	fi
 
 # Apply permissions from config to ~/.claude/settings.json
 allow:

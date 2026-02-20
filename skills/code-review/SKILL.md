@@ -41,23 +41,32 @@ INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
 
 ## Phase 1: INIT
 
-Create .bob directory and isolated worktree:
+Check if already in worktree, or create .bob directory and isolated worktree:
 ```bash
-mkdir -p .bob/state .bob/planning
+# Check if we're already in a worktree
+COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
 
-# Create worktree for isolated code review
-REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-FEATURE_NAME="<review-name>"  # e.g., "review-security-fix", "review-pr-123"
+if [ "$COMMON_DIR" != "$GIT_DIR" ] && [ "$COMMON_DIR" != ".git" ]; then
+    echo "Already in worktree - skipping creation"
+    mkdir -p .bob/state .bob/planning
+else
+    mkdir -p .bob/state .bob/planning
 
-# Create worktree directory structure
-WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
-mkdir -p "../${REPO_NAME}-worktrees"
+    # Create worktree for isolated code review
+    REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+    FEATURE_NAME="<review-name>"  # e.g., "review-security-fix", "review-pr-123"
 
-# Create new branch and worktree
-git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+    # Create worktree directory structure
+    WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
+    mkdir -p "../${REPO_NAME}-worktrees"
 
-# Change to worktree directory
-cd "$WORKTREE_DIR"
+    # Create new branch and worktree
+    git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+
+    # Change to worktree directory
+    cd "$WORKTREE_DIR"
+fi
 ```
 
 ---

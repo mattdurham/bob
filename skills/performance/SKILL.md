@@ -40,23 +40,32 @@ Understand performance goals:
 - Current vs target metrics?
 - Acceptable trade-offs?
 
-Create .bob/ and isolated worktree:
+Check if already in worktree, or create .bob/ and isolated worktree:
 ```bash
-mkdir -p .bob/state .bob/planning
+# Check if we're already in a worktree
+COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
 
-# Create worktree for isolated performance optimization
-REPO_NAME=$(basename $(git rev-parse --show-toplevel))
-FEATURE_NAME="<perf-task>"  # e.g., "optimize-query", "reduce-memory"
+if [ "$COMMON_DIR" != "$GIT_DIR" ] && [ "$COMMON_DIR" != ".git" ]; then
+    echo "Already in worktree - skipping creation"
+    mkdir -p .bob/state .bob/planning
+else
+    mkdir -p .bob/state .bob/planning
 
-# Create worktree directory structure
-WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
-mkdir -p "../${REPO_NAME}-worktrees"
+    # Create worktree for isolated performance optimization
+    REPO_NAME=$(basename $(git rev-parse --show-toplevel))
+    FEATURE_NAME="<perf-task>"  # e.g., "optimize-query", "reduce-memory"
 
-# Create new branch and worktree
-git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+    # Create worktree directory structure
+    WORKTREE_DIR="../${REPO_NAME}-worktrees/${FEATURE_NAME}"
+    mkdir -p "../${REPO_NAME}-worktrees"
 
-# Change to worktree directory
-cd "$WORKTREE_DIR"
+    # Create new branch and worktree
+    git worktree add "$WORKTREE_DIR" -b "$FEATURE_NAME"
+
+    # Change to worktree directory
+    cd "$WORKTREE_DIR"
+fi
 ```
 
 Write targets to `.bob/state/perf-targets.md`

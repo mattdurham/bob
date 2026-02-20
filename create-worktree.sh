@@ -18,6 +18,17 @@ if ! git rev-parse --git-dir > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if we're already in a worktree
+COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo "")
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo "")
+
+if [ "$COMMON_DIR" != "$GIT_DIR" ] && [ "$COMMON_DIR" != ".git" ]; then
+    echo "Already in a worktree: $(git rev-parse --show-toplevel)"
+    echo "Cannot create a worktree from within another worktree."
+    echo "Navigate to the main repository first."
+    exit 1
+fi
+
 # Get the git root directory (where .git is)
 GIT_ROOT=$(git rev-parse --show-toplevel)
 cd "$GIT_ROOT"

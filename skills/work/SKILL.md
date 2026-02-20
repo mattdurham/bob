@@ -244,47 +244,62 @@ If `.bob/planning/` does NOT exist, proceed normally — it's optional context.
 **Goal:** Create an isolated git worktree for development
 
 <critical_requirement>
-You MUST create a worktree BEFORE proceeding to BRAINSTORM.
+You MUST ensure a worktree exists BEFORE proceeding to BRAINSTORM.
 NO files may be written until the worktree exists and is active.
 This ensures all work is isolated from the main branch.
 </critical_requirement>
 
 **Actions:**
 
-Spawn a Bash agent to create the worktree:
+Spawn a Bash agent to check for existing worktree or create a new one:
 ```
 Task(subagent_type: "Bash",
-     description: "Create git worktree",
+     description: "Check for worktree or create one",
      run_in_background: true,
-     prompt: "Create a git worktree for isolated development.
+     prompt: "Check if we're already in a worktree, or create a new one for isolated development.
 
-             1. Derive the repo name and worktree path:
+             1. Check if we're already in a worktree:
+                COMMON_DIR=$(git rev-parse --git-common-dir 2>/dev/null || echo \"\")
+                GIT_DIR=$(git rev-parse --git-dir 2>/dev/null || echo \"\")
+
+                if [ \"$COMMON_DIR\" != \"$GIT_DIR\" ] && [ \"$COMMON_DIR\" != \".git\" ]; then
+                    echo \"Already in worktree - skipping creation\"
+                    WORKTREE_PATH=$(git rev-parse --show-toplevel)
+                    echo \"WORKTREE_PATH=$WORKTREE_PATH\"
+                    mkdir -p \".bob/state\" \".bob/planning\"
+                    git branch --show-current
+                    exit 0
+                fi
+
+             2. If not in worktree, derive the repo name and worktree path:
                 REPO_NAME=$(basename $(git rev-parse --show-toplevel))
                 FEATURE_NAME=\"<descriptive-feature-name>\"
                 WORKTREE_DIR=\"../${REPO_NAME}-worktrees/${FEATURE_NAME}\"
 
-             2. Create the worktree:
+             3. Create the worktree:
                 mkdir -p \"../${REPO_NAME}-worktrees\"
                 git worktree add \"$WORKTREE_DIR\" -b \"$FEATURE_NAME\"
 
-             3. Create .bob directory structure:
+             4. Create .bob directory structure:
                 mkdir -p \"$WORKTREE_DIR/.bob/state\" \"$WORKTREE_DIR/.bob/planning\"
 
-             4. Print the absolute worktree path (IMPORTANT — orchestrator needs this):
+             5. Print the absolute worktree path (IMPORTANT — orchestrator needs this):
                 echo \"WORKTREE_PATH=$(cd \"$WORKTREE_DIR\" && pwd)\"
 
-             5. Print the branch name for confirmation:
+             6. Print the branch name for confirmation:
                 cd \"$WORKTREE_DIR\" && git branch --show-current")
 ```
 
 **After agent completes:**
 
 1. Read the agent output to get `WORKTREE_PATH`
-2. Switch the orchestrator's working directory to the worktree:
-   ```bash
-   cd <WORKTREE_PATH>
-   pwd  # Verify you're in the worktree
-   ```
+2. Check if output says "Already in worktree - skipping creation":
+   - If YES: You're already in the worktree, no need to `cd`
+   - If NO: Switch the orchestrator's working directory to the worktree:
+     ```bash
+     cd <WORKTREE_PATH>
+     pwd  # Verify you're in the worktree
+     ```
 
 **From this point forward, ALL file operations happen in the worktree.**
 

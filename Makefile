@@ -1,6 +1,8 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
+WORKFLOW ?= pr
+
 .PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree allow hooks enable-agent-teams resolve-copilot ci clean
 
 help:
@@ -11,6 +13,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make install                  - Install everything (skills + agents + LSP) [RECOMMENDED]"
+	@echo "  make install WORKFLOW=local   - Install with local workflow mode (no auto-PR)"
 	@echo "  make install-skills           - Install workflow skills to Claude Code"
 	@echo "  make install-agents           - Install specialized subagents to Claude Code"
 	@echo "  make install-crush-skills     - Install workflow skills to Crush"
@@ -82,6 +85,21 @@ install-skills:
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
 	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
+ifneq ($(WORKFLOW),pr)
+	@if [ -f "workflows/$(WORKFLOW).md" ]; then \
+		SKILLS_DIR="$$HOME/.claude/skills"; \
+		for skill in work code-review performance team-work; do \
+			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ -f "$$SKILL_FILE" ]; then \
+				awk 'NR==1{print; found_start=1; next} found_start && /^---$$/{print; found_end=1; next} found_end && !injected{while((getline line < "workflows/$(WORKFLOW).md") > 0) print line; injected=1} {print}' "$$SKILL_FILE" > "$$SKILL_FILE.tmp" && mv "$$SKILL_FILE.tmp" "$$SKILL_FILE"; \
+			fi; \
+		done; \
+		echo "   ✅ Applied workflow mode: $(WORKFLOW)"; \
+	else \
+		echo "   ❌ Unknown workflow: $(WORKFLOW) (file workflows/$(WORKFLOW).md not found)"; \
+		exit 1; \
+	fi
+endif
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"
@@ -130,6 +148,21 @@ install-crush-skills:
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    skills/bob-version/SKILL.md.template > "$$CRUSH_SKILLS_DIR/bob-version/SKILL.md"
+ifneq ($(WORKFLOW),pr)
+	@if [ -f "workflows/$(WORKFLOW).md" ]; then \
+		CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
+		for skill in work code-review performance team-work; do \
+			SKILL_FILE="$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ -f "$$SKILL_FILE" ]; then \
+				awk 'NR==1{print; found_start=1; next} found_start && /^---$$/{print; found_end=1; next} found_end && !injected{while((getline line < "workflows/$(WORKFLOW).md") > 0) print line; injected=1} {print}' "$$SKILL_FILE" > "$$SKILL_FILE.tmp" && mv "$$SKILL_FILE.tmp" "$$SKILL_FILE"; \
+			fi; \
+		done; \
+		echo "   ✅ Applied workflow mode: $(WORKFLOW)"; \
+	else \
+		echo "   ❌ Unknown workflow: $(WORKFLOW) (file workflows/$(WORKFLOW).md not found)"; \
+		exit 1; \
+	fi
+endif
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	echo "✅ Skills installed to $$CRUSH_SKILLS_DIR"
 	@echo ""

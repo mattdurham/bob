@@ -126,6 +126,6 @@ Task(subagent_type: "workflow-planner",
 
 ## Execution Handoff
 
-After subagent completes, confirm:
+After subagent completes, report completion:
 
-**"Plan complete and saved to `.bob/state/plan.md`. Ready to move to EXECUTE phase?"**
+**"Plan complete and saved to `.bob/state/plan.md`."**

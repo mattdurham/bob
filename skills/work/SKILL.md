@@ -359,22 +359,6 @@ Task(subagent_type: "workflow-brainstormer",
 
 **Actions:**
 
-**First visit only — pause and brief the user:**
-
-Check whether this is the first time reaching PLAN (i.e. NOT looping back from REVIEW due to critical/high issues). You can tell it is a loop-back if `.bob/state/review.md` exists and contains CRITICAL or HIGH severity findings.
-
-If this is the **first visit**, before spawning the planner:
-1. Read `.bob/state/brainstorm.md`
-2. Present the user with a concise summary:
-   - What approach was chosen and why
-   - Key decisions and trade-offs
-   - Risks identified
-   - Any open questions from brainstorm
-3. Ask the user: "Any questions or adjustments before I create the implementation plan?"
-4. Wait for the user's response and incorporate any feedback into the brainstorm context before proceeding
-
-If this is a **loop-back from REVIEW** (critical/high issues), skip the pause and proceed directly to spawning the planner.
-
 Use the writing-plans skill to spawn a planner subagent:
 ```
 Invoke: /writing-plans

@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree allow hooks resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree allow hooks enable-agent-teams resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -22,6 +22,7 @@ help:
 	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
 	@echo "  make install-worktree         - Install create-worktree script to ~/.local/bin"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
+	@echo "  make enable-agent-teams       - Enable experimental agent teams feature"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
 	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
@@ -30,6 +31,7 @@ help:
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
 	@echo "  make install-mcp              - Install filesystem MCP server (required)"
+	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:team-work)"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
 	@echo "  /work \"feature description\" - Start a workflow"
@@ -44,7 +46,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work code-review performance explore brainstorming writing-plans project; do \
+	for skill in work code-review performance explore brainstorming writing-plans project team-work; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -88,6 +90,7 @@ install-skills:
 	@echo "  /bob:code-review - Code review workflow"
 	@echo "  /bob:performance - Performance optimization"
 	@echo "  /bob:explore     - Codebase exploration"
+	@echo "  /bob:team-work   - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /brainstorming   - Creative ideation"
 	@echo "  /writing-plans   - Implementation planning"
 	@echo "  /bob:version     - Show Bob version info"
@@ -298,9 +301,10 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo "🔄 Restart Claude/Crush to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /work \"Add new feature\"     - Start full development workflow"
-	@echo "  /code-review                 - Review existing code"
-	@echo "  /performance                 - Optimize performance"
+	@echo "  /bob:work \"Add new feature\" - Start full development workflow"
+	@echo "  /bob:team-work \"feature\"    - Team-based workflow (run 'make enable-agent-teams' first)"
+	@echo "  /bob:code-review             - Review existing code"
+	@echo "  /bob:performance             - Optimize performance"
 
 # Install guidance files to another repo
 install-guidance:
@@ -458,6 +462,50 @@ allow:
 	@jq -r '.permissions.allow[]' "$$HOME/.claude/settings.json" | sed 's/^/  ✓ /'
 	@echo ""
 	@echo "Default mode: $$(jq -r '.permissions.defaultMode' "$$HOME/.claude/settings.json")"
+
+# Enable experimental agent teams feature
+enable-agent-teams:
+	@echo "🧪 Enabling experimental agent teams feature..."
+	@if ! command -v jq >/dev/null 2>&1; then \
+		echo "❌ Error: jq is required but not installed"; \
+		echo "Install with: sudo apt-get install jq  (or your package manager)"; \
+		exit 1; \
+	fi
+	@SETTINGS_FILE="$$HOME/.claude/settings.json"; \
+	if [ ! -f "$$SETTINGS_FILE" ]; then \
+		echo "Creating new settings file..."; \
+		echo '{}' > "$$SETTINGS_FILE"; \
+	fi
+	@echo "Backing up existing settings..."
+	@cp "$$HOME/.claude/settings.json" "$$HOME/.claude/settings.json.backup"
+	@TMP_FILE=$$(mktemp); \
+	jq '.env.CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS = "1" | .teammateMode = "auto"' "$$HOME/.claude/settings.json" > "$$TMP_FILE"; \
+	if [ $$? -eq 0 ]; then \
+		mv "$$TMP_FILE" "$$HOME/.claude/settings.json"; \
+		echo "✅ Experimental agent teams enabled"; \
+		echo "✅ Backup saved to ~/.claude/settings.json.backup"; \
+	else \
+		echo "❌ Failed to update settings.json"; \
+		rm -f "$$TMP_FILE"; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Agent teams configuration:"
+	@echo "  ✓ CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1"
+	@echo "  ✓ teammateMode=auto (split panes if in tmux, otherwise in-process)"
+	@echo ""
+	@echo "Optional: Install tmux for split pane display"
+	@if ! command -v tmux >/dev/null 2>&1; then \
+		echo "  ⚠️  tmux not installed (split panes not available)"; \
+		echo "  Install with: brew install tmux (macOS) or apt-get install tmux (Linux)"; \
+	else \
+		echo "  ✓ tmux is installed (split panes available)"; \
+	fi
+	@echo ""
+	@echo "Usage:"
+	@echo "  /bob:team-work \"Add new feature\" - Start team-based workflow"
+	@echo ""
+	@echo "🔄 Restart Claude Code for changes to take effect"
 
 # Install pre-commit hooks
 hooks:

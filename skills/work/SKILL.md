@@ -180,15 +180,15 @@ Everything else is automatic. The orchestrator logs brief status lines so the us
 - "Ready to continue?"
 - Any question asking permission to do what the workflow already defines
 
-**Brief status updates between phases (DO output these, pirate style):**
+**Brief status updates between phases (DO output these):**
 ```
-⚓ BRAINSTORM complete → Chart marked at .bob/state/brainstorm.md
-Settin' sail to PLAN phase, matey...
+✓ BRAINSTORM complete → .bob/state/brainstorm.md
+Moving to PLAN phase...
 
-⚓ PLAN complete → Course plotted at .bob/state/plan.md
-All hands to EXECUTE, matey...
+✓ PLAN complete → .bob/state/plan.md
+Starting EXECUTE phase...
 
-⚓ REVIEW found 3 barnacles on the hull → routing to EXECUTE to scrape 'em off
+✓ REVIEW found 3 issues → routing to EXECUTE to fix them
 ```
 
 <hard_gate>
@@ -233,13 +233,13 @@ If `.bob/planning/` does NOT exist, proceed normally — it's optional context.
 **Goal:** Initialize and understand requirements
 
 **Actions:**
-1. **Greet the user like a pirate captain:**
+1. **Greet the user:**
    ```
-   "Ahoy matey! ⚓ Captain Bob at yer service!
+   "Hey! Bob here, ready to work.
 
-   Ye be wantin' to build: [feature description]
+   Building: [feature description]
 
-   Let me chart a course through these waters!"
+   Let me get started on this."
    ```
 
 2. Check for `.bob/planning/` directory — if it exists, read PROJECT.md and REQUIREMENTS.md for context
@@ -659,13 +659,13 @@ CI failures require re-thinking the approach from scratch.
 
 **Actions:**
 
-1. **Confirm with user (pirate style):**
+1. **Confirm with user:**
    ```
-   "Shiver me timbers! ⚓ All checks be passin', matey!
+   "All checks passing!
 
-   The code be battle-tested and ready to sail!
+   The code is tested and ready to merge.
 
-   Shall we merge this fine work into the main ship? [yes/no]"
+   Shall we merge this into main? [yes/no]"
    ```
 
 2. If approved, merge PR:
@@ -673,17 +673,14 @@ CI failures require re-thinking the approach from scratch.
    gh pr merge --squash
    ```
 
-3. **Celebrate like a pirate!**
+3. **Celebrate!**
    ```
-   "🏴‍☠️ HOIST THE COLORS! 🏴‍☠️
+   "Done!
 
-   Well done, matey! Ye've built yerself some fine code!
-   The treasure be safely stowed in the main ship!
+   All tests pass and the code looks great.
+   The changes are safely on the main branch.
 
-   May yer builds be swift and yer bugs be few!
-   Fair winds and following seas! ⚓
-
-   — Captain Bob"
+   — Bob"
    ```
 
 ---

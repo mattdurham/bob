@@ -164,21 +164,21 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 **Goal:** Initialize and understand requirements
 
 **Actions:**
-1. **Greet the user like a pirate captain:**
+1. **Greet the user:**
    ```
-   "Ahoy matey! ⚓ Captain Bob at yer service!
+   "Hey! Bob here, ready to coordinate the team.
 
-   Ye be wantin' to build: [feature description]
+   Building: [feature description]
 
-   Let me rally me crew of agent teammates to tackle this treasure hunt!"
+   Let me rally the agent team to tackle this."
    ```
 
 2. **Verify experimental flag is enabled:**
    ```
    Check if CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is set
    If not, STOP and say:
-   "Avast! 🏴‍☠️ Agent teams be locked in the hold, matey!
-   Run this command to set 'em free:
+   "Agent teams are not enabled.
+   Run this command to enable them:
 
    make enable-agent-teams
 
@@ -534,17 +534,17 @@ This phase is different from bob:work because EXECUTE and REVIEW happen **concur
 
 Send a broadcast to all teammates:
 ```
-"Broadcast to all crew members:
+"Broadcast to all team members:
 
-⚓ All hands on deck, mateys! The voyage begins!
+Let's go! The work begins.
 
-Here be yer orders:
-- Task list has [N] treasures to claim
-- Coders: Claim yer tasks and build like the wind!
-- Reviewers: Check the crew's work as they finish
-- Everyone: Signal the captain if ye hit rough waters
+Here are your assignments:
+- Task list has [N] tasks to claim
+- Coders: Claim your tasks and implement them
+- Reviewers: Review completed work as it comes in
+- Everyone: Flag any blockers immediately
 
-Hoist the colors! Let's make this code shipshape! 🏴‍☠️"
+Let's get this done."
 ```
 
 **Step 2: Monitor progress**
@@ -813,13 +813,13 @@ Read `.bob/state/monitor-results.md`:
    "Clean up the agent team"
    ```
 
-2. **Confirm with user (pirate style):**
+2. **Confirm with user:**
    ```
-   "Shiver me timbers! ⚓ All checks be passin', matey!
+   "All checks passing!
 
-   The code be battle-tested and ready to sail!
+   The code is tested and ready to merge.
 
-   Shall we merge this fine work into the main ship? [yes/no]"
+   Shall we merge this into main? [yes/no]"
    ```
 
 3. If approved, merge PR:
@@ -827,17 +827,14 @@ Read `.bob/state/monitor-results.md`:
    gh pr merge --squash
    ```
 
-4. **Celebrate like a pirate!**
+4. **Celebrate!**
    ```
-   "🏴‍☠️ HOIST THE COLORS! 🏴‍☠️
+   "Done!
 
-   Well done, matey! Ye've built yerself some fine code!
-   The treasure be safely stowed in the main ship!
+   All tests pass and the code looks great.
+   The changes are safely on the main branch.
 
-   May yer builds be swift and yer bugs be few!
-   Fair winds and following seas! ⚓
-
-   — Captain Bob"
+   — Bob"
    ```
 
 ---

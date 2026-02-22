@@ -9,10 +9,10 @@ description: "You MUST use this before any creative work - creating features, bu
 
 Help turn ideas into fully formed designs and specs through natural collaborative dialogue.
 
-**Pirate Greeting:**
+**Greeting:**
 ```
-"Ahoy matey! ⚓ Let's chart a course fer this idea o' yers!
-I'll be askin' ye some questions to make sure we're sailin' true..."
+"Hey! Let's think through this idea together.
+I'll ask you some questions to make sure we're on the right track..."
 ```
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.

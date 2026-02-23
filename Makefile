@@ -3,7 +3,7 @@
 
 WORKFLOW ?= pr
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree allow hooks enable-agent-teams resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -24,6 +24,8 @@ help:
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
 	@echo "  make install-worktree         - Install create-worktree script to ~/.local/bin"
+	@echo "  make install-personality [PERSONALITY=...] - Install Bob personality"
+	@echo "                                  Options: default, pirate, cartoon_pirate (default: no override)"
 	@echo "  make allow                    - Apply permissions from config/claude-permissions.json"
 	@echo "  make enable-agent-teams       - Enable experimental agent teams feature"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks (tests, linting, formatting)"
@@ -40,6 +42,8 @@ help:
 	@echo "  /work \"feature description\" - Start a workflow"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make install PERSONALITY=pirate"
+	@echo "  make install PERSONALITY=cartoon_pirate"
 	@echo "  make install-mcp DIRS=\"/home/matt/projects,/tmp\""
 	@echo "  make install-guidance PATH=/home/matt/myproject"
 	@echo "  make install-statusline"
@@ -312,14 +316,26 @@ install-mcp:
 		done; \
 	fi
 
-# Install everything (skills, agents, LSP) - PRIMARY COMMAND
+# Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
+# Usage: make install [PERSONALITY=pirate|cartoon_pirate]
 install: install-skills install-agents install-crush-skills install-crush-agents install-lsp
+	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
+		echo ""; \
+		echo "🎭 Installing personality: $(PERSONALITY)..."; \
+		$(MAKE) install-personality PERSONALITY=$(PERSONALITY); \
+	fi
 	@echo ""
 	@echo "✅ Full installation complete!"
 	@echo ""
 	@echo "Installed to Claude Code:"
 	@echo "  ✓ Workflow skills → ~/.claude/skills/"
 	@echo "  ✓ Specialized subagents → ~/.claude/agents/"
+	@if [ -f "$$HOME/.claude/bob-personality.md" ]; then \
+		ACTIVE=$$(head -1 "$$HOME/.claude/bob-personality.md" | sed 's/# Bob Personality: //'); \
+		echo "  ✓ Personality → $$ACTIVE"; \
+	else \
+		echo "  ✓ Personality → Default (built-in)"; \
+	fi
 	@echo ""
 	@echo "Installed to Crush:"
 	@echo "  ✓ Workflow skills → ~/.config/crush/skills/"
@@ -330,6 +346,7 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo ""
 	@echo "Optional (not installed by default):"
 	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
+	@echo "  - Personality → Run 'make install PERSONALITY=pirate' or 'make install PERSONALITY=cartoon_pirate'"
 	@echo ""
 	@echo "🔄 Restart Claude/Crush to activate all components"
 	@echo ""
@@ -338,6 +355,67 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo "  /bob:team-work \"feature\"    - Team-based workflow (run 'make enable-agent-teams' first)"
 	@echo "  /bob:code-review             - Review existing code"
 	@echo "  /bob:performance             - Optimize performance"
+
+# Install Bob personality
+# Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
+# If PERSONALITY is not set or empty, removes any installed personality (uses built-in default)
+# If PERSONALITY=default, also removes installed personality (same as built-in)
+# When a personality is set, also injects a personality override into installed skills
+install-personality:
+	@PERSONALITY_FILE="$$HOME/.claude/bob-personality.md"; \
+	SKILLS_DIR="$$HOME/.claude/skills"; \
+	INJECT_LINE="## Personality Override"; \
+	if [ -z "$(PERSONALITY)" ] || [ "$(PERSONALITY)" = "default" ]; then \
+		if [ -f "$$PERSONALITY_FILE" ]; then \
+			rm "$$PERSONALITY_FILE"; \
+			echo "✅ Personality reset to default (removed override file)"; \
+		else \
+			echo "✅ Already using default personality (no override file)"; \
+		fi; \
+		for skill in work team-work brainstorming code-review explore performance project writing-plans; do \
+			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
+				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
+					cp "skills/$$skill/SKILL.md" "$$SKILL_FILE"; \
+					echo "   Restored $$skill skill to default"; \
+				fi; \
+			fi; \
+		done; \
+	elif [ -f "personalities/$(PERSONALITY).md" ]; then \
+		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
+		echo "✅ Personality set to: $(PERSONALITY)"; \
+		echo "   Installed to: $$PERSONALITY_FILE"; \
+		for skill in work team-work brainstorming code-review explore performance project writing-plans; do \
+			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ -f "$$SKILL_FILE" ]; then \
+				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
+					TMP=$$(mktemp); \
+					awk 'NR==1 && /^---$$/{front=1; print; next} front && /^---$$/{front=0; print; print ""; print "## Personality Override"; print ""; print "**Read `~/.claude/bob-personality.md` and adopt that personality for ALL user-facing messages.** The personality file'"'"'s voice, greetings, status updates, completions, errors, and vocabulary override all hardcoded messages in this document."; print ""; next} {print}' "$$SKILL_FILE" > "$$TMP" && mv "$$TMP" "$$SKILL_FILE"; \
+					echo "   Injected personality override into $$skill skill"; \
+				fi; \
+			fi; \
+		done; \
+	else \
+		echo "❌ Unknown personality: $(PERSONALITY)"; \
+		echo "   Available personalities:"; \
+		for p in personalities/*.md; do \
+			name=$$(basename "$$p" .md); \
+			echo "     - $$name"; \
+		done; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "Available personalities:"
+	@for p in personalities/*.md; do \
+		name=$$(basename "$$p" .md); \
+		if [ "$$name" = "$(PERSONALITY)" ]; then \
+			echo "  → $$name (active)"; \
+		else \
+			echo "    $$name"; \
+		fi; \
+	done
+	@echo ""
+	@echo "🔄 Restart Claude Code for personality changes to take effect"
 
 # Install guidance files to another repo
 install-guidance:

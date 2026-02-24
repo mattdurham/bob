@@ -707,14 +707,15 @@ Spawn review-consolidator agent:
 
 ```
 Task(subagent_type: "review-consolidator",
-     description: "Run all reviewers and consolidate findings",
+     description: "Comprehensive code review",
      run_in_background: true,
-     prompt: "Run each of the 9 specialized reviewers sequentially, then consolidate all findings.
+     prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
+             error handling, code quality, performance, Go idioms, architecture, and documentation.
 
-             After all reviewers complete, write consolidated report to .bob/state/review.md with:
+             Write consolidated report to .bob/state/review.md with:
              - Issues grouped by severity
              - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
-             - Recommendation:
+             - Recommendation (based solely on severity distribution):
                * If ANY CRITICAL or HIGH issues found → Recommendation: BRAINSTORM
                * If only MEDIUM or LOW issues found → Recommendation: EXECUTE
                * If NO issues found → Recommendation: COMMIT

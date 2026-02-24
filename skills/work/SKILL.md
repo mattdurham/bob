@@ -511,22 +511,23 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 
 ## Phase 7: REVIEW
 
-**Goal:** Comprehensive code review by running each specialized reviewer sequentially
+**Goal:** Comprehensive code review across all quality domains
 
 **Actions:**
 
-Spawn a single review-consolidator agent that runs all reviewers and consolidates results:
+Spawn a single review-consolidator agent that performs all review passes and writes a consolidated report:
 
 ```
 Task(subagent_type: "review-consolidator",
-     description: "Run all reviewers and consolidate findings",
+     description: "Comprehensive code review",
      run_in_background: true,
-     prompt: "Run each of the 9 specialized reviewers sequentially, then consolidate all findings.
+     prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
+             error handling, code quality, performance, Go idioms, architecture, and documentation.
 
-             IMPORTANT: Report consolidated findings objectively. Provide a routing recommendation
+             IMPORTANT: Report findings objectively. Provide a routing recommendation
              based solely on severity distribution. Do NOT make subjective judgments about acceptability.
 
-             After all reviewers complete, write consolidated report to .bob/state/review.md with:
+             Write consolidated report to .bob/state/review.md with:
              - Issues grouped by severity
              - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
              - Recommendation (based solely on severity distribution):
@@ -564,9 +565,6 @@ Auto-continue - never prompt. Log a brief status line and proceed.
 - **Any agent fails:** Abort review, report to user, retry once
 - **Empty results:** Valid (agent found no issues)
 - **Consolidation fails:** Show individual files to user, ask for manual review
-
-**Note:** This replaces the simple single-agent review with parallel multi-agent review (9 specialized agents) while maintaining backward compatibility (still produces `.bob/state/review.md`).
-
 
 ---
 
@@ -718,17 +716,7 @@ TEST:
   workflow-tester(code) → .bob/state/test-results.md
 
 REVIEW:
-  review-consolidator(code, .bob/state/plan.md) →
-    workflow-reviewer → .bob/state/review-code.md
-    security-reviewer → .bob/state/review-security.md
-    performance-analyzer → .bob/state/review-performance.md
-    docs-reviewer → .bob/state/review-docs.md
-    architect-reviewer → .bob/state/review-architecture.md
-    code-reviewer → .bob/state/review-code-quality.md
-    golang-pro → .bob/state/review-go.md
-    debugger → .bob/state/review-debug.md
-    error-detective → .bob/state/review-errors.md
-    → Consolidate all → .bob/state/review.md
+  review-consolidator(code, .bob/state/plan.md) → .bob/state/review.md
 ```
 
 ---
@@ -754,7 +742,7 @@ REVIEW:
 
 **Quality:**
 - TDD throughout (tests first)
-- Comprehensive code review (9 reviewers run sequentially by consolidator)
+- Comprehensive code review (single multi-domain reviewer)
 - Fix issues properly (re-brainstorm if CRITICAL/HIGH)
 - Maintain code quality standards
 

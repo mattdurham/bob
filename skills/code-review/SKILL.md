@@ -73,72 +73,17 @@ fi
 
 ## Phase 2: REVIEW
 
-**Goal:** Comprehensive code review by 9 specialized agents in parallel
+**Goal:** Comprehensive code review across all quality domains
 
-Spawn 9 reviewer agents in parallel (single message, 9 Task calls):
+Spawn a single review-consolidator agent:
 ```
-Task(subagent_type: "workflow-reviewer",
-     description: "Code quality review",
+Task(subagent_type: "review-consolidator",
+     description: "Comprehensive code review",
      run_in_background: true,
-     prompt: "Perform 3-pass code review focusing on code logic, bugs, and best practices.
-             Write findings to .bob/state/review-code.md with severity levels.")
-
-Task(subagent_type: "security-reviewer",
-     description: "Security vulnerability review",
-     run_in_background: true,
-     prompt: "Scan code for security vulnerabilities (OWASP Top 10, secrets, input validation).
-             Write findings to .bob/state/review-security.md with severity levels.")
-
-Task(subagent_type: "performance-analyzer",
-     description: "Performance bottleneck review",
-     run_in_background: true,
-     prompt: "Analyze code for performance issues (complexity, memory, N+1 patterns).
-             Write findings to .bob/state/review-performance.md with severity levels.")
-
-Task(subagent_type: "docs-reviewer",
-     description: "Documentation accuracy review",
-     run_in_background: true,
-     prompt: "Review documentation for accuracy and completeness.
-             Write findings to .bob/state/review-docs.md with severity levels.")
-
-Task(subagent_type: "architect-reviewer",
-     description: "Architecture and design review",
-     run_in_background: true,
-     prompt: "Evaluate system architecture and design decisions.
-             Write findings to .bob/state/review-architecture.md with severity levels.")
-
-Task(subagent_type: "code-reviewer",
-     description: "Comprehensive code quality review",
-     run_in_background: true,
-     prompt: "Conduct deep code review (logic, security, performance, maintainability).
-             Write findings to .bob/state/review-code-quality.md with severity levels.")
-
-Task(subagent_type: "golang-pro",
-     description: "Go-specific code review",
-     run_in_background: true,
-     prompt: "Review Go code for idiomatic patterns and best practices.
-             Write findings to .bob/state/review-go.md with severity levels.")
-
-Task(subagent_type: "debugger",
-     description: "Bug diagnosis and debugging review",
-     run_in_background: true,
-     prompt: "Perform systematic debugging analysis on the code:
-             - Potential null pointer dereferences and panic conditions
-             - Race conditions and concurrency bugs
-             - Resource leaks and error handling gaps
-             Write findings to .bob/state/review-debug.md with severity levels.")
-
-Task(subagent_type: "error-detective",
-     description: "Error pattern analysis review",
-     run_in_background: true,
-     prompt: "Analyze code for error handling patterns and potential failure modes:
-             - Error handling consistency and missing error checks
-             - Retry logic and failure recovery patterns
-             - Timeout and circuit breaker patterns
-             Write findings to .bob/state/review-errors.md with severity levels.")
+     prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
+             error handling, code quality, performance, Go idioms, architecture, and documentation.
+             Write consolidated report to .bob/state/review.md with severity levels and routing recommendation.")
 ```
-
-After all 9 agents complete, consolidate findings into `.bob/state/review.md`.
 
 **Output:** `.bob/state/review.md` (consolidated report)
 

@@ -144,7 +144,6 @@ All workflows store artifacts in `.bob/` directory within the worktree:
     plan.md          # Detailed implementation plan
     test-results.md  # Test execution results
     review.md        # Consolidated code review findings
-    review-*.md      # Specialized review reports
 ```
 
 These files persist across Claude sessions and serve as context for subsequent phases.
@@ -160,15 +159,7 @@ Each workflow phase uses specialized agents:
 | PLAN | workflow-planner | Create implementation plan |
 | EXECUTE | workflow-coder | Implement code |
 | TEST | workflow-tester | Run tests and checks |
-| REVIEW | workflow-reviewer | Multi-pass code review |
-| REVIEW | security-reviewer | Security vulnerability scan |
-| REVIEW | performance-analyzer | Performance analysis |
-| REVIEW | docs-reviewer | Documentation accuracy |
-| REVIEW | architect-reviewer | Architecture evaluation |
-| REVIEW | code-reviewer | Deep code quality review |
-| REVIEW | golang-pro | Go-specific review |
-| REVIEW | debugger | Bug diagnosis |
-| REVIEW | error-detective | Error pattern analysis |
+| REVIEW | review-consolidator | Multi-domain review: security, bugs, errors, quality, performance, Go idioms, architecture, docs |
 
 ## Flow Control Rules
 
@@ -220,7 +211,7 @@ Workflows enforce strict flow control:
 
 **Quality:**
 - TDD throughout (tests first)
-- Comprehensive multi-agent code review (9 specialized reviewers)
+- Comprehensive multi-domain code review (single consolidated reviewer)
 - Fix issues properly (re-brainstorm if needed)
 - Maintain code quality standards
 
@@ -254,17 +245,8 @@ Spawning workflow-tester agent...
 ✓ All tests passing, results in .bob/state/test-results.md
 
 [REVIEW Phase]
-Spawning 9 parallel reviewers...
-  ✓ Code quality review
-  ✓ Security review
-  ✓ Performance review
-  ✓ Documentation review
-  ✓ Architecture review
-  ✓ Code quality deep review
-  ✓ Go-specific review
-  ✓ Debugging review
-  ✓ Error pattern review
-Consolidating findings...
+Spawning review-consolidator...
+  ✓ Security, bugs, errors, quality, performance, Go idioms, architecture, docs
 ✓ 3 medium issues found in .bob/state/review.md
 
 [Loop to EXECUTE]

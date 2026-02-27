@@ -20,6 +20,7 @@ Invoke these workflows with slash commands:
 3. **`/bob:code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
 4. **`/bob:performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
 5. **`/bob:explore`** - Read-only codebase exploration
+6. **`/bob:new-specs`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -194,6 +195,35 @@ Workflows enforce strict flow control:
       ├── .bob/
       └── ...
 ```
+
+## Spec-Driven Module Pattern
+
+Some packages follow a **spec-driven** pattern where living specification documents accompany
+the code. Bob detects and enforces this pattern automatically.
+
+**Detection:** A module is spec-driven if its directory contains any of:
+- `SPECS.md` — interface contracts, behavioral invariants, edge cases
+- `NOTES.md` — design decisions with dated entries (append-only)
+- `TESTS.md` — test specifications: scenario, setup, assertions
+- `BENCHMARKS.md` — benchmark specs with Metric Targets table
+- `.go` files with the NOTE invariant: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
+
+**The invariant:** Any change to a `.go` file in a spec-driven module MUST be reflected in
+`SPECS.md` (API/contract changes) or `NOTES.md` (design decisions).
+
+**Bob's enforcement during `/bob:work`:**
+- BRAINSTORM: detect spec-driven modules in scope and note them in the brainstorm
+- EXECUTE: workflow-coder updates docs alongside code — no code change without doc update
+- REVIEW: review-consolidator checks that spec docs were updated with code changes
+
+**Creating a spec-driven module:** Use `/bob:new-specs`
+- New module: scaffold all docs and stub files
+- Existing module: generate docs from analysis, add NOTE headers to .go files
+
+**NOTES.md rules:**
+- Each entry: `## N. Title`, `*Added: YYYY-MM-DD*`, **Decision:**, **Rationale:**, **Consequence:**
+- Never delete entries — add `*Addendum (date):*` if a decision is reversed
+- New decisions go in new numbered sections at the end
 
 ## Best Practices
 

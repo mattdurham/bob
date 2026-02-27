@@ -346,6 +346,9 @@ Write the brainstorm prompt to `.bob/state/brainstorm-prompt.md`:
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
 Context: [If .bob/planning/ exists, note that PROJECT.md and REQUIREMENTS.md are available there]
+Spec-driven modules: [List any directories in scope that contain SPECS.md, NOTES.md, TESTS.md,
+  or BENCHMARKS.md — or any .go files with the NOTE invariant comment. These modules require
+  doc updates alongside code changes.]
 ```
 
 Then spawn the workflow-brainstormer agent:
@@ -411,6 +414,19 @@ Task(subagent_type: "workflow-coder",
              Use TDD: write tests first, verify they fail, then implement.
              Keep functions small (complexity < 40).
              Follow existing code patterns.
+
+             SPEC-DRIVEN MODULES: Before writing any code, check each target directory for
+             SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
+               // NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.
+             If found, this is a spec-driven module. You MUST:
+             - Update SPECS.md if you change any public API, contracts, or invariants
+             - Add a dated entry to NOTES.md for any new design decision made during implementation
+             - Update TESTS.md with scenario/setup/assertions for any new test functions
+             - Update BENCHMARKS.md and the Metric Targets table for any new benchmarks
+             - Add the NOTE invariant comment to any new .go files you create (except package-level files
+               with responsibility boundary comments)
+             - NEVER delete NOTES.md entries — add Addendum notes if a decision is reversed
+
              Working directory: [worktree-path]")
 ```
 

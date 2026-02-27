@@ -82,6 +82,18 @@ Task(subagent_type: "review-consolidator",
      run_in_background: true,
      prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
              error handling, code quality, performance, Go idioms, architecture, and documentation.
+
+             SPEC-DRIVEN MODULES: Check each changed directory for SPECS.md, NOTES.md, TESTS.md,
+             BENCHMARKS.md, or .go files with the NOTE invariant comment:
+               // NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.
+             If found, verify:
+             - SPECS.md was updated if any public API, contracts, or invariants changed (HIGH severity if not)
+             - NOTES.md has a new dated entry for any design decision made (MEDIUM severity if missing)
+             - TESTS.md was updated for any new test functions (MEDIUM severity if missing)
+             - BENCHMARKS.md was updated for any new benchmarks (MEDIUM severity if missing)
+             - New .go files have the NOTE invariant comment (LOW severity if missing)
+             Report spec-driven violations under a 'Spec-Driven Compliance' section in the review.
+
              Write consolidated report to .bob/state/review.md with severity levels and routing recommendation.")
 ```
 

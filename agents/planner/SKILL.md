@@ -40,6 +40,21 @@ Extract:
 - **Patterns**: Existing code patterns to follow
 - **Constraints**: Limitations and considerations
 
+### Step 1.5: Detect Spec-Driven Modules
+
+Check the brainstorm findings for a **"Spec-Driven Modules in Scope"** section. If present, these modules require doc updates alongside code changes.
+
+If the brainstorm doesn't include this section, detect spec-driven modules yourself by checking directories in scope for:
+- `SPECS.md`, `NOTES.md`, `TESTS.md`, `BENCHMARKS.md`
+- `.go` files with: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
+
+**For each spec-driven module found, the plan MUST include explicit doc update steps:**
+- Update `SPECS.md` if changing public API, contracts, or invariants
+- Add dated entry to `NOTES.md` for any new design decision
+- Update `TESTS.md` with scenario/setup/assertions for new test functions
+- Update `BENCHMARKS.md` for new benchmarks
+- Add NOTE invariant to any new `.go` files (except package-level files with responsibility boundary comments)
+
 ### Step 2: Break Down Into Steps
 
 Create concrete, ordered tasks:
@@ -47,11 +62,13 @@ Create concrete, ordered tasks:
 - What files to modify
 - What functions/types to add
 - Dependencies between tasks
+- **Spec doc updates** (for spec-driven modules)
 
 **Guidelines:**
 - Each step should be specific and actionable
 - Order matters (dependencies first)
 - Keep steps focused (one clear goal per step)
+- **Pair code changes with doc updates** — never plan a code change to a spec-driven module without a corresponding doc update step
 
 ### Step 3: Plan Tests First (TDD)
 
@@ -193,6 +210,23 @@ Write your plan to `.bob/state/plan.md`:
 - [ ] Check edge cases manually
 - [ ] Verify error messages are clear
 
+## Spec-Driven Module Updates
+
+[If any spec-driven modules are in scope, list the required doc updates here:]
+
+### Module: `path/to/module/`
+
+**Spec files present:** SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
+
+**Required updates:**
+- [ ] Update SPECS.md: [What API/contract changes to document]
+- [ ] Add NOTES.md entry: [Design decision title, rationale]
+- [ ] Update TESTS.md: [New test scenarios to document]
+- [ ] Update BENCHMARKS.md: [New benchmark entries if applicable]
+- [ ] Add NOTE invariant to new .go files: [List files]
+
+[If no spec-driven modules: omit this section]
+
 ## Edge Cases to Handle
 
 ### Edge Case 1: Empty Input
@@ -259,6 +293,7 @@ Write your plan to `.bob/state/plan.md`:
 - [ ] Edge cases handled
 - [ ] Errors properly handled
 - [ ] Code follows existing patterns
+- [ ] Spec-driven module docs updated (if applicable)
 
 ## Notes
 

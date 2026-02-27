@@ -89,6 +89,34 @@ Task(subagent_type: "Explore",
 - Libraries and dependencies in use
 - Test patterns and approaches
 
+### Step 2.5: Detect Spec-Driven Modules
+
+**Check every directory that will be touched by this task for spec-driven status.**
+
+A module is **spec-driven** if its directory contains any of:
+- `SPECS.md` — interface contracts, behavioral invariants
+- `NOTES.md` — design decisions (append-only, dated entries)
+- `TESTS.md` — test specifications
+- `BENCHMARKS.md` — benchmark specs with Metric Targets table
+- `.go` files with the NOTE invariant: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
+
+**Detection approach:**
+
+```bash
+# Search for spec files in directories relevant to the task
+find . -name "SPECS.md" -o -name "NOTES.md" -o -name "TESTS.md" -o -name "BENCHMARKS.md" | head -20
+```
+
+```bash
+# Search for NOTE invariant in .go files
+grep -rn "NOTE: Any changes to this file must be reflected" --include="*.go" | head -20
+```
+
+**If any spec-driven modules are found:**
+- List each module directory and which spec files it has
+- Note the constraint: code changes in these modules MUST include doc updates
+- Flag this prominently — it affects implementation strategy and review criteria
+
 ### Step 3: Append Research Findings
 
 Add findings to `.bob/state/brainstorm.md`:
@@ -256,6 +284,18 @@ Starting brainstorm process...
 - Table-driven tests in `*_test.go` files
 - Mock interfaces for external dependencies
 - High coverage expected (>80%)
+
+### Spec-Driven Modules in Scope
+
+[If any spec-driven modules were detected in Step 2.5, list them here:]
+
+**`internal/modules/queryplanner/`** — spec-driven
+- Has: SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
+- Constraint: Any code changes MUST update corresponding spec docs
+- New .go files MUST include NOTE invariant comment
+- NOTES.md entries are append-only (never delete)
+
+[If no spec-driven modules found: "No spec-driven modules detected in scope."]
 
 ## 2026-02-11 14:33:28 - Approaches Considered
 
@@ -443,9 +483,10 @@ You are done when you've written these sections:
 
 1. ✅ Task Received
 2. ✅ Research Findings (with concrete file paths)
-3. ✅ Approaches Considered (2-3 options)
-4. ✅ Recommendation (clear choice with rationale)
-5. ✅ BRAINSTORM COMPLETE (final signal)
+3. ✅ Spec-Driven Modules in Scope (detection results from Step 2.5)
+4. ✅ Approaches Considered (2-3 options)
+5. ✅ Recommendation (clear choice with rationale)
+6. ✅ BRAINSTORM COMPLETE (final signal)
 
 **The final section with "BRAINSTORM COMPLETE" is critical** - this signals to the orchestrator that you're done.
 

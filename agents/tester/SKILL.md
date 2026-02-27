@@ -141,6 +141,39 @@ go test -bench=. -benchmem ./...
 - Memory allocations
 - Performance metrics
 
+### Step 8: Verify Spec-Driven Doc Compliance
+
+**Check if any changed directories are spec-driven modules.**
+
+```bash
+# Find spec files in the repo
+find . -name "SPECS.md" -o -name "TESTS.md" -o -name "BENCHMARKS.md" | head -20
+```
+
+**If spec-driven modules exist in changed directories:**
+
+1. **Check TESTS.md alignment**: Look for new `Test*` functions that don't have corresponding entries in `TESTS.md`:
+   ```bash
+   # Find test function names in changed test files
+   grep -rn "^func Test" --include="*_test.go" path/to/module/
+   ```
+   Compare against entries documented in `TESTS.md`. Report any new test functions missing from TESTS.md.
+
+2. **Check BENCHMARKS.md alignment**: Look for new `Benchmark*` functions that don't have entries in `BENCHMARKS.md`:
+   ```bash
+   grep -rn "^func Benchmark" --include="*_test.go" path/to/module/
+   ```
+   Compare against entries in `BENCHMARKS.md`. Report any missing.
+
+3. **Check NOTE invariant on new .go files**: New `.go` files (not `_test.go`, not package doc files) should contain:
+   ```
+   // NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.
+   ```
+
+**Report findings in the Spec-Driven Compliance section of test results.**
+
+These are informational findings — the tester reports them, and the orchestrator decides routing.
+
 ## Test Result Analysis
 
 ### Interpreting Results
@@ -332,6 +365,17 @@ Response: internal server error
 \`\`\`
 BenchmarkProcessRequest-8    1000000    1234 ns/op    512 B/op    5 allocs/op
 \`\`\`
+
+## Spec-Driven Compliance
+
+[If spec-driven modules were found in changed directories:]
+
+**Module: `path/to/module/`**
+- New test functions missing from TESTS.md: [list or "none"]
+- New benchmarks missing from BENCHMARKS.md: [list or "none"]
+- New .go files missing NOTE invariant: [list or "none"]
+
+[If no spec-driven modules: "N/A — no spec-driven modules in changed directories"]
 
 ## Overall Assessment
 

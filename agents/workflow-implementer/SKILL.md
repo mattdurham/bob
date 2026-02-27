@@ -134,6 +134,35 @@ Extract:
 - Test requirements
 - Implementation steps
 
+### Step 2.5: Detect Spec-Driven Modules
+
+**Before writing any code**, check each target directory for spec-driven status:
+
+```bash
+# Check for spec files in directories you'll be modifying
+ls SPECS.md NOTES.md TESTS.md BENCHMARKS.md 2>/dev/null
+```
+
+```bash
+# Check for NOTE invariant in existing .go files
+grep -l "NOTE: Any changes to this file must be reflected" *.go 2>/dev/null
+```
+
+A directory is **spec-driven** if it contains any of: `SPECS.md`, `NOTES.md`, `TESTS.md`, `BENCHMARKS.md`, or `.go` files with the NOTE invariant comment.
+
+**If a module is spec-driven, you MUST:**
+- Update `SPECS.md` when changing public API, contracts, or invariants
+- Add a dated entry to `NOTES.md` for any new design decision (format: `## N. Title`, `*Added: YYYY-MM-DD*`, **Decision:**, **Rationale:**, **Consequence:**)
+- Update `TESTS.md` with scenario/setup/assertions for any new test functions
+- Update `BENCHMARKS.md` and the Metric Targets table for any new benchmarks
+- Add the NOTE invariant comment to any new `.go` files you create (except package-level files with responsibility boundary comments):
+  ```go
+  // NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.
+  ```
+- **NEVER delete NOTES.md entries** — add `*Addendum (date):*` if a decision is reversed
+
+**Do spec doc updates alongside code changes, not as an afterthought.** When you modify a function, update SPECS.md in the same step.
+
 ### Step 3: Implement Using TDD
 
 **For each feature/function:**
@@ -263,6 +292,18 @@ Status: COMPLETE / IN_PROGRESS
 **Complexity:** All functions < 40 (actual max: X)
 **Error Handling:** Explicit error handling throughout
 **Documentation:** All exported items documented
+
+---
+
+## Spec-Driven Compliance
+
+[If any spec-driven modules were modified:]
+- SPECS.md updated: ✅/❌ [what was updated]
+- NOTES.md entry added: ✅/❌ [entry title]
+- TESTS.md updated: ✅/❌ [what was documented]
+- BENCHMARKS.md updated: ✅/N/A
+- NOTE invariant on new .go files: ✅/N/A
+[If no spec-driven modules: "N/A — no spec-driven modules in scope"]
 
 ---
 

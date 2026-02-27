@@ -84,9 +84,29 @@ Include:
 - **Files to create/modify**: Exact paths from the plan
 - **Test requirements**: What tests to write
 - **Patterns to follow**: Reference existing code patterns
+- **Spec-driven modules**: List any spec-driven modules identified in the brainstorm or plan (see below)
 - **Feedback from prior iterations**: If looping back, include specific issues to fix
 
 If looping back from task-reviewer or code-quality, include the specific gaps or issues that need addressing.
+
+**Spec-driven module instructions for the implementation prompt:**
+
+Check `.bob/state/brainstorm.md` and `.bob/state/plan.md` for spec-driven modules. If any are listed, include this block in `.bob/state/implementation-prompt.md`:
+
+```markdown
+## Spec-Driven Modules
+
+The following directories are spec-driven and require doc updates alongside code:
+- `path/to/module/` — has SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
+
+You MUST:
+- Update SPECS.md if you change any public API, contracts, or invariants
+- Add a dated entry to NOTES.md for any new design decision
+- Update TESTS.md with scenario/setup/assertions for new test functions
+- Update BENCHMARKS.md for any new benchmarks
+- Add NOTE invariant to new .go files (except package-level files)
+- NEVER delete NOTES.md entries
+```
 
 ### Step 3: Spawn workflow-implementer
 
@@ -120,6 +140,8 @@ Check:
 - Read the error details
 - Update `.bob/state/implementation-prompt.md` with guidance to unblock
 - Loop back to Step 3 (re-spawn implementer)
+
+**Check spec-driven compliance:** If spec-driven modules were in scope, verify the implementation status includes a "Spec-Driven Compliance" section with all items checked. If spec docs were not updated, add this to the implementation prompt feedback and loop back to Step 3.
 
 ### Step 5: Spawn Reviewers in Parallel
 

@@ -162,6 +162,45 @@ Check for:
 - README commands or configs that no longer work
 - Stale comments describing removed functionality
 
+### Pass 9: Spec-Driven Compliance
+
+Focus: Verify that spec-driven modules have their documentation updated alongside code changes.
+
+**Detection:** For each changed directory, check for spec-driven status:
+
+```bash
+# Find spec files in changed directories
+find . -name "SPECS.md" -o -name "NOTES.md" -o -name "TESTS.md" -o -name "BENCHMARKS.md"
+```
+
+```bash
+# Find NOTE invariant in changed .go files
+grep -rn "NOTE: Any changes to this file must be reflected" --include="*.go"
+```
+
+A directory is spec-driven if it contains any of: `SPECS.md`, `NOTES.md`, `TESTS.md`, `BENCHMARKS.md`, or `.go` files with the NOTE invariant.
+
+**If spec-driven modules are found, verify:**
+
+| Check | Severity if Missing |
+|-------|-------------------|
+| SPECS.md updated when public API, contracts, or invariants changed | **HIGH** |
+| NOTES.md has new dated entry for design decisions made | **MEDIUM** |
+| TESTS.md updated for new test functions | **MEDIUM** |
+| BENCHMARKS.md updated for new benchmarks | **MEDIUM** |
+| New .go files have NOTE invariant comment | **LOW** |
+| NOTES.md entries were not deleted (append-only) | **HIGH** |
+
+**How to verify each:**
+- **SPECS.md**: Compare changed function signatures / exported types against SPECS.md content. If a new public function was added or an existing one changed, SPECS.md should reflect it.
+- **NOTES.md**: If the diff shows design decisions (new patterns, architectural choices, algorithm changes), there should be a corresponding dated entry.
+- **TESTS.md**: If new `Test*` or `Benchmark*` functions were added, they should have entries in TESTS.md.
+- **BENCHMARKS.md**: If new benchmarks were added, they should be documented with setup and metric targets.
+- **NOTE invariant**: New `.go` files (not package-level doc files) should contain: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
+- **Append-only**: Check git diff of NOTES.md — lines should only be added, never removed.
+
+Report violations under a **"Spec-Driven Compliance"** section in the review.
+
 ---
 
 ## Report Format
@@ -172,7 +211,7 @@ After all passes, write `.bob/state/review.md`:
 # Consolidated Code Review Report
 
 Generated: [ISO timestamp]
-Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation
+Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation, Spec-Driven Compliance
 
 ---
 
@@ -225,6 +264,7 @@ Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Perform
 - Go Idioms: [N] issues
 - Architecture: [N] issues
 - Documentation: [N] issues
+- Spec-Driven Compliance: [N] issues
 
 ---
 

@@ -39,7 +39,7 @@ Understand exploration goal:
 
 Create .bob/:
 ```bash
-mkdir -p .bob/state .bob/planning
+mkdir -p .bob/state
 ```
 
 ---

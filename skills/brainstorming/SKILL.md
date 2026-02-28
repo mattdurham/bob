@@ -1,6 +1,8 @@
 ---
-name: brainstorming
+name: bob:internal:brainstorming
 description: "You MUST use this before any creative work - creating features, building components, adding functionality, or modifying behavior. Explores user intent, requirements and design before implementation."
+user-invocable: false
+category: internal
 ---
 
 # Brainstorming Ideas Into Designs
@@ -17,19 +19,22 @@ I'll ask you some questions to make sure we're on the right track..."
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
-## .bob/planning/ Context
+## Spec-Driven Module Awareness
 
-If a `.bob/planning/` directory exists (created by `/bob:project`), read it first for project context:
-- `.bob/planning/PROJECT.md` — Vision, scope, technical decisions, constraints
-- `.bob/planning/REQUIREMENTS.md` — Requirements with REQ-IDs and acceptance criteria
-- `.bob/planning/CODEBASE.md` — Existing code analysis (if brownfield)
+Before brainstorming, check if any directories in scope contain SPECS.md, NOTES.md, TESTS.md,
+BENCHMARKS.md, or `.go` files with the NOTE invariant comment:
+```
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+```
 
-Use this context to inform your questions and proposals. Reference REQ-IDs when discussing requirements. Skip questions that are already answered in PROJECT.md. If `.bob/planning/` does not exist, proceed normally.
+If found, these are **spec-driven modules**. Use the existing SPECS.md as context for understanding
+the module's contracts and invariants. Reference NOTES.md for past design decisions to avoid
+re-litigating settled questions. Factor spec doc updates into any proposed approach.
 
 ## The Process
 
 **Understanding the idea:**
-- Check for `.bob/planning/` context first, then current project state (files, docs, recent commits)
+- Check for spec-driven modules in scope, then current project state (files, docs, recent commits)
 - Ask questions one at a time to refine the idea
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions

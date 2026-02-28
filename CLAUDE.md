@@ -6,7 +6,7 @@
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (bob:work, bob:code-review, bob:performance, bob:explore)
+- **Workflow Skills** - User-invocable workflows (bob:work-agents, bob:work-teams, bob:explore)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
@@ -15,12 +15,11 @@ Bob gives Claude access to:
 
 Invoke these workflows with slash commands:
 
-1. **`/bob:project`** - Project initialization (INIT → DISCOVER → QUESTION → RESEARCH → DEFINE → COMPLETE)
-2. **`/bob:work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-3. **`/bob:code-review`** - Code review and fixes (REVIEW → FIX → TEST → loop until clean)
-4. **`/bob:performance`** - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
-5. **`/bob:explore`** - Read-only codebase exploration
-6. **`/bob:new-specs`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+1. **`/bob:work`** - Simple direct workflow — no agents, no ceremony (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE)
+2. **`/bob:work-agents`** - Full development workflow with sequential subagents (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+3. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
+4. **`/bob:explore`** - Read-only codebase exploration
+5. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -29,7 +28,7 @@ See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 **Skills are orchestration layers:**
 
 ```
-Skill (/bob:work)
+Skill (/bob:work-agents)
   ↓
 Creates worktree & .bob directory
   ↓
@@ -41,8 +40,6 @@ Spawns specialized subagents:
   - workflow-reviewer agent (code review)
   ↓
 Manages artifacts in .bob/:
-  - .bob/planning/PROJECT.md (from /bob:project)
-  - .bob/planning/REQUIREMENTS.md (from /bob:project)
   - .bob/state/brainstorm.md
   - .bob/state/plan.md
   - .bob/state/test-results.md
@@ -69,7 +66,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/bob:work`, `/bob:code-review`, etc.
+After installation, skills are available via slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, etc.
 
 **Individual component installation:**
 ```bash
@@ -135,12 +132,7 @@ All workflows store artifacts in `.bob/` directory within the worktree:
 
 ```
 .bob/
-  planning/          # Project context (created by /bob:project)
-    PROJECT.md       # Vision, scope, technical decisions
-    REQUIREMENTS.md  # Traceable requirements with REQ-IDs
-    CODEBASE.md      # Existing code analysis (brownfield)
-    RESEARCH.md      # Technology research (optional)
-  state/             # Workflow progress (created by /bob:work, etc.)
+  state/             # Workflow progress (created by /bob:work-agents, etc.)
     brainstorm.md    # Research and approach decisions
     plan.md          # Detailed implementation plan
     test-results.md  # Test execution results
@@ -211,12 +203,12 @@ the code. Bob detects and enforces this pattern automatically.
 **The invariant:** Any change to a `.go` file in a spec-driven module MUST be reflected in
 `SPECS.md` (API/contract changes) or `NOTES.md` (design decisions).
 
-**Bob's enforcement during `/bob:work`:**
+**Bob's enforcement during `/bob:work-agents`:**
 - BRAINSTORM: detect spec-driven modules in scope and note them in the brainstorm
 - EXECUTE: workflow-coder updates docs alongside code — no code change without doc update
 - REVIEW: review-consolidator checks that spec docs were updated with code changes
 
-**Creating a spec-driven module:** Use `/bob:new-specs`
+**Creating a spec-driven module:** Use `/bob:design`
 - New module: scaffold all docs and stub files
 - Existing module: generate docs from analysis, add NOTE headers to .go files
 
@@ -248,7 +240,7 @@ the code. Bob detects and enforces this pattern automatically.
 ## Example Session
 
 ```
-You: /bob:work "Add rate limiting to API"
+You: /bob:work-agents "Add rate limiting to API"
 
 Claude: I'll orchestrate the work workflow...
 
@@ -351,7 +343,7 @@ If you previously used Bob as an MCP server:
 To migrate:
 1. Remove Bob MCP server from config: `claude mcp remove bob`
 2. Install Bob skills: `make install-skills`
-3. Use slash commands: `/bob:work`, `/bob:code-review`, etc.
+3. Use slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, etc.
 
 ---
 

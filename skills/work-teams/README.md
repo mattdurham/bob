@@ -4,7 +4,7 @@
 
 ## What Is This?
 
-`/bob:team-work` is a development workflow where multiple **teammate agents** work in parallel:
+`/bob:work-teams` is a development workflow where multiple **teammate agents** work in parallel:
 - **2 coder agents** claim tasks and implement features concurrently
 - **2 reviewer agents** review completed tasks incrementally as they finish
 - **Team lead** (you) coordinates through a shared task list and direct messaging
@@ -60,7 +60,7 @@ make install
 claude
 
 # In Claude Code:
-/bob:team-work "Add rate limiting to API"
+/bob:work-teams "Add rate limiting to API"
 ```
 
 The workflow will:
@@ -104,7 +104,7 @@ Type to message selected teammate
 ### Example Session
 
 ```
-You: /bob:team-work "Add user authentication"
+You: /bob:work-teams "Add user authentication"
 
 [INIT]
 ✓ Experimental flag verified
@@ -196,9 +196,9 @@ Teammates communicate through messages:
 [coder-1 → reviewer-1]: "Fixed the nil check, can you re-review?"
 ```
 
-## Comparison with bob:work
+## Comparison with bob:work-agents
 
-| Aspect | bob:work | bob:team-work |
+| Aspect | bob:work-agents | bob:work-teams |
 |--------|----------|---------------|
 | **Execution** | Sequential | Concurrent |
 | **Agents** | 1 coder, 1 reviewer | 2 coders, 2 reviewers (teammates) |
@@ -210,14 +210,14 @@ Teammates communicate through messages:
 
 ## When to Use
 
-### Use bob:team-work When:
+### Use bob:work-teams When:
 
 ✅ **Complex features** - Multiple files, components, layers
 ✅ **Large implementations** - 10+ tasks, hours of work
 ✅ **Quality-critical** - Need thorough incremental review
 ✅ **Parallel-friendly** - Independent modules or components
 
-### Use bob:work (Sequential) When:
+### Use bob:work-agents (Sequential) When:
 
 ✅ Simple, small tasks (single file, quick fixes)
 ✅ Exploratory work (requirements unclear)
@@ -281,9 +281,6 @@ During the workflow, these files are created in the worktree:
     plan.md                 # Implementation plan
     test-results.md         # Test execution results
     review.md               # Final review findings
-  planning/                 # Optional (from /bob:project)
-    PROJECT.md              # Project context
-    REQUIREMENTS.md         # Requirements with REQ-IDs
 ```
 
 ## Advanced Usage
@@ -334,7 +331,7 @@ Request specific review focus:
 ## Resources
 
 - **Design doc**: `docs/team-work-design.md`
-- **Skill definition**: `skills/team-work/SKILL.md`
+- **Skill definition**: `skills/work-teams/SKILL.md`
 - **Agent definitions**:
   - `agents/team-coder/SKILL.md`
   - `agents/team-reviewer/SKILL.md`
@@ -345,7 +342,7 @@ Request specific review focus:
 **Issues or questions?**
 - Check the troubleshooting section above
 - Read `docs/team-work-design.md` for detailed architecture
-- Ask Claude: "How does bob:team-work work?"
+- Ask Claude: "How does bob:work-teams work?"
 
 ---
 

@@ -1,6 +1,8 @@
 ---
-name: writing-plans
+name: bob:internal:writing-plans
 description: Use when you have a spec or requirements for a multi-step task, before touching code
+user-invocable: false
+category: internal
 ---
 
 # Writing Plans
@@ -14,7 +16,7 @@ Spawn a subagent to write comprehensive implementation plans assuming the engine
 **Process:**
 1. Spawn workflow-planner subagent with background execution
 2. Subagent reads design from `.bob/state/design.md`
-3. If `.bob/planning/` exists, subagent also reads `.bob/planning/PROJECT.md` and `.bob/planning/REQUIREMENTS.md` for project context and acceptance criteria
+3. Subagent checks for spec-driven modules (SPECS.md, NOTES.md) in scope and includes doc update steps
 4. Subagent writes plan to `.bob/state/plan.md`
 5. Wait for completion notification
 
@@ -102,9 +104,9 @@ Task(subagent_type: "workflow-planner",
      description: "Create implementation plan",
      run_in_background: true,
      prompt: "Read the design from .bob/state/design.md.
-             If .bob/planning/ directory exists, also read .bob/planning/PROJECT.md
-             and .bob/planning/REQUIREMENTS.md for project context and acceptance criteria.
-             Reference REQ-IDs in tasks where applicable.
+             Check if any directories in scope contain SPECS.md, NOTES.md, TESTS.md,
+             or BENCHMARKS.md — these are spec-driven modules. If found, include
+             explicit steps for updating spec docs alongside code changes.
 
      Create a concrete, bite-sized implementation plan.
 

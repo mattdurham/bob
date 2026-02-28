@@ -491,8 +491,23 @@ install-worktree:
 	@chmod +x "$$HOME/.local/bin/create-worktree"
 	@echo "✅ Installed to ~/.local/bin/create-worktree"
 	@echo ""
-	@SHELL_RC=""; \
-	if [ -n "$$ZSH_VERSION" ] || [ -f "$$HOME/.zshrc" ]; then \
+	@FISH_CONFIG="$$HOME/.config/fish/config.fish"; \
+	SHELL_RC=""; \
+	if [ -f "$$FISH_CONFIG" ] || echo "$$SHELL" | grep -q "fish"; then \
+		if grep -q "^function worktree" "$$FISH_CONFIG" 2>/dev/null; then \
+			echo "✅ Fish function already exists in $$FISH_CONFIG"; \
+		else \
+			echo "Adding worktree function to $$FISH_CONFIG..."; \
+			mkdir -p "$$HOME/.config/fish"; \
+			echo "" >> "$$FISH_CONFIG"; \
+			echo "# Git worktree helper function - creates worktree in ../<repo>-worktrees/<branch> and cd's to it" >> "$$FISH_CONFIG"; \
+			echo "function worktree" >> "$$FISH_CONFIG"; \
+			echo "    set -l branch \$$argv[1]" >> "$$FISH_CONFIG"; \
+			echo "    create-worktree \$$branch; and cd (git rev-parse --show-toplevel)/../(basename (git rev-parse --show-toplevel))-worktrees/\$$branch" >> "$$FISH_CONFIG"; \
+			echo "end" >> "$$FISH_CONFIG"; \
+			echo "✅ Added worktree function to $$FISH_CONFIG"; \
+		fi; \
+	elif [ -n "$$ZSH_VERSION" ] || [ -f "$$HOME/.zshrc" ]; then \
 		SHELL_RC="$$HOME/.zshrc"; \
 	elif [ -n "$$BASH_VERSION" ] || [ -f "$$HOME/.bashrc" ]; then \
 		SHELL_RC="$$HOME/.bashrc"; \
@@ -510,21 +525,15 @@ install-worktree:
 			echo "}" >> "$$SHELL_RC"; \
 			echo "✅ Added worktree() function to $$SHELL_RC"; \
 		fi; \
-	else \
-		echo "⚠️  Could not detect shell RC file"; \
-		echo "Add this to your ~/.bashrc or ~/.zshrc:"; \
-		echo ""; \
-		echo "  worktree() {"; \
-		echo "      local branch=\"\$$1\""; \
-		echo "      create-worktree \"\$$branch\" && cd \"\$$(git rev-parse --show-toplevel)/../\$$(basename \$$(git rev-parse --show-toplevel))-worktrees/\$$branch\""; \
-		echo "  }"; \
 	fi
 	@echo ""
 	@echo "Usage:"
 	@echo "  worktree <branch-name>    - Create worktree and switch to it"
 	@echo ""
 	@echo "🔄 Reload your shell to use the worktree command:"
-	@if [ -f "$$HOME/.zshrc" ]; then \
+	@if echo "$$SHELL" | grep -q "fish"; then \
+		echo "  source ~/.config/fish/config.fish"; \
+	elif [ -f "$$HOME/.zshrc" ]; then \
 		echo "  source ~/.zshrc"; \
 	elif [ -f "$$HOME/.bashrc" ]; then \
 		echo "  source ~/.bashrc"; \
@@ -532,8 +541,13 @@ install-worktree:
 	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
 		echo ""; \
 		echo "⚠️  Warning: ~/.local/bin is not in your PATH"; \
-		echo "Add this to your ~/.bashrc or ~/.zshrc:"; \
-		echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		if echo "$$SHELL" | grep -q "fish"; then \
+			echo "Add this to your ~/.config/fish/config.fish:"; \
+			echo "  fish_add_path ~/.local/bin"; \
+		else \
+			echo "Add this to your ~/.bashrc or ~/.zshrc:"; \
+			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		fi; \
 	fi
 
 # Apply permissions from config to ~/.claude/settings.json

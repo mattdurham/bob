@@ -217,6 +217,49 @@ the code. Bob detects and enforces this pattern automatically.
 - Never delete entries — add `*Addendum (date):*` if a decision is reversed
 - New decisions go in new numbered sections at the end
 
+## Simple Spec Mode
+
+For modules where the full spec pattern (4 markdown files) is too heavy, Bob supports a
+**simple spec mode** using a single `CLAUDE.md` file per directory.
+
+**Detection:** A module uses simple specs if its directory contains:
+- `CLAUDE.md` — numbered invariants, axioms, assumptions, non-obvious constraints
+- No `SPECS.md` (the presence of SPECS.md means full mode takes precedence)
+
+**CLAUDE.md rules:**
+- Keep them tidy
+- They contain only numbered invariants, axioms, assumptions, and non-obvious constraints
+- Never add anything trivial, ephemeral, or obviously derivable from reading the code
+- NEVER include copies of the code itself
+
+**Example CLAUDE.md:**
+```markdown
+# ratelimit — Invariants
+
+1. The TokenBucket interface is the sole entry point; all callers must go through it.
+2. Refill is atomic — concurrent Acquire calls never see a partially refilled bucket.
+3. The package never persists state — persistence is the caller's responsibility.
+4. Thread-safe only if the underlying Store is thread-safe.
+```
+
+**No NOTE invariant on .go files.** Claude Code natively loads CLAUDE.md, so no per-file
+reminder is needed.
+
+**Enforcement during workflows:**
+- BRAINSTORM: detect simple spec modules and note them
+- EXECUTE: update CLAUDE.md if any numbered invariant changes
+- REVIEW: verify CLAUDE.md invariants are still accurate
+
+**Creating a simple spec module:** Use `/bob:design` (installed via `make install SPEC=simple`)
+
+**Three-way detection summary:**
+
+| Directory contains | Mode | Enforcement |
+|---|---|---|
+| SPECS.md (with or without CLAUDE.md) | Full spec | 4 files + NOTE invariant |
+| CLAUDE.md only (no SPECS.md) | Simple spec | CLAUDE.md invariants only |
+| Neither | Not spec-driven | No spec enforcement |
+
 ## Best Practices
 
 **Orchestration:**

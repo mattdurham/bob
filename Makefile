@@ -2,6 +2,7 @@
 # Makefile for installing Bob workflow skills and subagents
 
 WORKFLOW ?= pr
+SPEC ?= full
 
 .PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean
 
@@ -13,6 +14,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make install                  - Install everything (skills + agents + LSP) [RECOMMENDED]"
+	@echo "  make install SPEC=simple      - Install with simple spec mode (CLAUDE.md only per folder)"
 	@echo "  make install WORKFLOW=local   - Install with local workflow mode (no auto-PR)"
 	@echo "  make install-skills           - Install workflow skills to Claude Code"
 	@echo "  make install-agents           - Install specialized subagents to Claude Code"
@@ -53,15 +55,26 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans work-teams design; do \
+	for skill in work work-agents explore brainstorming writing-plans work-teams; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
-			cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				cp "skills/$$skill/SKILL.simple.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			else \
+				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			fi; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
-	done
+	done; \
+	echo "   Installing design skill (SPEC=$(SPEC))..."; \
+	mkdir -p "$$SKILLS_DIR/design"; \
+	if [ "$(SPEC)" = "simple" ]; then \
+		cp "skills/design-simple/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
+	else \
+		cp "skills/design/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
+	fi
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	echo "   Generating bob:version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
@@ -122,11 +135,22 @@ install-crush-skills:
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \
-			cp "skills/$$skill/SKILL.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				cp "skills/$$skill/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+			else \
+				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			fi; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
-	done
+	done; \
+	echo "   Installing design skill (SPEC=$(SPEC))..."; \
+	mkdir -p "$$CRUSH_SKILLS_DIR/design"; \
+	if [ "$(SPEC)" = "simple" ]; then \
+		cp "skills/design-simple/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
+	else \
+		cp "skills/design/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
+	fi
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	echo "   Generating bob-version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
@@ -182,7 +206,11 @@ install-crush-agents:
 				agent=$$(basename "$$agent_dir"); \
 				echo "   Installing $$agent agent..."; \
 				mkdir -p "$$CRUSH_SKILLS_DIR/$$agent"; \
-				cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+					cp "$$agent_dir/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				else \
+					cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				fi; \
 				if [ -f "$$agent_dir/style.md" ]; then \
 					cp "$$agent_dir/style.md" "$$CRUSH_SKILLS_DIR/$$agent/style.md"; \
 				fi; \
@@ -213,7 +241,11 @@ install-agents:
 				agent=$$(basename "$$agent_dir"); \
 				echo "   Installing $$agent agent..."; \
 				mkdir -p "$$AGENTS_DIR/$$agent"; \
-				cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+					cp "$$agent_dir/SKILL.simple.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				else \
+					cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				fi; \
 				if [ -f "$$agent_dir/style.md" ]; then \
 					cp "$$agent_dir/style.md" "$$AGENTS_DIR/$$agent/style.md"; \
 				fi; \

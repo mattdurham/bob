@@ -76,3 +76,4 @@ changed, but only deliberately.
 - **Explore alternatives** - Always propose 2-3 approaches before settling
 - **Incremental validation** - Present design in sections, validate each
 - **Be flexible** - Go back and clarify when something doesn't make sense
+- **ALWAYS ask questions** - This skill is interactive by design. "Don't-ask mode" is a permission setting for tool approvals — it does NOT mean skip design questions. Never short-circuit brainstorming by dumping a "full recommendation" without asking the user first. The user wants to be consulted on design decisions.

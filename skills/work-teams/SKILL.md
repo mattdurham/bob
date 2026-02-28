@@ -1,6 +1,6 @@
 ---
 name: bob:work-teams
-description: Team-based development workflow using experimental agent teams - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR
+description: Team-based development workflow using experimental agent teams - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMPLETE
 user-invocable: true
 category: workflow
 requires_experimental: agent_teams
@@ -42,11 +42,13 @@ Without this flag, the workflow will fail.
 ## Workflow Diagram
 
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW → COMMIT → MONITOR → COMPLETE
-                      ↑                                  ↓          ↓           ↓
-                      └──────────────────────────────────┴──────────┴───────────┘
+INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW → COMPLETE
+                      ↑                                  ↓          ↓
+                      └──────────────────────────────────┴──────────┘
                                         (loop back on issues)
 ```
+
+The final REVIEW phase invokes `/bob:code-review`, which handles REVIEW → FIX → TEST → COMMIT → MONITOR internally.
 
 **Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
 
@@ -121,7 +123,7 @@ Coordination:
 - ✅ Message teammates directly
 - ✅ Read files to make routing decisions
 - ✅ Run `cd` to switch working directory (after WORKTREE phase)
-- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`)
+- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`, `/bob:code-review`)
 - ✅ Display brief status updates to the user between phases
 - ✅ Clean up team when workflow complete
 
@@ -149,9 +151,9 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 | Teammates complete tasks | Monitor and wait for all complete | No |
 | Tasks approved | Route to next phase immediately | No |
 | Review creates fix tasks | Teammates pick them up automatically | No — just log what happened |
-| Review finds CRITICAL/HIGH issues | Loop to BRAINSTORM | No — log findings, explain routing, loop |
+| Review finds CRITICAL/HIGH issues | code-review loops to BRAINSTORM internally | No — code-review routes automatically |
 | All tasks complete and approved | Proceed to TEST | No |
-| MONITOR finds CI failures | Loop to BRAINSTORM | No — log failures, loop |
+| CI failures | code-review loops to REVIEW internally | No — code-review routes automatically |
 | Teammate fails with error | Message teammate to debug/retry | Only if unresolvable |
 | COMPLETE phase (merge PR) | Confirm with user | **Yes — only prompt in entire workflow** |
 
@@ -705,72 +707,15 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 
 ## Phase 8: REVIEW
 
-**Goal:** Final comprehensive code review
+**Goal:** Shut down team and run final comprehensive code review, fix, commit, and CI monitoring
 
 Even though incremental reviews happened during EXECUTE, this phase does a final holistic review of the complete changeset.
 
 **Actions:**
 
-Spawn review-consolidator agent:
-
-```
-Task(subagent_type: "review-consolidator",
-     description: "Comprehensive code review",
-     run_in_background: true,
-     prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
-             error handling, code quality, performance, Go idioms, architecture, and documentation.
-
-             SPEC-DRIVEN MODULES: Check each changed directory for SPECS.md, NOTES.md, TESTS.md,
-             BENCHMARKS.md, or .go files with the NOTE invariant comment:
-               // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
-             If found, verify:
-             - SPECS.md was updated if any public API, contracts, or invariants changed (HIGH severity if not)
-             - NOTES.md has a new dated entry for any design decision made (MEDIUM severity if missing)
-             - TESTS.md was updated for any new test functions (MEDIUM severity if missing)
-             - BENCHMARKS.md was updated for any new benchmarks (MEDIUM severity if missing)
-             - New .go files have the NOTE invariant comment (LOW severity if missing)
-             Report spec-driven violations under a 'Spec-Driven Compliance' section in the review.
-
-             Write consolidated report to .bob/state/review.md with:
-             - Issues grouped by severity
-             - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
-             - Recommendation (based solely on severity distribution):
-               * If ANY CRITICAL or HIGH issues found → Recommendation: BRAINSTORM
-               * If only MEDIUM or LOW issues found → Recommendation: EXECUTE
-               * If NO issues found → Recommendation: COMMIT
-
-             Working directory: [worktree-path]")
-```
-
-**Input:** Code changes, `.bob/state/plan.md`
-**Output:** `.bob/state/review.md` (consolidated report)
-
-<routing_rule>
-Read `.bob/state/review.md`.
-Route based on recommendation:
-| Recommendation | Route to | Action |
-|----------------|----------|--------|
-| BRAINSTORM | BRAINSTORM | Loop immediately |
-| EXECUTE | EXECUTE | Create fix tasks, message coders |
-| COMMIT | COMMIT | Proceed immediately |
-</routing_rule>
-
----
-
-## Phase 9: COMMIT
-
-**Goal:** Commit changes and create a PR
-
-<prerequisite>
-BEFORE entering COMMIT phase, verify `.bob/state/review.md` exists.
-If the file does not exist: STOP immediately and return to REVIEW phase.
-</prerequisite>
-
-**Actions:**
-
 **Step 1: Shut down teammates**
 
-Before committing, gracefully shut down all teammates:
+Before reviewing, gracefully shut down all teammates:
 
 ```
 "Ask coder-1 teammate to shut down"
@@ -781,48 +726,25 @@ Before committing, gracefully shut down all teammates:
 
 Wait for each teammate to confirm shutdown.
 
-**Step 2: Commit and create PR**
+**Step 2: Invoke code-review**
 
-Spawn commit-agent to handle all git operations:
+Invoke the code-review skill:
 ```
-Task(subagent_type: "commit-agent",
-     description: "Commit and create PR",
-     run_in_background: true,
-     prompt: "1. Verify .bob/state/review.md exists
-             2. Run git status and git diff
-             3. Stage relevant files
-             4. Create commit
-             5. Push branch and create PR
-             Working directory: [worktree-path]")
+Invoke: /bob:code-review
 ```
+
+The code-review skill handles the complete cycle:
+1. Multi-domain code review (security, bugs, errors, quality, performance, Go idioms, architecture, docs)
+2. Spec-driven compliance check (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+3. FIX loop — fixes issues, re-runs tests until clean
+4. Creates commit and pushes PR (commit-agent)
+5. Monitors CI (monitor-agent)
+
+After code-review completes, proceed to COMPLETE.
 
 ---
 
-## Phase 10: MONITOR
-
-**Goal:** Monitor CI/PR checks and handle feedback
-
-**Actions:**
-
-Spawn monitor-agent:
-```
-Task(subagent_type: "monitor-agent",
-     description: "Check CI and PR status",
-     run_in_background: true,
-     prompt: "Check CI/CD status and PR feedback.
-             Write results to .bob/state/monitor-results.md with STATUS: PASS or FAIL.
-             Working directory: [worktree-path]")
-```
-
-<routing_rule>
-Read `.bob/state/monitor-results.md`:
-- STATUS: PASS → Proceed to COMPLETE
-- STATUS: FAIL → Loop to BRAINSTORM (re-create team if needed)
-</routing_rule>
-
----
-
-## Phase 11: COMPLETE
+## Phase 9: COMPLETE
 
 **Goal:** Workflow complete
 

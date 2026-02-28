@@ -1,6 +1,6 @@
 ---
 name: bob:work-agents
-description: Full development workflow orchestrator - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR
+description: Full development workflow orchestrator - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
 user-invocable: true
 category: workflow
 ---
@@ -15,11 +15,13 @@ You are orchestrating a **full development workflow**. You coordinate specialize
 ## Workflow Diagram
 
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-                      ↑                                    ↓               ↓
-                      └────────────────────────────────────┴───────────────┘
-                                    (loop back on issues)
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
+                      ↑                            ↓
+                      └────────────────────────────┘
+                              (loop back on issues)
 ```
+
+The REVIEW phase invokes `/bob:code-review`, which handles REVIEW → FIX → TEST → COMMIT → MONITOR internally.
 
 <strict_enforcement>
 All phases MUST be executed in the exact order specified.
@@ -31,9 +33,10 @@ Each phase has specific prerequisites that MUST be satisfied before proceeding.
 ## Flow Control Rules
 
 **Loop-back paths (the ONLY exceptions to forward progression):**
-- **REVIEW → BRAINSTORM**: Issues found during review require re-brainstorming
-- **MONITOR → BRAINSTORM**: CI failures or PR feedback require re-brainstorming
+- **REVIEW → BRAINSTORM**: CRITICAL/HIGH issues found during review require re-brainstorming (code-review routes this internally)
 - **TEST → EXECUTE**: Test failures require code fixes
+
+Note: MONITOR is handled inside `/bob:code-review`. CI failures loop back to REVIEW within that skill.
 
 <critical_gate>
 REVIEW phase is MANDATORY - it cannot be skipped even if tests pass.
@@ -77,7 +80,7 @@ Task(subagent_type: "any-agent",
 - ✅ Read `.bob/` files to make routing decisions
 - ✅ Spawn subagents via Task tool
 - ✅ Run `cd` to switch working directory (after WORKTREE phase)
-- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`)
+- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`, `/bob:code-review`)
 - ✅ Display brief status updates to the user between phases
 
 **Orchestrator CANNOT:**
@@ -160,11 +163,9 @@ The workflow runs autonomously from INIT through COMMIT. The orchestrator's job 
 |-----------|--------|--------------|
 | Agent completes successfully | Route to next phase immediately | No |
 | Tests fail | Loop to EXECUTE with failure details | No — just log what failed and loop |
-| Review finds MEDIUM/LOW issues | Loop to EXECUTE with fix list | No — just log findings and loop |
-| Review finds CRITICAL/HIGH issues | Loop to BRAINSTORM | No — log findings, explain routing, loop |
-| Review finds no issues | Proceed to COMMIT | No |
+| Review finds issues (any severity) | code-review handles fix loop internally | No — code-review routes automatically |
+| Review complete (clean) | code-review commits and proceeds to COMPLETE | No |
 | Loop-back occurs | Log why, continue automatically | No |
-| MONITOR finds CI failures | Loop to BRAINSTORM | No — log failures, loop |
 | Agent fails with error | Retry once automatically | Only if retry also fails |
 | COMPLETE phase (merge PR) | Confirm with user | **Yes — only prompt in entire workflow** |
 
@@ -192,13 +193,8 @@ Starting EXECUTE phase...
 ```
 
 <hard_gate>
-NEVER skip REVIEW to go directly to COMMIT.
-REVIEW must complete first - no exceptions.
-</hard_gate>
-
-<hard_gate>
-NEVER proceed to COMMIT unless `.bob/state/review.md` exists.
-This file is proof REVIEW ran - without it, STOP and go back to REVIEW.
+NEVER skip REVIEW.
+REVIEW must complete (via /bob:code-review) before proceeding to COMPLETE.
 </hard_gate>
 
 ---
@@ -510,146 +506,27 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 
 ## Phase 7: REVIEW
 
-**Goal:** Comprehensive code review across all quality domains
+**Goal:** Comprehensive code review, fix, commit, and CI monitoring
 
 **Actions:**
 
-Spawn a single review-consolidator agent that performs all review passes and writes a consolidated report:
-
+Invoke the code-review skill:
 ```
-Task(subagent_type: "review-consolidator",
-     description: "Comprehensive code review",
-     run_in_background: true,
-     prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
-             error handling, code quality, performance, Go idioms, architecture, and documentation.
-
-             IMPORTANT: Report findings objectively. Provide a routing recommendation
-             based solely on severity distribution. Do NOT make subjective judgments about acceptability.
-
-             Write consolidated report to .bob/state/review.md with:
-             - Issues grouped by severity
-             - Summary counts (e.g., '3 CRITICAL, 5 HIGH, 12 MEDIUM, 8 LOW')
-             - Recommendation (based solely on severity distribution):
-               * If ANY CRITICAL or HIGH issues found → Recommendation: BRAINSTORM
-               * If only MEDIUM or LOW issues found → Recommendation: EXECUTE
-               * If NO issues found → Recommendation: COMMIT
-
-             Do not add subjective conclusions like 'code quality is good' or 'acceptable to proceed'.
-             Just report counts and the rule-based recommendation.
-
-             Working directory: [worktree-path]")
+Invoke: /bob:code-review
 ```
 
-**Input:** Code changes, `.bob/state/plan.md`
-**Output:** `.bob/state/review.md` (consolidated report)
+The code-review skill handles the complete cycle:
+1. Multi-domain code review (security, bugs, errors, quality, performance, Go idioms, architecture, docs)
+2. Spec-driven compliance check (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+3. FIX loop — fixes issues, re-runs tests until clean
+4. Creates commit and pushes PR (commit-agent)
+5. Monitors CI (monitor-agent)
 
-**Step 3: Read review.md and route**
-
-<routing_rule>
-Read `.bob/state/review.md` (read-only).
-The consolidator includes a **Recommendation** line.
-Route based on that recommendation - no exceptions, no override:
-
-| Recommendation in review.md | Route to | Action |
-|------------------------------|----------|--------|
-| BRAINSTORM (CRITICAL/HIGH) | BRAINSTORM | Log findings summary, loop immediately |
-| EXECUTE (MEDIUM/LOW) | EXECUTE | Log findings summary, loop immediately |
-| COMMIT (clean) | COMMIT | Log "clean review", proceed immediately |
-
-Auto-continue - never prompt. Log a brief status line and proceed.
-</routing_rule>
-
-**Error Handling:**
-
-- **Any agent fails:** Abort review, report to user, retry once
-- **Empty results:** Valid (agent found no issues)
-- **Consolidation fails:** Show individual files to user, ask for manual review
+After code-review completes, proceed to COMPLETE.
 
 ---
 
-## Phase 8: COMMIT
-
-**Goal:** Commit changes and create a PR
-
-<prerequisite>
-BEFORE entering COMMIT phase, verify `.bob/state/review.md` exists.
-If the file does not exist: STOP immediately and return to REVIEW phase.
-NEVER commit unreviewed code under any circumstances.
-</prerequisite>
-
-**Actions:**
-
-Spawn commit-agent to handle all git operations:
-```
-Task(subagent_type: "commit-agent",
-     description: "Commit and create PR",
-     run_in_background: true,
-     prompt: "1. Verify .bob/state/review.md exists (hard gate)
-             2. Run git status and git diff to review changes
-             3. Stage relevant files (never git add -A)
-             4. Create commit with descriptive message
-             5. Push branch and create PR via gh pr create
-             Working directory: [worktree-path]")
-```
-
-**The orchestrator does NOT run git commands.** The commit-agent handles everything.
-
----
-
-## Phase 9: MONITOR
-
-**Goal:** Monitor CI/PR checks and handle feedback
-
-**Actions:**
-
-Spawn monitor-agent to check CI and PR status:
-```
-Task(subagent_type: "monitor-agent",
-     description: "Check CI and PR status",
-     run_in_background: true,
-     prompt: "Check CI/CD status and PR feedback:
-
-             IMPORTANT: Report findings objectively. Do NOT determine if failures are
-             acceptable or make recommendations. The orchestrator will route based on
-             your findings.
-
-             1. Run: gh pr checks --json name,status,conclusion
-             2. Check for PR review comments and requested changes
-             3. Write results to .bob/state/monitor-results.md with:
-                - STATUS: (determine from check results)
-                  * PASS if all checks succeeded and no review change requests
-                  * FAIL if any checks failed OR review changes requested
-                - All CI check results with WHAT, WHY, WHERE:
-                  * WHAT: Check name and result (passed/failed)
-                  * WHY: Error message or failure reason if failed
-                  * WHERE: Which job, step, or file caused failure
-                - All PR review comments with full context
-                - All requested changes with explanations
-
-             Example CI failure format:
-             "Test Suite (ubuntu-latest) FAILED: 3 tests failed in auth package. Error: 'TestLogin: expected 200, got 401. Invalid credentials.'"
-
-             Do not add recommendations or conclusions about what to do next.
-             Just report the status and details with full context.
-
-             Working directory: [worktree-path]")
-```
-
-<routing_rule>
-After MONITOR completes, read `.bob/state/monitor-results.md` and route:
-- STATUS: PASS → Proceed to COMPLETE (next phase in sequence)
-- STATUS: FAIL → Loop to BRAINSTORM immediately (no prompt, automatic)
-</routing_rule>
-
-<critical_routing>
-MONITOR ALWAYS loops to BRAINSTORM when issues are found.
-NEVER loop from MONITOR to REVIEW or EXECUTE directly.
-CI failures require re-thinking the approach from scratch.
-</critical_routing>
-
----
-
-## Phase 10: COMPLETE
+## Phase 8: COMPLETE
 
 **Goal:** Workflow complete
 
@@ -714,7 +591,7 @@ TEST:
   workflow-tester(code) → .bob/state/test-results.md
 
 REVIEW:
-  review-consolidator(code, .bob/state/plan.md) → .bob/state/review.md
+  /bob:code-review → (review + fix loop + commit + CI monitor)
 ```
 
 ---
@@ -728,14 +605,10 @@ REVIEW:
 - Stay lean — orchestrator context should remain small
 
 **Flow Control:**
-- Execute phases in exact order: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+- Execute phases in exact order: INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
 - Drive forward relentlessly — only prompt at COMPLETE (merge confirmation)
-- Loop-back rules are the ONLY exception to forward progression
-- MONITOR → BRAINSTORM (never to REVIEW or EXECUTE)
-- TEST → EXECUTE (never skip directly to REVIEW)
-- REVIEW → BRAINSTORM or EXECUTE (based on severity)
+- TEST → EXECUTE is the ONLY outer loop-back; all REVIEW loop-backs are internal to `/bob:code-review`
 - NEVER skip REVIEW phase
-- NEVER proceed to COMMIT without `.bob/state/review.md` existing
 - Validate test passage via `.bob/state/test-results.md` before REVIEW
 
 **Quality:**

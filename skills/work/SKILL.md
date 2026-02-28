@@ -1,6 +1,6 @@
 ---
 name: bob:work
-description: Simple direct workflow - no agents, no ceremony. INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
+description: Simple direct workflow - no agents, no ceremony. INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
 user-invocable: true
 category: workflow
 ---
@@ -14,10 +14,10 @@ You are executing a **direct development workflow**. No subagents, no orchestrat
 ## Workflow Diagram
 
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
 ```
 
-No loop-backs. No severity routing. Fix issues inline as you encounter them.
+No loop-backs in the outer workflow. The REVIEW phase invokes `/bob:code-review`, which handles its own FIX loop, commit, and CI monitoring.
 
 ---
 
@@ -186,61 +186,29 @@ Do not proceed until tests pass. Fix issues inline — no separate EXECUTE loop.
 
 ## Phase 7: REVIEW
 
-**Goal:** Lightweight self-review via git diff.
+**Goal:** Comprehensive code review, fix, commit, and CI monitoring.
 
 **Actions:**
 
-1. Review all changes:
-   ```bash
-   git diff
-   git diff --stat
-   ```
+Invoke the code-review skill:
+```
+Invoke: /bob:code-review
+```
 
-2. Check for common issues:
-   - Security: SQL injection, command injection, XSS, hardcoded secrets
-   - Bugs: nil pointer dereferences, off-by-one errors, unchecked errors
-   - Quality: functions too long, unclear naming, missing error handling
-   - Performance: N+1 queries, unnecessary allocations, missing caching
+The code-review skill handles:
+1. Multi-domain review (security, bugs, errors, quality, performance, Go idioms, architecture, docs)
+2. Spec-driven compliance check (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+3. FIX loop — fixes issues, re-runs tests until clean
+4. Creates commit and pushes PR
+5. Monitors CI
 
-3. **Spec-driven compliance check:** For each changed `.go` file in a spec-driven module, verify:
-   - SPECS.md was updated if public API changed
-   - NOTES.md has a new entry if a design decision was made
-   - New `.go` files have the NOTE invariant comment
-
-4. Fix any issues found directly — edit the files, re-run tests if needed.
-
-No `.bob/state/review.md` artifact. No severity routing. Just fix what you find and move on.
+After code-review completes, proceed to COMPLETE.
 
 ---
 
-## Phase 8: COMMIT
+## Phase 8: COMPLETE
 
-**Goal:** Create a local commit. No push, no PR.
-
-**Actions:**
-
-1. Stage relevant files (never `git add -A`):
-   ```bash
-   git add <specific files>
-   ```
-
-2. Create commit with descriptive message:
-   ```bash
-   git commit -m "feat: [description of changes]"
-   ```
-
-**Do NOT:**
-- `git push`
-- `gh pr create`
-- Push to any remote
-
-The commit stays local on the worktree branch.
-
----
-
-## Phase 9: COMPLETE
-
-**Goal:** Summary and next-step hints.
+**Goal:** Summary.
 
 **Actions:**
 
@@ -250,16 +218,12 @@ Display a summary:
 Done!
 
 Branch: <branch-name>
-Commit: <short-hash> <commit-message>
 Worktree: <worktree-path>
 
 Changes:
   - [brief list of what was implemented]
 
 Next steps:
-  - Review the changes: cd <worktree-path> && git log --oneline -5
-  - Push when ready: git push -u origin <branch-name>
-  - Create PR: gh pr create --title "..." --body "..."
   - Clean up worktree: git worktree remove <worktree-path>
 
 -- Bob
@@ -269,10 +233,9 @@ Next steps:
 
 ## Rules
 
-- **No agents.** You do all work directly — reading, writing, testing, reviewing.
-- **No loop-backs.** Linear flow only. Fix issues inline when you find them.
+- **No agents (except via skills).** You do all work directly — reading, writing, testing. Skills handle their own subagents internally.
+- **No outer loop-backs.** Linear flow only. Fix issues inline in EXECUTE. The REVIEW phase's `/bob:code-review` skill handles its own FIX loop.
 - **One artifact.** Only `.bob/state/plan.md` is written as a workflow artifact.
-- **Local commit only.** No push, no PR, no MONITOR phase.
-- **Spec-driven compliance.** Detect and enforce doc updates in PLAN, EXECUTE, and REVIEW.
+- **Spec-driven compliance.** Detect and enforce doc updates in PLAN and EXECUTE.
 - **TDD.** Write tests first in EXECUTE phase.
-- **Only invocation.** The only skill invoked is `/bob:internal:brainstorming` in the BRAINSTORM phase.
+- **Skill invocations.** `/bob:internal:brainstorming` in BRAINSTORM; `/bob:code-review` in REVIEW.

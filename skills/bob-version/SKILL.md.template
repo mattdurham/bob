@@ -19,25 +19,28 @@ category: utility
 
 ## Available Workflows
 
-- `/bob:work` - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-- `/bob:code-review` - Code review workflow (REVIEW → FIX → TEST → loop)
-- `/bob:performance` - Performance optimization (BENCHMARK → ANALYZE → OPTIMIZE → VERIFY)
+- `/bob:work` - Simple direct workflow — no agents, no ceremony (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE)
+- `/bob:work-agents` - Full development workflow with sequential subagents (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
+- `/bob:work-teams` - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
 - `/bob:explore` - Read-only codebase exploration
+- `/bob:design` - Create or apply spec-driven module structure
 
-## Core Skills
+## Internal Skills
 
-- `/brainstorming` - Interactive ideation before implementation
-- `/writing-plans` - Spawn planner subagent for detailed plans
+- `bob:internal:brainstorming` - Interactive ideation (used by work-agents, work-teams)
+- `bob:internal:writing-plans` - Implementation planning (used by work-agents, work-teams)
 
 ## Installed Components
 
 **Skills:** {{SKILL_COUNT}} workflow skills installed
-- work, code-review, performance, explore, brainstorming, writing-plans, bob:version
+- work-agents, work-teams, explore, design, bob:version
+- Internal: brainstorming, writing-plans
 
 **Subagents:** {{AGENT_COUNT}} specialized subagents installed
-- workflow-planner, workflow-coder, workflow-tester, workflow-reviewer
-- performance-analyzer, security-reviewer, docs-reviewer, architect-reviewer
-- code-reviewer, golang-pro, error-detective, debugger
+- workflow-brainstormer, workflow-planner, workflow-coder, workflow-tester
+- workflow-implementer, workflow-task-reviewer, workflow-code-quality
+- review-consolidator, commit-agent, monitor-agent
+- team-coder, team-reviewer, Explore
 
 {{HOOKS_STATUS}}
 

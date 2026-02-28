@@ -1,5 +1,5 @@
 ---
-name: bob:new-specs
+name: bob:design
 description: Create or apply a spec-driven module structure — SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and // NOTE invariant on all .go files
 user-invocable: true
 category: workflow
@@ -96,7 +96,7 @@ After gathering, create `.bob/` and write context:
 mkdir -p .bob/state
 ```
 
-Write `.bob/state/new-specs-context.md`:
+Write `.bob/state/design-context.md`:
 ```
 ## Mode
 new
@@ -122,7 +122,7 @@ Ask the user:
 1. **What is the path to the existing implementation?**
    Example: `internal/modules/queryplanner`, `pkg/parser`
 
-Write `.bob/state/new-specs-context.md`:
+Write `.bob/state/design-context.md`:
 ```
 ## Mode
 apply
@@ -143,7 +143,7 @@ Spawn an Explore agent:
 Task(subagent_type: "Explore",
      description: "Analyze existing implementation for spec generation",
      run_in_background: true,
-     prompt: "Analyze the Go package at the path in .bob/state/new-specs-context.md.
+     prompt: "Analyze the Go package at the path in .bob/state/design-context.md.
 
               For each .go file, extract:
               - Package doc comment and stated purpose
@@ -160,7 +160,7 @@ Task(subagent_type: "Explore",
               - External dependencies (other packages this one imports)
               - Whether benchmarks exist (files ending in _bench_test.go or _test.go with Benchmark*)
 
-              Write findings to .bob/state/new-specs-analysis.md with these sections:
+              Write findings to .bob/state/design-analysis.md with these sections:
               ## Module Purpose
               ## Responsibility Boundary (owns / does not own)
               ## Exported API (interfaces, types, functions, methods — with full signatures)
@@ -173,7 +173,7 @@ Task(subagent_type: "Explore",
               ## Existing Benchmarks (benchmark function names if any)")
 ```
 
-**Output:** `.bob/state/new-specs-analysis.md`
+**Output:** `.bob/state/design-analysis.md`
 
 ---
 
@@ -189,7 +189,7 @@ Spawn a workflow-implementer agent:
 Task(subagent_type: "workflow-implementer",
      description: "Scaffold spec-driven module files",
      run_in_background: true,
-     prompt: "Create a spec-driven module structure. Context in .bob/state/new-specs-context.md.
+     prompt: "Create a spec-driven module structure. Context in .bob/state/design-context.md.
 
               Create all files at the module path. Use the exact templates below.
 
@@ -424,7 +424,7 @@ Task(subagent_type: "workflow-implementer",
 
 
               Fill in the templates using the description and responsibility boundary from
-              .bob/state/new-specs-context.md. Generate realistic, specific content — not
+              .bob/state/design-context.md. Generate realistic, specific content — not
               generic placeholders. The SPECS.md should define the public API the user described
               even if it does not yet exist.
 
@@ -486,8 +486,8 @@ Task(subagent_type: "workflow-implementer",
      description: "Apply spec-driven structure to existing implementation",
      run_in_background: true,
      prompt: "Apply spec-driven structure to an existing package.
-              Context in .bob/state/new-specs-context.md.
-              Analysis in .bob/state/new-specs-analysis.md.
+              Context in .bob/state/design-context.md.
+              Analysis in .bob/state/design-analysis.md.
 
               Do NOT modify any existing .go implementation logic.
 
@@ -563,7 +563,7 @@ Working with NOTES.md:
 
 Next steps:
   - Review and refine SPECS.md — make it the authoritative contract before implementing
-  - Use /bob:work to implement against the spec (the workflow will keep docs in sync)
+  - Use /bob:work-agents to implement against the spec (the workflow will keep docs in sync)
 ```
 
 ---

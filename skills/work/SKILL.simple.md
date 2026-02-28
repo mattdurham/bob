@@ -86,7 +86,7 @@ Topic: [The feature/task to implement]
 The brainstorming skill will:
 - Ask clarifying questions interactively
 - Explore approaches and trade-offs
-- Detect spec-driven modules in scope (directories with SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files with the NOTE invariant)
+- Detect CLAUDE.md modules in scope (directories containing CLAUDE.md)
 - Write the design document to `.bob/state/design.md`
 
 Wait for brainstorming to complete before proceeding.
@@ -101,15 +101,14 @@ Wait for brainstorming to complete before proceeding.
 
 1. Read `.bob/state/design.md` (or `.bob/state/brainstorm.md` if design.md doesn't exist).
 
-2. Scan target directories for spec-driven modules:
-   - Look for SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
-   - Look for `.go` files with: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
-   - Note which modules require doc updates alongside code changes.
+2. Scan target directories for CLAUDE.md modules:
+   - Look for `CLAUDE.md` in each directory you plan to modify
+   - Note which modules require CLAUDE.md updates alongside code changes.
 
 3. Write `.bob/state/plan.md` directly with:
    - Numbered tasks, each with exact file paths
    - TDD format: write test first, then implement
-   - Spec-driven doc updates inline with their corresponding code tasks (not as a separate step)
+   - CLAUDE.md updates inline with their corresponding code tasks (not as a separate step)
    - Each task should be 2-5 minutes of work
    - Verification steps per task
 
@@ -121,7 +120,7 @@ Wait for brainstorming to complete before proceeding.
 - **Files:** path/to/file.go, path/to/file_test.go
 - **Test first:** Write test for [behavior]
 - **Implement:** [what to change]
-- **Spec docs:** Update SPECS.md section X (if spec-driven module)
+- **CLAUDE.md:** Update invariant N if affected (if CLAUDE.md module)
 - **Verify:** `go test ./path/to/...`
 
 ## Task 2: ...
@@ -143,13 +142,10 @@ For each task in `.bob/state/plan.md`:
 2. **Run the test** — verify it fails (confirms the test is meaningful)
 3. **Implement the code** — make the test pass
 4. **Run the test again** — verify it passes
-5. **Update spec docs** — if the target directory is a spec-driven module:
-   - Update SPECS.md for API/contract changes
-   - Add dated entry to NOTES.md for design decisions
-   - Update TESTS.md with scenario/setup/assertions for new tests
-   - Update BENCHMARKS.md for new benchmarks
-   - Add NOTE invariant comment to new .go files
-   - Never delete NOTES.md entries — add Addendum notes if reversing a decision
+5. **Update CLAUDE.md** — if the target directory contains CLAUDE.md and your changes
+   affect any numbered invariant, update CLAUDE.md to reflect the current truth.
+   Keep it tidy: only numbered invariants, axioms, assumptions, and non-obvious constraints.
+   Never add trivial, ephemeral, or obviously code-derivable content.
 
 Work through tasks sequentially. Fix issues as you encounter them — no looping back to a separate phase.
 
@@ -202,10 +198,8 @@ Do not proceed until tests pass. Fix issues inline — no separate EXECUTE loop.
    - Quality: functions too long, unclear naming, missing error handling
    - Performance: N+1 queries, unnecessary allocations, missing caching
 
-3. **Spec-driven compliance check:** For each changed `.go` file in a spec-driven module, verify:
-   - SPECS.md was updated if public API changed
-   - NOTES.md has a new entry if a design decision was made
-   - New `.go` files have the NOTE invariant comment
+3. **CLAUDE.md compliance check:** For each changed directory that contains CLAUDE.md,
+   verify that CLAUDE.md accurately reflects any affected numbered invariants.
 
 4. Fix any issues found directly — edit the files, re-run tests if needed.
 
@@ -273,6 +267,6 @@ Next steps:
 - **No loop-backs.** Linear flow only. Fix issues inline when you find them.
 - **One artifact.** Only `.bob/state/plan.md` is written as a workflow artifact.
 - **Local commit only.** No push, no PR, no MONITOR phase.
-- **Spec-driven compliance.** Detect and enforce doc updates in PLAN, EXECUTE, and REVIEW.
+- **CLAUDE.md compliance.** Detect and enforce invariant updates in PLAN, EXECUTE, and REVIEW.
 - **TDD.** Write tests first in EXECUTE phase.
 - **Only invocation.** The only skill invoked is `/bob:internal:brainstorming` in the BRAINSTORM phase.

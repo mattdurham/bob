@@ -16,7 +16,7 @@ Spawn a subagent to write comprehensive implementation plans assuming the engine
 **Process:**
 1. Spawn workflow-planner subagent with background execution
 2. Subagent reads design from `.bob/state/design.md`
-3. Subagent checks for spec-driven modules (SPECS.md, NOTES.md) in scope and includes doc update steps
+3. Subagent checks for CLAUDE.md modules in scope and includes invariant update steps
 4. Subagent writes plan to `.bob/state/plan.md`
 5. Wait for completion notification
 
@@ -104,9 +104,9 @@ Task(subagent_type: "workflow-planner",
      description: "Create implementation plan",
      run_in_background: true,
      prompt: "Read the design from .bob/state/design.md.
-             Check if any directories in scope contain SPECS.md, NOTES.md, TESTS.md,
-             or BENCHMARKS.md — these are spec-driven modules. If found, include
-             explicit steps for updating spec docs alongside code changes.
+             Check if any directories in scope contain a CLAUDE.md file — these are
+             documented modules. If found, include explicit steps for updating CLAUDE.md
+             alongside code changes whenever a numbered invariant is affected.
 
      Create a concrete, bite-sized implementation plan.
 

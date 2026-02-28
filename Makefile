@@ -1,7 +1,7 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-WORKFLOW ?= pr
+SPEC ?= full
 
 .PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean
 
@@ -13,7 +13,7 @@ help:
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make install                  - Install everything (skills + agents + LSP) [RECOMMENDED]"
-	@echo "  make install WORKFLOW=local   - Install with local workflow mode (no auto-PR)"
+	@echo "  make install SPEC=simple      - Install with simple spec mode (CLAUDE.md only per folder)"
 	@echo "  make install-skills           - Install workflow skills to Claude Code"
 	@echo "  make install-agents           - Install specialized subagents to Claude Code"
 	@echo "  make install-crush-skills     - Install workflow skills to Crush"
@@ -36,10 +36,10 @@ help:
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
 	@echo "  make install-mcp              - Install filesystem MCP server (required)"
-	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:team-work)"
+	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:work-teams)"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
-	@echo "  /work \"feature description\" - Start a workflow"
+	@echo "  /bob:work-agents \"feature\" - Start a workflow"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install PERSONALITY=pirate"
@@ -53,15 +53,26 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work code-review performance explore brainstorming writing-plans project team-work new-specs; do \
+	for skill in work work-agents explore brainstorming writing-plans work-teams; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
-			cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				cp "skills/$$skill/SKILL.simple.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			else \
+				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			fi; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
-	done
+	done; \
+	echo "   Installing design skill (SPEC=$(SPEC))..."; \
+	mkdir -p "$$SKILLS_DIR/design"; \
+	if [ "$(SPEC)" = "simple" ]; then \
+		cp "skills/design-simple/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
+	else \
+		cp "skills/design/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
+	fi
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	echo "   Generating bob:version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
@@ -89,32 +100,13 @@ install-skills:
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
 	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
-ifneq ($(WORKFLOW),pr)
-	@if [ -f "workflows/$(WORKFLOW).md" ]; then \
-		SKILLS_DIR="$$HOME/.claude/skills"; \
-		for skill in work code-review performance team-work; do \
-			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
-			if [ -f "$$SKILL_FILE" ]; then \
-				awk 'NR==1{print; found_start=1; next} found_start && /^---$$/{print; found_end=1; next} found_end && !injected{while((getline line < "workflows/$(WORKFLOW).md") > 0) print line; injected=1} {print}' "$$SKILL_FILE" > "$$SKILL_FILE.tmp" && mv "$$SKILL_FILE.tmp" "$$SKILL_FILE"; \
-			fi; \
-		done; \
-		echo "   ✅ Applied workflow mode: $(WORKFLOW)"; \
-	else \
-		echo "   ❌ Unknown workflow: $(WORKFLOW) (file workflows/$(WORKFLOW).md not found)"; \
-		exit 1; \
-	fi
-endif
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"
-	@echo "  /bob:project     - Project initialization (inspired by GSD)"
-	@echo "  /bob:work        - Full development workflow"
-	@echo "  /bob:code-review - Code review workflow"
-	@echo "  /bob:performance - Performance optimization"
+	@echo "  /bob:work        - Simple direct workflow (no agents)"
+	@echo "  /bob:work-agents - Full development workflow (sequential subagents)"
+	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
-	@echo "  /bob:team-work   - Team-based workflow (requires enable-agent-teams)"
-	@echo "  /brainstorming   - Creative ideation"
-	@echo "  /writing-plans   - Implementation planning"
 	@echo "  /bob:version     - Show Bob version info"
 
 # Install workflow skills to Crush
@@ -122,15 +114,26 @@ install-crush-skills:
 	@echo "📚 Installing Bob workflow skills to Crush..."
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	mkdir -p "$$CRUSH_SKILLS_DIR"; \
-	for skill in work code-review performance explore brainstorming writing-plans project; do \
+	for skill in work work-agents explore brainstorming writing-plans; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \
-			cp "skills/$$skill/SKILL.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				cp "skills/$$skill/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
+			else \
+				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			fi; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
-	done
+	done; \
+	echo "   Installing design skill (SPEC=$(SPEC))..."; \
+	mkdir -p "$$CRUSH_SKILLS_DIR/design"; \
+	if [ "$(SPEC)" = "simple" ]; then \
+		cp "skills/design-simple/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
+	else \
+		cp "skills/design/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
+	fi
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	echo "   Generating bob-version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
@@ -152,21 +155,6 @@ install-crush-skills:
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    skills/bob-version/SKILL.md.template > "$$CRUSH_SKILLS_DIR/bob-version/SKILL.md"
-ifneq ($(WORKFLOW),pr)
-	@if [ -f "workflows/$(WORKFLOW).md" ]; then \
-		CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
-		for skill in work code-review performance team-work; do \
-			SKILL_FILE="$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
-			if [ -f "$$SKILL_FILE" ]; then \
-				awk 'NR==1{print; found_start=1; next} found_start && /^---$$/{print; found_end=1; next} found_end && !injected{while((getline line < "workflows/$(WORKFLOW).md") > 0) print line; injected=1} {print}' "$$SKILL_FILE" > "$$SKILL_FILE.tmp" && mv "$$SKILL_FILE.tmp" "$$SKILL_FILE"; \
-			fi; \
-		done; \
-		echo "   ✅ Applied workflow mode: $(WORKFLOW)"; \
-	else \
-		echo "   ❌ Unknown workflow: $(WORKFLOW) (file workflows/$(WORKFLOW).md not found)"; \
-		exit 1; \
-	fi
-endif
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	echo "✅ Skills installed to $$CRUSH_SKILLS_DIR"
 	@echo ""
@@ -186,7 +174,11 @@ install-crush-agents:
 				agent=$$(basename "$$agent_dir"); \
 				echo "   Installing $$agent agent..."; \
 				mkdir -p "$$CRUSH_SKILLS_DIR/$$agent"; \
-				cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+					cp "$$agent_dir/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				else \
+					cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
+				fi; \
 				if [ -f "$$agent_dir/style.md" ]; then \
 					cp "$$agent_dir/style.md" "$$CRUSH_SKILLS_DIR/$$agent/style.md"; \
 				fi; \
@@ -217,7 +209,11 @@ install-agents:
 				agent=$$(basename "$$agent_dir"); \
 				echo "   Installing $$agent agent..."; \
 				mkdir -p "$$AGENTS_DIR/$$agent"; \
-				cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+					cp "$$agent_dir/SKILL.simple.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				else \
+					cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+				fi; \
 				if [ -f "$$agent_dir/style.md" ]; then \
 					cp "$$agent_dir/style.md" "$$AGENTS_DIR/$$agent/style.md"; \
 				fi; \
@@ -234,33 +230,26 @@ install-agents:
 	@echo ""
 	@echo "Specialized subagents available:"
 	@echo ""
-	@echo "Level 1 Orchestrators:"
-	@echo "  workflow-coder                - EXECUTE phase coordinator (spawns 3 Level 2 agents)"
-	@echo "  review-consolidator           - Merges 9 review findings into single report"
-	@echo "  review-router                 - Makes routing decisions based on severity"
+	@echo "Orchestrators:"
+	@echo "  workflow-coder                - EXECUTE phase coordinator"
+	@echo "  review-consolidator           - Multi-domain code review"
 	@echo ""
-	@echo "Level 2 Workers - Implementation:"
+	@echo "Workers - Implementation:"
 	@echo "  workflow-brainstormer         - Research & creative ideation"
 	@echo "  workflow-planner              - Implementation planning"
-	@echo "  workflow-implementer          - Code implementation (TDD, golang-pro guide)"
+	@echo "  workflow-implementer          - Code implementation (TDD)"
 	@echo "  workflow-task-reviewer        - Task completion validation"
-	@echo "  workflow-code-quality         - Go idioms & best practices (Uber Style Guide)"
+	@echo "  workflow-code-quality         - Go idioms & best practices"
 	@echo "  workflow-tester               - Test execution and quality checks"
 	@echo ""
-	@echo "Level 2 Workers - Review (9 specialized reviewers):"
-	@echo "  workflow-reviewer             - Multi-pass code quality review"
-	@echo "  security-reviewer             - OWASP Top 10, vulnerability detection"
-	@echo "  performance-analyzer          - Performance bottlenecks & optimization"
-	@echo "  docs-reviewer                 - Documentation accuracy validation"
-	@echo "  architect-reviewer            - Architecture & design review"
-	@echo "  code-reviewer                 - Deep code quality analysis"
-	@echo "  go-reviewer                   - Go-specific code review"
-	@echo "  debugger                      - Bug diagnosis and debugging"
-	@echo "  error-detective               - Error pattern analysis"
-	@echo ""
-	@echo "Level 2 Workers - Operations:"
+	@echo "Workers - Operations:"
 	@echo "  commit-agent                  - Git operations & PR creation"
 	@echo "  monitor-agent                 - CI/CD & PR monitoring"
+	@echo ""
+	@echo "Workers - Teams:"
+	@echo "  team-coder                    - Concurrent coder teammate"
+	@echo "  team-reviewer                 - Concurrent reviewer teammate"
+	@echo "  Explore                       - Codebase exploration"
 
 # Install Go LSP plugin
 install-lsp:
@@ -351,10 +340,8 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo "🔄 Restart Claude/Crush to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /bob:work \"Add new feature\" - Start full development workflow"
-	@echo "  /bob:team-work \"feature\"    - Team-based workflow (run 'make enable-agent-teams' first)"
-	@echo "  /bob:code-review             - Review existing code"
-	@echo "  /bob:performance             - Optimize performance"
+	@echo "  /bob:work-agents \"Add new feature\" - Start full development workflow"
+	@echo "  /bob:work-teams \"feature\"         - Team-based workflow (run 'make enable-agent-teams' first)"
 
 # Install Bob personality
 # Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
@@ -372,7 +359,7 @@ install-personality:
 		else \
 			echo "✅ Already using default personality (no override file)"; \
 		fi; \
-		for skill in work team-work brainstorming code-review explore performance project writing-plans; do \
+		for skill in work work-agents work-teams brainstorming explore writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
 				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
@@ -385,7 +372,7 @@ install-personality:
 		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
 		echo "✅ Personality set to: $(PERSONALITY)"; \
 		echo "   Installed to: $$PERSONALITY_FILE"; \
-		for skill in work team-work brainstorming code-review explore performance project writing-plans; do \
+		for skill in work work-agents work-teams brainstorming explore writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ]; then \
 				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
@@ -628,7 +615,7 @@ enable-agent-teams:
 	fi
 	@echo ""
 	@echo "Usage:"
-	@echo "  /bob:team-work \"Add new feature\" - Start team-based workflow"
+	@echo "  /bob:work-teams \"Add new feature\" - Start team-based workflow"
 	@echo ""
 	@echo "🔄 Restart Claude Code for changes to take effect"
 

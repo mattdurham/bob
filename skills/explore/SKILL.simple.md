@@ -56,18 +56,15 @@ Task(subagent_type: "Explore",
      prompt: "Find code related to [exploration goal].
              Map file structure, key components, relationships.
 
-             SPEC-DRIVEN MODULES: For every directory you encounter, check for
-             SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
-               // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
-             If found, this is a spec-driven module. Read SPECS.md FIRST — it is the
-             authoritative contract for the module's behavior, invariants, and public API.
-             Read NOTES.md for design decisions and rationale. These documents take
-             priority over reading implementation code for understanding what the module
-             does and why.
+             CLAUDE.md MODULES: For every directory you encounter, check for a CLAUDE.md
+             file. If found, this is a documented module. Read CLAUDE.md FIRST — it
+             contains the authoritative numbered invariants, axioms, assumptions, and
+             non-obvious constraints for the module. These documents take priority over
+             reading implementation code for understanding what the module does and why.
 
              Write findings to .bob/state/discovery.md.
-             For spec-driven modules, include a section summarizing the contracts and
-             key design decisions from the spec docs.")
+             For CLAUDE.md modules, include a section summarizing the invariants and
+             key constraints from CLAUDE.md.")
 ```
 
 **Output:** `.bob/state/discovery.md`
@@ -76,7 +73,7 @@ Task(subagent_type: "Explore",
 
 ## Phase 3: ANALYZE
 
-**Goal:** Understand how code works — specs first, then implementation
+**Goal:** Understand how code works — invariants first, then implementation
 
 Spawn researcher:
 ```
@@ -86,10 +83,10 @@ Task(subagent_type: "researcher",
      prompt: "Read files in .bob/state/discovery.md.
              Understand logic, patterns, architecture.
 
-             For any spec-driven modules identified in discovery, analyze the
-             implementation THROUGH the lens of the specs: does the code match
-             its contracts? Are invariants maintained? Note any drift between
-             SPECS.md and the actual implementation.
+             For any CLAUDE.md modules identified in discovery, analyze the
+             implementation THROUGH the lens of the invariants: does the code match
+             its documented constraints? Note any drift between CLAUDE.md and the
+             actual implementation.
 
              Write analysis to .bob/state/analysis.md.")
 ```

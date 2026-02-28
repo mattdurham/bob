@@ -19,27 +19,23 @@ I'll ask you some questions to make sure we're on the right track..."
 
 Start by understanding the current project context, then ask questions one at a time to refine the idea. Once you understand what you're building, present the design in small sections (200-300 words), checking after each section whether it looks right so far.
 
-## Spec-Driven Module Awareness
+## CLAUDE.md Module Awareness
 
-Before brainstorming, check if any directories in scope contain SPECS.md, NOTES.md, TESTS.md,
-BENCHMARKS.md, or `.go` files with the NOTE invariant comment:
-```
-// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
-```
+Before brainstorming, check if any directories in scope contain a `CLAUDE.md` file.
 
-If found, these are **spec-driven modules**. Use the existing SPECS.md as context for understanding
-the module's contracts and invariants. Reference NOTES.md for past design decisions to avoid
-re-litigating settled questions. Factor spec doc updates into any proposed approach.
+If found, these are **documented modules**. Read `CLAUDE.md` to understand the module's
+numbered invariants, axioms, assumptions, and non-obvious constraints before proposing any
+changes. Factor CLAUDE.md updates into any proposed approach.
 
-**SPECS.md is the source of truth.** If the user's request contradicts an existing contract,
-invariant, or behavioral guarantee in SPECS.md, you MUST flag the conflict and ask the user to
-confirm they want to change the spec before proceeding. Do not silently comply — specs can be
+**CLAUDE.md is the source of truth for invariants.** If the user's request contradicts an
+existing numbered invariant in CLAUDE.md, you MUST flag the conflict and ask the user to
+confirm they want to change it before proceeding. Do not silently comply — invariants can be
 changed, but only deliberately.
 
 ## The Process
 
 **Understanding the idea:**
-- Check for spec-driven modules in scope, then current project state (files, docs, recent commits)
+- Check for CLAUDE.md modules in scope, then current project state (files, docs, recent commits)
 - Ask questions one at a time to refine the idea
 - Prefer multiple choice questions when possible, but open-ended is fine too
 - Only one question per message - if a topic needs more exploration, break it into multiple questions

@@ -1,5 +1,5 @@
 ---
-name: bob:team-work
+name: bob:work-teams
 description: Team-based development workflow using experimental agent teams - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR
 user-invocable: true
 category: workflow
@@ -48,7 +48,7 @@ INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW 
                                         (loop back on issues)
 ```
 
-**Key difference from bob:work**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
+**Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
 
 <strict_enforcement>
 All phases MUST be executed in the exact order specified.
@@ -121,7 +121,7 @@ Coordination:
 - ✅ Message teammates directly
 - ✅ Read files to make routing decisions
 - ✅ Run `cd` to switch working directory (after WORKTREE phase)
-- ✅ Invoke skills (`/brainstorming`, `/writing-plans`)
+- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`)
 - ✅ Display brief status updates to the user between phases
 - ✅ Clean up team when workflow complete
 
@@ -185,9 +185,7 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
    Then restart Claude Code and hoist the sails again!"
    ```
 
-3. Check for `.bob/planning/` directory — if it exists, read PROJECT.md and REQUIREMENTS.md for context
-
-4. Move to WORKTREE phase
+3. Move to WORKTREE phase
 
 ---
 
@@ -218,7 +216,7 @@ Task(subagent_type: "Bash",
                     echo \"Already in worktree - skipping creation\"
                     WORKTREE_PATH=$(git rev-parse --show-toplevel)
                     echo \"WORKTREE_PATH=$WORKTREE_PATH\"
-                    mkdir -p \".bob/state\" \".bob/planning\"
+                    mkdir -p \".bob/state\"
                     git branch --show-current
                     exit 0
                 fi
@@ -233,7 +231,7 @@ Task(subagent_type: "Bash",
                 git worktree add \"$WORKTREE_DIR\" -b \"$FEATURE_NAME\"
 
              4. Create .bob directory structure:
-                mkdir -p \"$WORKTREE_DIR/.bob/state\" \"$WORKTREE_DIR/.bob/planning\"
+                mkdir -p \"$WORKTREE_DIR/.bob/state\"
 
              5. Print the absolute worktree path (IMPORTANT):
                 echo \"WORKTREE_PATH=$(cd \"$WORKTREE_DIR\" && pwd)\"
@@ -267,7 +265,7 @@ Task(subagent_type: "Bash",
 
 **Step 1: Use brainstorming skill for ideation**
 ```
-Invoke: /brainstorming
+Invoke: /bob:internal:brainstorming
 Topic: [The feature/task to implement]
 ```
 
@@ -283,7 +281,6 @@ Write the brainstorm prompt to `.bob/state/brainstorm-prompt.md`:
 ```
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
-Context: [If .bob/planning/ exists, note that PROJECT.md and REQUIREMENTS.md are available there]
 ```
 
 Then spawn the workflow-brainstormer agent:
@@ -312,7 +309,7 @@ This is the key difference: instead of just writing `plan.md`, we create a task 
 
 Use the writing-plans skill to spawn a planner subagent:
 ```
-Invoke: /writing-plans
+Invoke: /bob:internal:writing-plans
 ```
 
 The skill will:
@@ -433,6 +430,17 @@ Quality standards:
 - Follow existing code patterns
 - Write clear, idiomatic Go code
 
+SPEC-DRIVEN MODULES: Before writing any code, check each target directory for
+SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
+  // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+If found, this is a spec-driven module. You MUST:
+- Update SPECS.md if you change any public API, contracts, or invariants
+- Add a dated entry to NOTES.md for any new design decision
+- Update TESTS.md with scenario/setup/assertions for any new test functions
+- Update BENCHMARKS.md and the Metric Targets table for any new benchmarks
+- Add the NOTE invariant comment to any new .go files you create
+- NEVER delete NOTES.md entries — add Addendum notes if a decision is reversed
+
 When you complete a task, send a brief message to the team lead summarizing what you did.
 
 If you encounter issues, message the team lead or relevant teammates for help.
@@ -520,7 +528,7 @@ You should see:
 
 **Goal:** Teammates work concurrently - coders implement, reviewers review
 
-This phase is different from bob:work because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
+This phase is different from bob:work-agents because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
 
 **Your role as team lead:**
 1. Monitor task list progress
@@ -711,6 +719,17 @@ Task(subagent_type: "review-consolidator",
      run_in_background: true,
      prompt: "Perform a thorough multi-domain code review covering: security, bug diagnosis,
              error handling, code quality, performance, Go idioms, architecture, and documentation.
+
+             SPEC-DRIVEN MODULES: Check each changed directory for SPECS.md, NOTES.md, TESTS.md,
+             BENCHMARKS.md, or .go files with the NOTE invariant comment:
+               // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+             If found, verify:
+             - SPECS.md was updated if any public API, contracts, or invariants changed (HIGH severity if not)
+             - NOTES.md has a new dated entry for any design decision made (MEDIUM severity if missing)
+             - TESTS.md was updated for any new test functions (MEDIUM severity if missing)
+             - BENCHMARKS.md was updated for any new benchmarks (MEDIUM severity if missing)
+             - New .go files have the NOTE invariant comment (LOW severity if missing)
+             Report spec-driven violations under a 'Spec-Driven Compliance' section in the review.
 
              Write consolidated report to .bob/state/review.md with:
              - Issues grouped by severity
@@ -904,9 +923,9 @@ Message both: "You're both working on overlapping areas.
 
 ## Benefits of Agent Teams
 
-### vs Sequential bob:work
+### vs Sequential bob:work-agents
 
-| Aspect | bob:work | bob:team-work |
+| Aspect | bob:work-agents | bob:work-teams |
 |--------|----------|---------------|
 | Execution | Sequential | Concurrent |
 | Feedback | Batch at end | Incremental |

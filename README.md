@@ -1,5 +1,4 @@
-# 🏴‍☠️ Belayin' Pin Bob
-## Captain of Your Agents
+# Belayin' Pin Bob
 
 ```
                                      |    |    |
@@ -13,346 +12,146 @@
                                 ^^^^      ^^^
 ```
 
-**Belayin' Pin Bob** - Your trusty captain for orchestrating AI agent workflows!
-
-> *"A belayin' pin is what keeps the ship's riggin' in order. Bob keeps your agents in line!"*
+Workflow orchestration for Claude Code through skills and subagents.
 
 ## What is Bob?
 
-Bob is a workflow orchestration system implemented entirely through **Claude skills** and **specialized subagents**. Just like a ship's captain uses a belayin' pin to secure the ship's lines and rigging, Bob keeps your AI agent workflows organized, coordinated, and running smoothly.
+Bob coordinates AI agent workflows for feature development. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
-**No MCP servers, no daemons—just intelligent workflow coordination through Claude agents.**
+## Spec-Driven Development
 
-## Features
+Bob treats **SPECS.md as the source of truth** for module behavior. Every workflow is spec-aware:
 
-- 🎯 **Workflow Orchestration** - Multi-step workflows with loop-back rules
-- 🤖 **Specialized Subagents** - 12+ domain-expert agents for each workflow phase
-- 🌳 **Git Worktrees** - Isolated development environments
-- 📁 **Artifact Management** - Persistent state in `.bob/` directory
-- 🔄 **Flow Control** - Automatic routing based on severity levels
-- 🔍 **9-Agent Parallel Review** - Comprehensive multi-perspective code review
-- 📊 **Quality Gates** - TDD, testing, security, performance checks
-- 🏴‍☠️ **Captain of Your Agents** - Keep your AI workflows in line!
+- **`/bob:design`** creates or applies spec-driven module structure. Call this first when starting a new module, or before major design changes. It scaffolds SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and adds the NOTE invariant to `.go` files.
+
+- **`/bob:work`**, **`/bob:work-agents`**, and **`/bob:work-teams`** all read existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
+
+- **`/bob:explore`** prioritizes spec docs when analyzing a codebase. For spec-driven modules, it reads SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code.
+
+A spec-driven module is any directory containing SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or `.go` files with this comment:
+
+```go
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+```
 
 ## Quick Start
 
-### Installation
-
 ```bash
-# Clone the repository
 git clone https://github.com/mattdurham/bob.git
 cd bob
-
-# Install everything (skills + agents + Go LSP)
 make install
 ```
 
-This installs:
-- **Workflow skills** → `~/.claude/skills/` (work, code-review, performance, explore, brainstorming)
-- **Specialized subagents** → `~/.claude/agents/` (12+ domain experts)
-- **Go LSP plugin** (if available)
-
-After installation, restart Claude to activate all components.
-
-### Using Bob Workflows
-
-Simply invoke workflows with slash commands:
-
-```
-/work "Add user authentication feature"
-```
-
-Available workflows:
-- **`/work`** - Full development workflow (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-- **`/code-review`** - Code review and fixes
-- **`/performance`** - Performance optimization
-- **`/explore`** - Read-only codebase exploration
-- **`/brainstorming`** - Creative ideation
+This installs workflow skills to `~/.claude/skills/` and subagents to `~/.claude/agents/`. Restart Claude Code after installation.
 
 ## Workflows
 
-### Work Workflow
-
-Complete feature development from idea to merged PR:
+### `/bob:design` — Spec Scaffolding
 
 ```
-INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-          ↑                                      ↓               ↓
-          └──────────────────────────────────────┴───────────────┘
-                        (loop back on issues)
+INIT → GATHER → [ANALYZE] → SCAFFOLD → COMPLETE
 ```
 
-**Key phases:**
-- **BRAINSTORM**: Research patterns, create worktree, document approach
-- **PLAN**: Generate detailed implementation plan
-- **EXECUTE**: Implement code following TDD
-- **TEST**: Run comprehensive test suite
-- **REVIEW**: 9 specialized agents review in parallel
-- **COMMIT**: Create commit and PR
-- **MONITOR**: Watch CI and handle feedback
+Two modes:
+- **New module** — describe what you're building, get SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and stub `.go` files
+- **Apply to existing** — point at a directory, get spec docs generated from the existing implementation
 
-**Loop-back rules:**
-- **CRITICAL/HIGH issues** → Loop to BRAINSTORM (re-think approach)
-- **MEDIUM/LOW issues** → Loop to EXECUTE (quick fixes)
-- **CI failures** → Loop to BRAINSTORM (always re-brainstorm!)
-
-### Code Review Workflow
-
-Iterative code review until clean:
+### `/bob:work` — Simple Direct Workflow
 
 ```
-REVIEW → FIX → TEST → (loop until clean) → COMMIT
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
 ```
 
-### Performance Workflow
+You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
 
-Optimize code for speed and efficiency:
-
-```
-BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT
-```
-
-### Explore Workflow
-
-Read-only codebase exploration:
+### `/bob:work-agents` — Sequential Subagent Workflow
 
 ```
-DISCOVER → ANALYZE → DOCUMENT
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+                      ↑                                    ↓               ↓
+                      └────────────────────────────────────┴───────────────┘
 ```
 
-## Specialized Subagents
+Full orchestration with specialized subagents for each phase. You coordinate; agents do the work. Autonomous progression — only prompts at the final merge.
 
-Bob coordinates 12+ specialized agents:
+### `/bob:work-teams` — Concurrent Agent Team Workflow
 
-| Agent | Purpose |
-|-------|---------|
-| **workflow-planner** | Creates detailed implementation plans |
-| **workflow-coder** | Implements code with TDD approach |
-| **workflow-tester** | Runs tests and quality checks |
-| **workflow-reviewer** | Multi-pass code review |
-| **security-reviewer** | Security vulnerability scanning |
-| **performance-analyzer** | Performance bottleneck analysis |
-| **docs-reviewer** | Documentation accuracy validation |
-| **architect-reviewer** | Architecture and design evaluation |
-| **code-reviewer** | Deep code quality review |
-| **golang-pro** | Go-specific idiomatic review |
-| **debugger** | Bug diagnosis and debugging |
-| **error-detective** | Error pattern analysis |
+```
+INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW → COMMIT → MONITOR → COMPLETE
+```
 
-## 9-Agent Parallel Review
+Multiple coder and reviewer teammates work in parallel through a shared task list. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
-The REVIEW phase spawns 9 specialized reviewers in parallel:
+### `/bob:explore` — Read-Only Exploration
 
-1. **Code Quality** - Logic, bugs, best practices
-2. **Security** - OWASP Top 10, vulnerabilities
-3. **Performance** - Algorithmic complexity, bottlenecks
-4. **Documentation** - Accuracy, completeness
-5. **Architecture** - Design patterns, scalability
-6. **Code Quality Deep** - Comprehensive analysis
-7. **Go-Specific** - Idiomatic patterns, concurrency
-8. **Debugging** - Potential bugs, race conditions
-9. **Error Patterns** - Error handling consistency
+```
+INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+```
 
-Results are consolidated into `.bob/review.md` with severity-based routing:
-- **CRITICAL/HIGH** → Loop to BRAINSTORM
-- **MEDIUM/LOW** → Loop to EXECUTE
-- **No issues** → Continue to COMMIT
+Spec-aware codebase exploration. No code changes.
+
+## Loop-Back Rules
+
+All work workflows enforce these routing rules:
+
+| Trigger | Route to | Reason |
+|---------|----------|--------|
+| CRITICAL/HIGH review issues | BRAINSTORM | Re-think the approach |
+| MEDIUM/LOW review issues | EXECUTE | Targeted fixes |
+| Test failures | EXECUTE | Fix the code |
+| CI failures or PR feedback | BRAINSTORM | Always re-brainstorm |
+
+REVIEW is mandatory — it cannot be skipped even if tests pass.
+
+## Subagents
+
+| Agent | Phase | Purpose |
+|-------|-------|---------|
+| workflow-brainstormer | BRAINSTORM | Research and creative ideation |
+| workflow-planner | PLAN | Implementation planning |
+| workflow-coder | EXECUTE | Code implementation (TDD) |
+| workflow-implementer | EXECUTE | Used by workflow-coder and design |
+| workflow-tester | TEST | Test execution and quality checks |
+| review-consolidator | REVIEW | Multi-domain code review |
+| commit-agent | COMMIT | Git operations and PR creation |
+| monitor-agent | MONITOR | CI/CD and PR monitoring |
+| team-coder | EXECUTE | Concurrent coder teammate |
+| team-reviewer | REVIEW | Concurrent reviewer teammate |
+| Explore | DISCOVER | Codebase exploration |
 
 ## Git Worktrees
 
-⚠️ **All workflows create isolated git worktrees BEFORE any file operations.**
+All work workflows create isolated git worktrees before any file operations:
 
-**Structure:**
 ```
-~/source/bob/                    # Main repo
-~/source/bob-worktrees/
-  ├── add-auth/                  # Feature 1 worktree
-  │   ├── .bob/                  # Workflow artifacts
-  │   └── ...                    # Feature code
-  └── fix-parser/                # Feature 2 worktree
-      ├── .bob/
+repo/
+repo-worktrees/
+  ├── add-auth/          # Feature worktree
+  │   ├── .bob/state/    # Workflow artifacts
+  │   └── ...
+  └── fix-parser/
+      ├── .bob/state/
       └── ...
 ```
 
-**Benefits:**
-- Isolate work from main branch
-- Safe experimentation
-- Easy cleanup if abandoned
-- Parallel development possible
+## Installation
 
-## Workflow Artifacts
-
-All workflows store state in `.bob/` directory:
-
-- `.bob/brainstorm.md` - Research and approach
-- `.bob/plan.md` - Implementation plan
-- `.bob/test-results.md` - Test results
-- `.bob/review.md` - Consolidated code review
-- `.bob/review-*.md` - Individual agent reviews
-
-These files persist across Claude sessions and serve as context for subsequent phases.
-
-## Installation Options
-
-**Full installation** (recommended):
 ```bash
-make install
+make install                # Everything (skills + agents + LSP)
+make install-skills         # Skills only
+make install-agents         # Subagents only
+make install-mcp            # Filesystem MCP server
+make enable-agent-teams     # Enable /bob:work-teams
+make hooks                  # Optional: pre-commit quality checks
 ```
-
-**Component installation:**
-```bash
-make install-skills   # Workflow skills only
-make install-agents   # Subagents only
-make install-lsp      # Go LSP only
-```
-
-**Install to another repo:**
-```bash
-make install-guidance PATH=/path/to/repo
-```
-
-This copies `CLAUDE.md` and `AGENTS.md` to configure the repo for Bob workflows.
 
 ## Requirements
 
-- **Claude Code CLI** - For running workflows
-- **Git** - For worktree management
-- **Filesystem MCP server** - For file operations (installed automatically by Claude)
+- Claude Code CLI
+- Git
 
-Optional:
-- **Go** - For Go-specific features
-- **gopls** - For Go LSP integration
-
-## Example Session
-
-```
-You: /work "Add rate limiting to API"
-
-Claude: I'll orchestrate the work workflow...
-
-[INIT Phase]
-Creating .bob directory...
-✓ Ready to brainstorm
-
-[BRAINSTORM Phase]
-Spawning brainstorming skill...
-Creating worktree at ../bob-worktrees/add-rate-limiting...
-Spawning Explore agent to research patterns...
-✓ Research complete, findings in .bob/brainstorm.md
-
-[PLAN Phase]
-Spawning workflow-planner agent...
-✓ Implementation plan in .bob/plan.md
-
-[EXECUTE Phase]
-Spawning workflow-coder agent...
-✓ Code implementation complete
-
-[TEST Phase]
-Spawning workflow-tester agent...
-✓ All tests passing, results in .bob/test-results.md
-
-[REVIEW Phase]
-Spawning 9 parallel reviewers...
-  ✓ Code quality review
-  ✓ Security review
-  ✓ Performance review
-  ✓ Documentation review
-  ✓ Architecture review
-  ✓ Code quality deep review
-  ✓ Go-specific review
-  ✓ Debugging review
-  ✓ Error pattern review
-Consolidating findings...
-✓ 3 medium issues found in .bob/review.md
-
-[Loop to EXECUTE]
-Spawning workflow-coder to fix medium issues...
-...
-
-[COMMIT Phase]
-Creating commit and PR...
-✓ PR created: https://github.com/user/repo/pull/123
-
-[MONITOR Phase]
-Checking CI status...
-✓ All checks passing
-
-[COMPLETE]
-🎉 Workflow complete!
-```
-
-## Customization
-
-Add custom workflows by creating skill files in `skills/`:
-
-```
-skills/
-  my-workflow/
-    SKILL.md    # Workflow definition with frontmatter
-```
-
-Frontmatter format:
-```yaml
----
-name: my-workflow
-description: Brief description
-user-invocable: true
-category: workflow
----
-```
-
-## Best Practices
-
-**Orchestration:**
-- Let subagents do the work
-- Pass context via `.bob/*.md` files
-- Clear input/output for each phase
-- Chain agents together systematically
-
-**Flow Control:**
-- Enforce loop-back rules strictly
-- MONITOR → BRAINSTORM (not REVIEW or EXECUTE)
-- Never skip REVIEW phase
-- Always validate test passage
-
-**Quality:**
-- TDD throughout (tests first)
-- Comprehensive multi-agent review (9 specialized reviewers)
-- Fix issues properly (re-brainstorm if needed)
-- Maintain code quality standards
-
-## Troubleshooting
-
-**Skills not appearing:**
-1. Check skills installed: `ls ~/.claude/skills/`
-2. Verify frontmatter has required `name` field
-3. Restart Claude Code
-
-**Worktree creation fails:**
-1. Check you're in a git repository: `git status`
-2. Verify git is configured: `git config user.name`
-3. Check disk space: `df -h`
-
-**Subagents failing:**
-1. Check filesystem MCP server: `claude mcp list`
-2. Verify allowed directories include your repo
-3. Check subagent has necessary tools in skill definition
-
-## Contributing
-
-Contributions welcome! Please:
-1. Follow existing skill format
-2. Add tests for new agents
-3. Update documentation
-4. Submit PR with clear description
-
-## License
-
-MIT License - see LICENSE file for details
+Optional: Go, golangci-lint, gocyclo (for Go-specific features)
 
 ---
 
-*🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents*
-
-**"Keep your agents in line, and your code shipshape!"**
+*Bob - Captain of Your Agents*

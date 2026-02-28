@@ -31,6 +31,11 @@ If found, these are **spec-driven modules**. Use the existing SPECS.md as contex
 the module's contracts and invariants. Reference NOTES.md for past design decisions to avoid
 re-litigating settled questions. Factor spec doc updates into any proposed approach.
 
+**SPECS.md is the source of truth.** If the user's request contradicts an existing contract,
+invariant, or behavioral guarantee in SPECS.md, you MUST flag the conflict and ask the user to
+confirm they want to change the spec before proceeding. Do not silently comply — specs can be
+changed, but only deliberately.
+
 ## The Process
 
 **Understanding the idea:**

@@ -217,20 +217,27 @@ the code. Bob detects and enforces this pattern automatically.
 - Never delete entries — add `*Addendum (date):*` if a decision is reversed
 - New decisions go in new numbered sections at the end
 
-## Simple Spec Mode
+## Spec Modes
 
-For modules where the full spec pattern (4 markdown files) is too heavy, Bob supports a
-**simple spec mode** using a single `CLAUDE.md` file per directory.
+Bob supports two spec modes, chosen at install time via `make install SPEC=full|simple`.
+The installed skills and agents reference **only** the chosen mode — no dual-mode detection.
 
-**Detection:** A module uses simple specs if its directory contains:
-- `CLAUDE.md` — numbered invariants, axioms, assumptions, non-obvious constraints
-- No `SPECS.md` (the presence of SPECS.md means full mode takes precedence)
+### Full Spec Mode (default: `make install` or `make install SPEC=full`)
+
+Each module carries 4 living specification documents: `SPECS.md`, `NOTES.md`, `TESTS.md`,
+`BENCHMARKS.md`, plus a `// NOTE` invariant on `.go` files. See "Spec-Driven Module Pattern"
+above for details.
+
+### Simple Spec Mode (`make install SPEC=simple`)
+
+Each module carries a single `CLAUDE.md` file containing numbered invariants.
 
 **CLAUDE.md rules:**
 - Keep them tidy
 - They contain only numbered invariants, axioms, assumptions, and non-obvious constraints
 - Never add anything trivial, ephemeral, or obviously derivable from reading the code
 - NEVER include copies of the code itself
+- No NOTE invariant on `.go` files — Claude Code natively loads CLAUDE.md
 
 **Example CLAUDE.md:**
 ```markdown
@@ -242,23 +249,27 @@ For modules where the full spec pattern (4 markdown files) is too heavy, Bob sup
 4. Thread-safe only if the underlying Store is thread-safe.
 ```
 
-**No NOTE invariant on .go files.** Claude Code natively loads CLAUDE.md, so no per-file
-reminder is needed.
-
 **Enforcement during workflows:**
-- BRAINSTORM: detect simple spec modules and note them
+- BRAINSTORM: detect CLAUDE.md modules and note them
 - EXECUTE: update CLAUDE.md if any numbered invariant changes
 - REVIEW: verify CLAUDE.md invariants are still accurate
 
-**Creating a simple spec module:** Use `/bob:design` (installed via `make install SPEC=simple`)
+**Creating a simple spec module:** Use `/bob:design`
 
-**Three-way detection summary:**
+### Maintaining Spec Mode Variants
 
-| Directory contains | Mode | Enforcement |
-|---|---|---|
-| SPECS.md (with or without CLAUDE.md) | Full spec | 4 files + NOTE invariant |
-| CLAUDE.md only (no SPECS.md) | Simple spec | CLAUDE.md invariants only |
-| Neither | Not spec-driven | No spec enforcement |
+Each skill and agent that references spec documentation has two files:
+- `SKILL.md` — full spec mode (references SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+- `SKILL.simple.md` — simple spec mode (references CLAUDE.md only)
+
+The Makefile copies the appropriate variant at install time. **When editing a skill or agent,
+update both `SKILL.md` and `SKILL.simple.md`** if the change affects non-spec content (workflow
+logic, phase structure, tool usage, etc.). Only spec-related sections differ between variants.
+
+Files with simple variants:
+- `agents/`: workflow-brainstormer, planner, workflow-implementer, workflow-coder, tester, review-consolidator
+- `skills/`: brainstorming, explore, work, work-agents, work-teams, writing-plans
+- `skills/design-simple/` — complete alternative to `skills/design/` for simple mode
 
 ## Best Practices
 

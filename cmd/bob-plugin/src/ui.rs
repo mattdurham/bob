@@ -2,6 +2,10 @@ use zellij_tile::prelude::*;
 
 use crate::state::{AgentEntry, AgentRegistry, AgentStatus};
 
+/// Rows occupied by each agent entry in the sidebar (name + status + approval + divider).
+/// Must match the render loop in render_sidebar and row_to_agent_index in state.rs.
+pub const ROWS_PER_AGENT: usize = 4;
+
 const MODELS: &[(&str, &str)] = &[
     ("sonnet", "claude-sonnet-4-6"),
     ("opus", "claude-opus-4-6"),
@@ -38,10 +42,14 @@ impl ModalState {
 
 /// Render the agent sidebar into the plugin pane.
 pub fn render_sidebar(registry: &AgentRegistry, rows: usize, cols: usize) {
-    // Each agent: 4 rows (name, status, approval/blank, divider)
+    // Need at least ROWS_PER_AGENT + 1 rows (1 for [+ new]) to render anything useful
+    if rows < ROWS_PER_AGENT + 1 {
+        return;
+    }
+
     // Bottom: 1 row for [+ new]
     let visible_rows = rows.saturating_sub(1);
-    let agents_visible = visible_rows / 4;
+    let agents_visible = visible_rows / ROWS_PER_AGENT;
 
     // Scroll window to keep selected in view
     let scroll_offset = if registry.agents.is_empty() {
@@ -56,7 +64,7 @@ pub fn render_sidebar(registry: &AgentRegistry, rows: usize, cols: usize) {
 
     let mut row = 0usize;
     for (i, agent) in registry.agents.iter().enumerate().skip(scroll_offset) {
-        if row + 4 > visible_rows {
+        if row + ROWS_PER_AGENT > visible_rows {
             break;
         }
         let is_selected = i == registry.selected;
@@ -69,7 +77,7 @@ pub fn render_sidebar(registry: &AgentRegistry, rows: usize, cols: usize) {
             None,
             None,
         );
-        row += 4;
+        row += ROWS_PER_AGENT;
     }
 
     // [+ new] at bottom
@@ -170,9 +178,6 @@ pub fn render_modal(modal: &ModalState, rows: usize, cols: usize) {
     print_text_with_coordinates(Text::new(&model_line), start_col, start_row + 3, None, None);
     print_text_with_coordinates(Text::new(&empty_row), start_col, start_row + 4, None, None);
 
-    let prompt_label = format!("║  Prompt: (Tab=model, Enter=spawn, Esc=cancel){}║",
-        " ".repeat(modal_width.saturating_sub(modal_width.min(modal_width))));
-    // Simplified label row
     let hint = "║  Tab=model  Enter=spawn  Esc=cancel";
     let hint_line = format!("{}{} ║", hint, " ".repeat(modal_width.saturating_sub(hint.len() + 2).max(0)));
     print_text_with_coordinates(Text::new(&hint_line), start_col, start_row + 5, None, None);
@@ -207,8 +212,6 @@ pub fn render_modal(modal: &ModalState, rows: usize, cols: usize) {
     );
     print_text_with_coordinates(Text::new(&spawn_line), start_col, start_row + 8, None, None);
     print_text_with_coordinates(Text::new(&border_bot), start_col, start_row + 9, None, None);
-
-    let _ = prompt_label; // suppress unused warning
 }
 
 fn truncate(s: &str, max_len: usize) -> String {

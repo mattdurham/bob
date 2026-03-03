@@ -40,7 +40,7 @@ pub struct AgentEntry {
     pub model: String,
     pub status: AgentStatus,
     pub last_action: String,
-    pub context_remaining: Option<u8>,
+    pub context_remaining: Option<f32>,
     pub pending_approval: Option<PendingApproval>,
     pub zellij_tab_index: usize,
     pub session_hash: Option<String>,
@@ -49,7 +49,7 @@ pub struct AgentEntry {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct StatusFile {
     pub cwd: String,
-    pub context_remaining: Option<u8>,
+    pub context_remaining: Option<f32>,
     pub model: String,
     pub updated_at: u64,
 }
@@ -87,9 +87,11 @@ impl AgentRegistry {
     }
 
     /// Map a sidebar row number to an agent index.
-    /// Each agent occupies 4 rows: name, status, approval/blank, divider.
+    /// Row layout is defined by ROWS_PER_AGENT in ui.rs; must stay in sync.
     pub fn row_to_agent_index(&self, row: usize) -> Option<usize> {
-        let idx = row / 4;
+        // Import the layout constant from ui to avoid duplication
+        const ROWS_PER_AGENT: usize = crate::ui::ROWS_PER_AGENT;
+        let idx = row / ROWS_PER_AGENT;
         if idx < self.agents.len() {
             Some(idx)
         } else {
@@ -219,7 +221,7 @@ mod tests {
         }"#;
         let sf: StatusFile = serde_json::from_str(json).unwrap();
         assert_eq!(sf.cwd, "/home/user/repo-worktrees/add-auth");
-        assert_eq!(sf.context_remaining, Some(72));
+        assert_eq!(sf.context_remaining, Some(72.0));
         assert_eq!(sf.model, "claude-sonnet-4-6");
         assert_eq!(sf.updated_at, 1709500000);
     }

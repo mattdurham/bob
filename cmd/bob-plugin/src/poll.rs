@@ -2,7 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::state::{AgentEntry, AgentRegistry, AgentStatus, ApprovalFile, PendingApproval, StatusFile};
+use crate::state::{AgentRegistry, AgentStatus, ApprovalFile, PendingApproval, StatusFile};
 
 const STALE_THRESHOLD_SECS: u64 = 30;
 
@@ -20,7 +20,7 @@ pub fn update_registry(registry: &mut AgentRegistry) {
         if let Some((hash, sf)) = status {
             agent.session_hash = Some(hash.clone());
             agent.model = sf.model.clone();
-            agent.context_remaining = sf.context_remaining;
+            agent.context_remaining = sf.context_remaining.map(|v| v.clamp(0.0, 100.0));
 
             let now = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
@@ -29,8 +29,12 @@ pub fn update_registry(registry: &mut AgentRegistry) {
 
             if now.saturating_sub(sf.updated_at) > STALE_THRESHOLD_SECS {
                 agent.status = AgentStatus::Stale;
-            } else if agent.status == AgentStatus::Stale {
-                agent.status = AgentStatus::Running;
+            } else {
+                // Fresh status file: any non-Waiting status transitions to Running.
+                // This handles Idle agents that now have an active status file.
+                if agent.status != AgentStatus::Waiting {
+                    agent.status = AgentStatus::Running;
+                }
             }
         }
 
@@ -104,15 +108,6 @@ fn scan_json_files(home: &str, filename: &str) -> Vec<(String, String)> {
     results
 }
 
-/// Check if an agent's worktree process is still alive by looking for
-/// a recently-updated status file. Returns false if no status file found.
-pub fn is_agent_alive(agent: &AgentEntry, home: &str) -> bool {
-    let Some(hash) = &agent.session_hash else {
-        return false;
-    };
-    let path = format!("{}/.claude/projects/{}/bob-status.json", home, hash);
-    fs::metadata(&path).is_ok()
-}
 
 #[cfg(test)]
 mod tests {
@@ -169,6 +164,7 @@ mod tests {
 
     #[test]
     fn test_stale_detection() {
+        use crate::state::AgentEntry;
         let mut reg = AgentRegistry::default();
         reg.agents.push(AgentEntry {
             worktree: "old-task".to_string(),
@@ -202,6 +198,7 @@ mod tests {
 
     #[test]
     fn test_match_cwd_to_agent() {
+        use crate::state::AgentEntry;
         let agent = AgentEntry {
             worktree: "add-auth".to_string(),
             worktree_path: "/repo/add-auth".to_string(),
@@ -209,7 +206,7 @@ mod tests {
         };
         let sf = StatusFile {
             cwd: "/repo/add-auth".to_string(),
-            context_remaining: Some(50),
+            context_remaining: Some(50.0),
             model: "sonnet".to_string(),
             updated_at: 9999999999,
         };

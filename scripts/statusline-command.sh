@@ -74,3 +74,18 @@ if [ -n "$remaining" ]; then
 fi
 
 echo "$status_line"
+
+# Write bob-status.json side-effect for bob Zellij plugin
+if [ -n "$cwd" ] && [ "$cwd" != "null" ]; then
+    project_hash=$(printf '%s' "$cwd" | sha256sum | cut -c1-8)
+    bob_status_dir="$HOME/.claude/projects/$project_hash"
+    mkdir -p "$bob_status_dir"
+    model="${CLAUDE_MODEL:-unknown}"
+    remaining_val="${remaining:-null}"
+    printf '{"cwd":"%s","context_remaining":%s,"model":"%s","updated_at":%s}\n' \
+        "$cwd" \
+        "$remaining_val" \
+        "$model" \
+        "$(date +%s)" \
+        > "$bob_status_dir/bob-status.json"
+fi

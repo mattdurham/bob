@@ -1,0 +1,31 @@
+// Bob Zellij layout
+// Launch with: bob (from a git repository root)
+
+layout {
+    // No default tab template = no tab bar shown
+    default_tab_template {
+        children
+    }
+
+    tab name="bob" focus=true {
+        pane split_direction="vertical" {
+            // Left sidebar: bob plugin (26 cols wide)
+            pane size=26 borderless=false {
+                plugin location="file:~/.local/share/bob/bob-plugin.wasm" {
+                    repo_root "$BOB_REPO_ROOT"
+                }
+            }
+            // Right: main terminal pane (starts empty, agents spawn as floating panes)
+            pane focus=true borderless=false
+        }
+    }
+}
+
+// Keybindings: Ctrl+b prefix forwarded to plugin
+// Note: these are injected at the session level; the plugin handles n/j/k/x/r
+keybinds clear-defaults=false {
+    normal {
+        // Ctrl+b n — spawn new agent (handled inside plugin when plugin pane is focused)
+        // Arrow navigation works natively when plugin pane has focus
+    }
+}

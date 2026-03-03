@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean install-bob-plugin
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -32,6 +32,7 @@ help:
 	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
+	@echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
@@ -775,6 +776,27 @@ ci:
 	fi
 
 # Clean temporary files
+install-bob-plugin:
+	@echo "🔌 Building and installing bob Zellij plugin..."
+	@command -v cargo >/dev/null 2>&1 || { echo "❌ cargo not found. Install Rust: https://rustup.rs"; exit 1; }
+	@command -v zellij >/dev/null 2>&1 || { echo "❌ zellij not found. Install: https://zellij.dev"; exit 1; }
+	@echo "   Building WASM plugin (this may take a while)..."
+	@cargo build --release --target wasm32-wasip1 \
+		--manifest-path cmd/bob-plugin/Cargo.toml
+	@mkdir -p "$$HOME/.local/share/bob"
+	@cp cmd/bob-plugin/target/wasm32-wasip1/release/bob_plugin.wasm \
+		"$$HOME/.local/share/bob/bob-plugin.wasm"
+	@mkdir -p "$$HOME/.config/zellij/layouts"
+	@cp config/bob.kdl "$$HOME/.config/zellij/layouts/bob.kdl"
+	@mkdir -p "$$HOME/.local/bin"
+	@cp scripts/bob "$$HOME/.local/bin/bob"
+	@chmod +x "$$HOME/.local/bin/bob"
+	@cp scripts/statusline-command.sh "$$HOME/.claude/statusline-command.sh"
+	@chmod +x "$$HOME/.claude/statusline-command.sh"
+	@echo "✅ bob plugin installed"
+	@echo "   Run 'bob' from any git repository to start"
+	@echo "   Make sure ~/.local/bin is in your PATH"
+
 clean:
 	@echo "🧹 Cleaning temporary files..."
 	@find . -name "*.tmp" -delete 2>/dev/null || true

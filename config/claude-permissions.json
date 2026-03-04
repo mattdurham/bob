@@ -7,7 +7,9 @@
       "Edit",
       "Skill",
       "WebFetch",
-      "mcp__*"
+      "mcp__*",
+      "mcp__blockpack__blockpack_search_modules",
+      "LSP"
     ],
     "defaultMode": "dontAsk"
   },

@@ -9,6 +9,7 @@
       "WebFetch",
       "mcp__*",
       "mcp__blockpack__blockpack_search_modules",
+      "mcp__blockpack__blockpack_package_docs",
       "LSP"
     ],
     "defaultMode": "dontAsk"

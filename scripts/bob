@@ -1,0 +1,25 @@
+#!/bin/bash
+# bob — launch the Bob Zellij plugin from a git repository
+set -e
+
+BOB_REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "bob: must be run from inside a git repository" >&2
+    exit 1
+}
+export BOB_REPO_ROOT
+
+LAYOUT="$HOME/.config/zellij/layouts/bob.kdl"
+if [ ! -f "$LAYOUT" ]; then
+    echo "bob: layout not found at $LAYOUT" >&2
+    echo "     Run 'make install-bob-plugin' to install." >&2
+    exit 1
+fi
+
+PLUGIN="$HOME/.local/share/bob/bob-plugin.wasm"
+if [ ! -f "$PLUGIN" ]; then
+    echo "bob: plugin not found at $PLUGIN" >&2
+    echo "     Run 'make install-bob-plugin' to install." >&2
+    exit 1
+fi
+
+exec zellij --layout "$LAYOUT"

@@ -74,3 +74,26 @@ if [ -n "$remaining" ]; then
 fi
 
 echo "$status_line"
+
+# Write bob-status.json side-effect for bob Zellij plugin
+if [ -n "$cwd" ] && [ "$cwd" != "null" ]; then
+    project_hash=$(printf '%s' "$cwd" | sha256sum | cut -c1-8)
+    bob_status_dir="$HOME/.claude/projects/$project_hash"
+    mkdir -p "$bob_status_dir"
+    model="${CLAUDE_MODEL:-unknown}"
+
+    # Validate remaining is a number before embedding in JSON
+    remaining_val="${remaining:-null}"
+    if [ -n "$remaining" ] && ! [[ "$remaining" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+        remaining_val="null"
+    fi
+
+    # Use jq -n to construct JSON safely — prevents injection from cwd/model values
+    jq -n \
+        --arg cwd "$cwd" \
+        --argjson context_remaining "$remaining_val" \
+        --arg model "$model" \
+        --argjson updated_at "$(date +%s)" \
+        '{"cwd":$cwd,"context_remaining":$context_remaining,"model":$model,"updated_at":$updated_at}' \
+        > "$bob_status_dir/bob-status.json"
+fi

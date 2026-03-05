@@ -20,6 +20,7 @@ Invoke these workflows with slash commands:
 3. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
 4. **`/bob:explore`** - Read-only codebase exploration
 5. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+6. **`/bob:audit`** - Verify code satisfies stated invariants in spec-driven modules (read-only)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 

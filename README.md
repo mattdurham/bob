@@ -82,6 +82,14 @@ INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW 
 
 Multiple coder and reviewer teammates work in parallel through a shared task list. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
+### `/bob:audit` — Spec Audit
+
+```
+INIT → DISCOVER → AUDIT → REPORT → COMPLETE
+```
+
+Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it. Run after `/bob:design apply` or periodically to catch spec drift.
+
 ### `/bob:explore` — Read-Only Exploration
 
 ```

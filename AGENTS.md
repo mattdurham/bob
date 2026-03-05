@@ -43,6 +43,13 @@ INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 
 Spec-aware codebase exploration. No code changes.
 
+### /bob:audit — Spec Audit
+```
+INIT → DISCOVER → AUDIT → REPORT → COMPLETE
+```
+
+Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
+
 ### /bob:design — Spec Scaffolding
 ```
 INIT → GATHER → [ANALYZE] → SCAFFOLD → COMPLETE

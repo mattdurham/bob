@@ -162,9 +162,11 @@ Check for:
 - README commands or configs that no longer work
 - Stale comments describing removed functionality
 
-### Pass 9: Documentation Compliance
+### Pass 9: Invariant Verification
 
-Focus: Verify that directories with a CLAUDE.md still have accurate invariants after code changes.
+Focus: Verify that the code **satisfies** the invariants stated in CLAUDE.md, and that CLAUDE.md is updated when invariants change.
+
+This is the most important pass for documented modules. The invariants in CLAUDE.md are the source of truth — code must conform to them.
 
 **Detection:** Find directories with a CLAUDE.md:
 
@@ -175,19 +177,41 @@ find . -mindepth 2 -name "CLAUDE.md"
 
 A directory is a documented module if it contains `CLAUDE.md`.
 
-**If documented modules are found, verify:**
+**If documented modules are found, perform TWO checks:**
+
+#### Check A: Code Satisfies Stated Invariants (PRIMARY)
+
+Read `CLAUDE.md` thoroughly. For each numbered invariant, axiom, assumption, and constraint, verify the code actually satisfies it:
+
+1. Read every numbered item in CLAUDE.md
+2. Read the corresponding code
+3. For each invariant, determine: does the implementation honor this guarantee?
+
+| Violation | Severity |
+|-----------|----------|
+| Code contradicts a stated invariant in CLAUDE.md | **CRITICAL** |
+| Code silently ignores a constraint (e.g., thread-safety invariant but no synchronization) | **HIGH** |
+| New code path has no corresponding constraint in CLAUDE.md (missing coverage) | **MEDIUM** |
+
+Example violations:
+- CLAUDE.md says "Thread-safe only if the underlying Store is thread-safe" but code adds unsynchronized shared state
+- CLAUDE.md says "The package never persists state" but code writes to disk
+- CLAUDE.md says "Zero-value Config means no limit" but code treats zero as "deny all"
+
+#### Check B: CLAUDE.md Updated When Invariants Change
 
 | Check | Severity if Failing |
 |-------|-------------------|
 | CLAUDE.md invariants are still accurate after code changes | **MEDIUM** |
+| New invariant-worthy behavior not captured in CLAUDE.md | **LOW** |
 
-**How to verify:**
+**How to verify Check B:**
 - Read the CLAUDE.md in each changed directory.
-- Identify any numbered invariant, axiom, or assumption that the new or modified code contradicts or renders inaccurate.
+- Identify any numbered invariant that the new or modified code contradicts or renders inaccurate.
 - Flag any invariant that should be updated but was not.
 - Do not flag invariants that are still accurate — only report drift.
 
-Report violations under a **"Documentation Compliance"** section in the review.
+Report violations under an **"Invariant Verification"** section in the review, with Check A findings listed first (they are more important than Check B).
 
 ---
 
@@ -199,7 +223,7 @@ After all passes, write `.bob/state/review.md`:
 # Consolidated Code Review Report
 
 Generated: [ISO timestamp]
-Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation, Documentation Compliance
+Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation, Invariant Verification
 
 ---
 
@@ -252,7 +276,7 @@ Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Perform
 - Go Idioms: [N] issues
 - Architecture: [N] issues
 - Documentation: [N] issues
-- Documentation Compliance: [N] issues
+- Invariant Verification: [N] issues
 
 ---
 
@@ -288,7 +312,8 @@ Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Perform
 - Non-idiomatic Go
 - N+1 queries
 - Missing caching
-- CLAUDE.md invariant drift
+- CLAUDE.md invariant drift (Check B)
+- Code contradicts CLAUDE.md invariant: **promote to CRITICAL** (Check A)
 
 **LOW:** Style, minor improvements, docs
 - Comment typos

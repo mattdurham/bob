@@ -204,9 +204,9 @@ the code. Bob detects and enforces this pattern automatically.
 `SPECS.md` (API/contract changes) or `NOTES.md` (design decisions).
 
 **Bob's enforcement during `/bob:work-agents`:**
-- BRAINSTORM: detect spec-driven modules in scope and note them in the brainstorm
-- EXECUTE: workflow-coder updates docs alongside code — no code change without doc update
-- REVIEW: review-consolidator checks that spec docs were updated with code changes
+- BRAINSTORM: detect spec-driven modules in scope, read their invariants, and constrain approach selection
+- EXECUTE: workflow-coder passes actual invariants from SPECS.md to implementer as hard constraints
+- REVIEW: review-consolidator verifies code satisfies stated invariants in SPECS.md (primary) and checks that spec docs were updated (secondary)
 
 **Creating a spec-driven module:** Use `/bob:design`
 - New module: scaffold all docs and stub files
@@ -250,9 +250,9 @@ Each module carries a single `CLAUDE.md` file containing numbered invariants.
 ```
 
 **Enforcement during workflows:**
-- BRAINSTORM: detect CLAUDE.md modules and note them
-- EXECUTE: update CLAUDE.md if any numbered invariant changes
-- REVIEW: verify CLAUDE.md invariants are still accurate
+- BRAINSTORM: detect CLAUDE.md modules, read their invariants, and constrain approach selection
+- EXECUTE: pass actual invariants from CLAUDE.md to implementer as hard constraints
+- REVIEW: verify code satisfies stated invariants in CLAUDE.md (primary) and check that docs were updated (secondary)
 
 **Creating a simple spec module:** Use `/bob:design`
 

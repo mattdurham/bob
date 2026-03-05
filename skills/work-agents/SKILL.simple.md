@@ -204,9 +204,9 @@ REVIEW must complete (via /bob:code-review) before proceeding to COMPLETE.
 Directories containing a `CLAUDE.md` file are **documented modules**. The workflow enforces
 invariant updates alongside code changes:
 
-- **BRAINSTORM:** Detect CLAUDE.md modules in scope and note them in the brainstorm prompt
-- **EXECUTE:** workflow-coder checks CLAUDE.md invariants and updates CLAUDE.md when affected
-- **REVIEW:** review-consolidator checks that CLAUDE.md accurately reflects any changed invariants
+- **BRAINSTORM:** Detect CLAUDE.md modules in scope, read their invariants, and constrain approach selection
+- **EXECUTE:** workflow-coder passes actual invariants to implementer as hard constraints
+- **REVIEW:** review-consolidator verifies code satisfies stated invariants in CLAUDE.md and checks docs were updated
 
 ---
 

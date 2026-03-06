@@ -142,6 +142,19 @@ Task(subagent_type: "Explore",
               - Code behaviors that have no corresponding invariant in CLAUDE.md (undocumented guarantees)
               - Invariants in CLAUDE.md that reference types/functions that no longer exist (stale invariants)
 
+              IMPORTANT — Candidate Invariant Discovery:
+              Actively scan the code for patterns that SHOULD be documented as invariants but are not.
+              Look for:
+              - Thread-safety guarantees (mutexes, atomics, channel patterns)
+              - Nil/error handling contracts (functions that never return nil, always return errors)
+              - Ordering guarantees (initialization order, cleanup order)
+              - Concurrency boundaries (what is safe to call concurrently)
+              - Resource lifecycle rules (who creates, who closes, ownership transfers)
+              - Interface compliance assumptions (which concrete types satisfy which interfaces)
+              - Architectural boundaries (packages that must not import each other)
+
+              For each candidate, write it as a proposed invariant in clear, numbered format.
+
               Write findings to .bob/state/audit-module-<module-name>.md with this format:
 
               # Audit: `path/to/module/`
@@ -156,6 +169,14 @@ Task(subagent_type: "Explore",
               ## Undocumented Behaviors
               [Code guarantees not captured in CLAUDE.md]
 
+              ## Proposed New Invariants
+              These are candidate invariants discovered by scanning the code.
+              Each should be reviewed by the user before adding to CLAUDE.md.
+
+              | # | Proposed Invariant | Evidence | Rationale |
+              |---|-------------------|----------|-----------|
+              | 1 | [proposed invariant text] | [file:line or pattern] | [why this should be an invariant] |
+
               ## Stale Invariants
               [Invariants referencing removed/renamed code]
 
@@ -164,7 +185,8 @@ Task(subagent_type: "Explore",
               - PASS: N
               - FAIL: N
               - PARTIAL: N
-              - UNTESTABLE: N")
+              - UNTESTABLE: N
+              - Candidate new invariants: N")
 ```
 
 If there are multiple modules, spawn agents in parallel (one per module or batched sensibly).
@@ -234,7 +256,22 @@ Task(subagent_type: "Explore",
 
               ## Undocumented Behaviors
 
-              [List behaviors found in code but not captured in CLAUDE.md — candidates for new invariants]
+              [List behaviors found in code but not captured in CLAUDE.md]
+
+              ---
+
+              ## Proposed New Invariants
+
+              These invariants were discovered by scanning the code but are NOT yet documented
+              in any CLAUDE.md file. They require user approval before being added.
+
+              ### `path/to/module/`
+
+              | # | Proposed Invariant | Evidence | Rationale |
+              |---|-------------------|----------|-----------|
+              | 1 | [text] | [file:line] | [why this matters] |
+
+              [Group by module, list all candidates]
 
               ---
 
@@ -280,11 +317,37 @@ Results: .bob/state/audit-report.md
   Review .bob/state/audit-report.md and prioritize fixes.
 ```
 
+### Proposed New Invariants Review
+
+If the audit report contains proposed new invariants, present them to the user for approval:
+
+```
+The audit discovered N candidate invariants that are not yet documented:
+
+[For each candidate, numbered]:
+  N. [proposed invariant text]
+     Evidence: [file:line or pattern]
+     Module: path/to/module/
+     Target: CLAUDE.md
+
+Which of these would you like to add? (e.g., "1,3,5", "all", or "none")
+```
+
+Use `AskUserQuestion` to get the user's selection. **NEVER add invariants to CLAUDE.md without explicit user approval.**
+
+For each approved invariant:
+- Add it to the appropriate module's CLAUDE.md
+- Use the next available number in the existing invariant list
+- Keep the wording as proposed unless the user requests changes
+
+Skip any the user declines. If the user says "none", proceed to completion without changes.
+
 ---
 
 ## Notes
 
-- This workflow is **read-only** — it never modifies code or CLAUDE.md files
+- This workflow is **read-only** unless the user approves proposed new invariants
+- CLAUDE.md files are only modified with explicit user consent
 - Findings from the audit can feed into `/bob:work-agents` to fix violations
 - Run periodically (e.g., before releases) to catch invariant drift
 - The audit checks code against invariants, not invariants against code — if you want to generate invariants from code, use `/bob:design apply`

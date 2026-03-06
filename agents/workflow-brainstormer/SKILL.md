@@ -89,7 +89,7 @@ Task(subagent_type: "Explore",
 - Libraries and dependencies in use
 - Test patterns and approaches
 
-### Step 2.5: Detect Spec-Driven Modules
+### Step 2.5: Read Spec-Driven Module Invariants
 
 **Check every directory that will be touched by this task for spec-driven status.**
 
@@ -114,8 +114,10 @@ grep -rn "NOTE: Any changes to this file must be reflected" --include="*.go" | h
 
 **If any spec-driven modules are found:**
 - List each module directory and which spec files it has
-- Note the constraint: code changes in these modules MUST include doc updates
-- Flag this prominently — it affects implementation strategy and review criteria
+- **Read SPECS.md and extract every stated invariant, contract, and behavioral guarantee** — these constrain which approaches are valid
+- **Read NOTES.md for past design decisions** that may rule out certain approaches
+- Note any invariant that the task might need to change (flag for explicit discussion)
+- Evaluate each approach against the stated invariants — reject approaches that would violate contracts without deliberate spec changes
 
 ### Step 3: Append Research Findings
 
@@ -291,9 +293,13 @@ Starting brainstorm process...
 
 **`internal/modules/queryplanner/`** — spec-driven
 - Has: SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
-- Constraint: Any code changes MUST update corresponding spec docs
-- New .go files MUST include NOTE invariant comment
-- NOTES.md entries are append-only (never delete)
+- **Key invariants from SPECS.md:**
+  - "Output is always sorted ascending by score"
+  - "Returns error when input query is empty"
+  - "Thread-safe for concurrent use"
+- **Design constraints from NOTES.md:**
+  - "Decision 3: No caching — caching belongs at the service layer"
+- **Impact on approaches:** Any approach must preserve sort-order guarantee and thread-safety. Cannot add caching at this layer per NOTES.md decision 3.
 
 [If no spec-driven modules found: "No spec-driven modules detected in scope."]
 

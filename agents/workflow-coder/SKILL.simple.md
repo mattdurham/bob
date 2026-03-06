@@ -91,15 +91,23 @@ If looping back from task-reviewer or code-quality, include the specific gaps or
 
 **Documented module instructions for the implementation prompt:**
 
-Check `.bob/state/brainstorm.md` and `.bob/state/plan.md` for directories that contain a `CLAUDE.md`. If any are listed, include this block in `.bob/state/implementation-prompt.md`:
+Check `.bob/state/brainstorm.md` and `.bob/state/plan.md` for directories that contain a `CLAUDE.md`. If any are listed, **read their CLAUDE.md** and include the actual invariants in `.bob/state/implementation-prompt.md`:
 
 ```markdown
 ## Documented Modules
 
-The following directories have a CLAUDE.md with numbered invariants, axioms, and constraints:
-- `path/to/module/` — contains CLAUDE.md
+The following directories have a CLAUDE.md. Your code MUST satisfy their stated invariants.
 
-You MUST:
+### `path/to/module/`
+
+**Invariants from CLAUDE.md (these are hard constraints — violating any is a CRITICAL issue):**
+- [Copy each numbered invariant from the CLAUDE.md]
+- Example: "1. The TokenBucket interface is the sole entry point"
+- Example: "2. Refill is atomic — concurrent Acquire calls never see a partially refilled bucket"
+- Example: "3. The package never persists state"
+
+**You MUST:**
+- Satisfy every invariant listed above — your code will be reviewed against them
 - Read CLAUDE.md before touching any file in that directory
 - Update CLAUDE.md if your changes affect any numbered invariant, axiom, or assumption
 - Keep CLAUDE.md tidy: only non-obvious constraints that cannot be derived by reading the code

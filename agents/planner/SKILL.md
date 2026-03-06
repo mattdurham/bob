@@ -40,16 +40,24 @@ Extract:
 - **Patterns**: Existing code patterns to follow
 - **Constraints**: Limitations and considerations
 
-### Step 1.5: Detect Spec-Driven Modules
+### Step 1.5: Read Spec-Driven Module Invariants
 
-Check the brainstorm findings for a **"Spec-Driven Modules in Scope"** section. If present, these modules require doc updates alongside code changes.
+Check the brainstorm findings for a **"Spec-Driven Modules in Scope"** section. If present, these modules have living spec docs that define the source of truth for behavior.
 
 If the brainstorm doesn't include this section, detect spec-driven modules yourself by checking directories in scope for:
 - `SPECS.md`, `NOTES.md`, `TESTS.md`, `BENCHMARKS.md`
 - `.go` files with: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
 
-**For each spec-driven module found, the plan MUST include explicit doc update steps:**
-- Update `SPECS.md` if changing public API, contracts, or invariants
+**For each spec-driven module found:**
+
+1. **Read `SPECS.md` thoroughly.** Extract every stated invariant, contract, and behavioral guarantee. These are the authoritative constraints your plan must satisfy.
+2. **Read `NOTES.md` for design decisions** that constrain implementation choices.
+3. **Read `TESTS.md` for existing test specifications** to avoid duplicating or contradicting.
+4. **Read `BENCHMARKS.md` for performance constraints** (the Metric Targets table defines regression thresholds).
+
+**The plan MUST include:**
+- **Invariant verification tests** derived from SPECS.md (see Step 3)
+- Explicit doc update steps if the implementation changes contracts or invariants
 - Add dated entry to `NOTES.md` for any new design decision
 - Update `TESTS.md` with scenario/setup/assertions for new test functions
 - Update `BENCHMARKS.md` for new benchmarks
@@ -86,6 +94,14 @@ For EACH feature/function, plan:
 ✅ Verify test passes
 ✅ Refactor if needed
 ```
+
+**Invariant-Derived Tests (for spec-driven modules):**
+
+If Step 1.5 found spec-driven modules, derive test cases directly from the stated invariants in SPECS.md. For each invariant or contract, plan at least one test that would fail if the invariant were violated.
+
+Example: If SPECS.md states "Output is always sorted ascending by score", plan a test that verifies sort order. If it states "Returns error when input is nil", plan a test that passes nil and asserts the error.
+
+These tests go in the plan's "Spec-Driven Verification Tests" section and are implemented before any feature tests.
 
 ### Step 4: Identify Edge Cases
 
@@ -209,6 +225,23 @@ Write your plan to `.bob/state/plan.md`:
 - [ ] Test with real data
 - [ ] Check edge cases manually
 - [ ] Verify error messages are clear
+
+## Spec-Driven Verification Tests
+
+[If any spec-driven modules are in scope, list tests derived from their invariants:]
+
+### Module: `path/to/module/`
+
+**Source:** SPECS.md invariants read in Step 1.5
+
+| Invariant (from SPECS.md) | Test to Verify | Test File |
+|---------------------------|----------------|-----------|
+| "Output sorted ascending by score" | TestOutputSortOrder | path/to/module_test.go |
+| "Returns error when input is nil" | TestNilInputReturnsError | path/to/module_test.go |
+
+These tests MUST be written first and MUST pass after implementation. They are the contract between the spec and the code.
+
+[If no spec-driven modules: omit this section]
 
 ## Spec-Driven Module Updates
 

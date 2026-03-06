@@ -162,9 +162,11 @@ Check for:
 - README commands or configs that no longer work
 - Stale comments describing removed functionality
 
-### Pass 9: Spec-Driven Compliance
+### Pass 9: Spec-Driven Verification
 
-Focus: Verify that spec-driven modules have their documentation updated alongside code changes.
+Focus: Verify that the code **satisfies** the invariants stated in spec documents, and that spec documents are updated when contracts change.
+
+This is the most important pass for spec-driven modules. The specs are the source of truth — code must conform to them, not the other way around.
 
 **Detection:** For each changed directory, check for spec-driven status:
 
@@ -180,7 +182,28 @@ grep -rn "NOTE: Any changes to this file must be reflected" --include="*.go"
 
 A directory is spec-driven if it contains any of: `SPECS.md`, `NOTES.md`, `TESTS.md`, `BENCHMARKS.md`, or `.go` files with the NOTE invariant.
 
-**If spec-driven modules are found, verify:**
+**If spec-driven modules are found, perform TWO checks:**
+
+#### Check A: Code Satisfies Stated Invariants (PRIMARY)
+
+Read `SPECS.md` thoroughly. For each stated invariant, contract, or behavioral guarantee, verify the code actually satisfies it:
+
+1. Read every invariant and contract in SPECS.md
+2. Read the corresponding code
+3. For each invariant, determine: does the implementation honor this guarantee?
+
+| Violation | Severity |
+|-----------|----------|
+| Code contradicts a stated invariant in SPECS.md | **CRITICAL** |
+| Code silently ignores a contract (e.g., doesn't validate input that SPECS.md says is validated) | **HIGH** |
+| New code path has no corresponding invariant in SPECS.md (missing coverage) | **MEDIUM** |
+
+Example violations:
+- SPECS.md says "Output is always sorted ascending" but code returns unsorted results in an edge case
+- SPECS.md says "Returns error when input is nil" but code panics on nil input
+- SPECS.md says "Thread-safe for concurrent use" but implementation has no synchronization
+
+#### Check B: Spec Documents Updated When Contracts Change
 
 | Check | Severity if Missing |
 |-------|-------------------|
@@ -191,7 +214,7 @@ A directory is spec-driven if it contains any of: `SPECS.md`, `NOTES.md`, `TESTS
 | New .go files have NOTE invariant comment | **LOW** |
 | NOTES.md entries were not deleted (append-only) | **HIGH** |
 
-**How to verify each:**
+**How to verify Check B:**
 - **SPECS.md**: Compare changed function signatures / exported types against SPECS.md content. If a new public function was added or an existing one changed, SPECS.md should reflect it.
 - **NOTES.md**: If the diff shows design decisions (new patterns, architectural choices, algorithm changes), there should be a corresponding dated entry.
 - **TESTS.md**: If new `Test*` or `Benchmark*` functions were added, they should have entries in TESTS.md.
@@ -199,7 +222,7 @@ A directory is spec-driven if it contains any of: `SPECS.md`, `NOTES.md`, `TESTS
 - **NOTE invariant**: New `.go` files (not package-level doc files) should contain: `// NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.`
 - **Append-only**: Check git diff of NOTES.md — lines should only be added, never removed.
 
-Report violations under a **"Spec-Driven Compliance"** section in the review.
+Report violations under a **"Spec-Driven Verification"** section in the review, with Check A findings listed first (they are more important than Check B).
 
 ---
 
@@ -211,7 +234,7 @@ After all passes, write `.bob/state/review.md`:
 # Consolidated Code Review Report
 
 Generated: [ISO timestamp]
-Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation, Spec-Driven Compliance
+Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Performance, Go Idioms, Architecture, Documentation, Spec-Driven Verification
 
 ---
 
@@ -264,7 +287,7 @@ Domains Reviewed: Security, Bug Diagnosis, Error Handling, Code Quality, Perform
 - Go Idioms: [N] issues
 - Architecture: [N] issues
 - Documentation: [N] issues
-- Spec-Driven Compliance: [N] issues
+- Spec-Driven Verification: [N] issues
 
 ---
 

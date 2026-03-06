@@ -207,7 +207,7 @@ code changes:
 
 - **BRAINSTORM:** Detect spec-driven modules in scope and note them in the brainstorm prompt
 - **EXECUTE:** workflow-coder updates SPECS.md/NOTES.md/TESTS.md/BENCHMARKS.md alongside code
-- **REVIEW:** review-consolidator checks that spec docs were updated with code changes
+- **REVIEW:** review-consolidator verifies code satisfies stated invariants in SPECS.md and checks that spec docs were updated
 
 ---
 

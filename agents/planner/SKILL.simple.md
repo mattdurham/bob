@@ -40,14 +40,19 @@ Extract:
 - **Patterns**: Existing code patterns to follow
 - **Constraints**: Limitations and considerations
 
-### Step 1.5: Detect Documented Modules
+### Step 1.5: Read Documented Module Invariants
 
-Check the brainstorm findings for a **"Documented Modules in Scope"** section. If present, these modules have a `CLAUDE.md` with numbered invariants that must be kept accurate alongside code changes.
+Check the brainstorm findings for a **"Documented Modules in Scope"** section. If present, these modules have a `CLAUDE.md` with numbered invariants that define the source of truth for behavior.
 
 If the brainstorm doesn't include this section, detect documented modules yourself by checking directories in scope for a `CLAUDE.md` file.
 
-**For each documented module found, the plan MUST include an explicit doc update step:**
-- Review the numbered invariants in `CLAUDE.md`
+**For each documented module found:**
+
+1. **Read `CLAUDE.md` thoroughly.** Extract every numbered invariant, axiom, assumption, and constraint. These are the authoritative constraints your plan must satisfy.
+2. **Verify your planned approach doesn't violate any stated invariant.** If the task requires violating an invariant, the plan must explicitly call out which invariant changes and why.
+
+**The plan MUST include:**
+- **Invariant verification tests** derived from CLAUDE.md (see Step 3)
 - Update `CLAUDE.md` if any code change affects a numbered invariant
 
 ### Step 2: Break Down Into Steps
@@ -81,6 +86,14 @@ For EACH feature/function, plan:
 ✅ Verify test passes
 ✅ Refactor if needed
 ```
+
+**Invariant-Derived Tests (for documented modules):**
+
+If Step 1.5 found modules with CLAUDE.md, derive test cases directly from the numbered invariants. For each invariant, plan at least one test that would fail if the invariant were violated.
+
+Example: If CLAUDE.md states "2. Refill is atomic — concurrent Acquire calls never see a partially refilled bucket", plan a concurrent test that verifies atomicity. If it states "5. Zero-value Config means no limit", plan a test that verifies zero-value behavior.
+
+These tests go in the plan's "Invariant Verification Tests" section and are implemented before any feature tests.
 
 ### Step 4: Identify Edge Cases
 
@@ -204,6 +217,23 @@ Write your plan to `.bob/state/plan.md`:
 - [ ] Test with real data
 - [ ] Check edge cases manually
 - [ ] Verify error messages are clear
+
+## Invariant Verification Tests
+
+[If any documented modules are in scope, list tests derived from their CLAUDE.md invariants:]
+
+### Module: `path/to/module/`
+
+**Source:** CLAUDE.md invariants read in Step 1.5
+
+| Invariant (from CLAUDE.md) | Test to Verify | Test File |
+|---------------------------|----------------|-----------|
+| "2. Refill is atomic — concurrent Acquire calls never see a partially refilled bucket" | TestRefillAtomicity | path/to/module_test.go |
+| "5. Zero-value Config means no limit" | TestZeroValueConfigNoLimit | path/to/module_test.go |
+
+These tests MUST be written first and MUST pass after implementation. They are the contract between the spec and the code.
+
+[If no documented modules: omit this section]
 
 ## Documentation Updates
 

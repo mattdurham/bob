@@ -91,15 +91,26 @@ If looping back from task-reviewer or code-quality, include the specific gaps or
 
 **Spec-driven module instructions for the implementation prompt:**
 
-Check `.bob/state/brainstorm.md` and `.bob/state/plan.md` for spec-driven modules. If any are listed, include this block in `.bob/state/implementation-prompt.md`:
+Check `.bob/state/brainstorm.md` and `.bob/state/plan.md` for spec-driven modules. If any are listed, **read their SPECS.md** and include the actual invariants in `.bob/state/implementation-prompt.md`:
 
 ```markdown
 ## Spec-Driven Modules
 
-The following directories are spec-driven and require doc updates alongside code:
-- `path/to/module/` — has SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md
+The following directories are spec-driven. Your code MUST satisfy their stated invariants.
 
-You MUST:
+### `path/to/module/`
+
+**Invariants from SPECS.md (these are hard constraints — violating any is a CRITICAL issue):**
+- [Copy each stated invariant, contract, and behavioral guarantee from SPECS.md]
+- Example: "Output is always sorted ascending by score"
+- Example: "Returns error when input is nil"
+- Example: "Thread-safe for concurrent use"
+
+**Design constraints from NOTES.md:**
+- [Copy relevant design decisions that constrain implementation]
+
+**You MUST:**
+- Satisfy every invariant listed above — your code will be reviewed against them
 - Update SPECS.md if you change any public API, contracts, or invariants
 - Add a dated entry to NOTES.md for any new design decision
 - Update TESTS.md with scenario/setup/assertions for new test functions
@@ -141,7 +152,7 @@ Check:
 - Update `.bob/state/implementation-prompt.md` with guidance to unblock
 - Loop back to Step 3 (re-spawn implementer)
 
-**Check spec-driven compliance:** If spec-driven modules were in scope, verify the implementation status includes a "Spec-Driven Compliance" section with all items checked. If spec docs were not updated, add this to the implementation prompt feedback and loop back to Step 3.
+**Check spec-driven compliance:** If spec-driven modules were in scope, verify the implementation status confirms that code satisfies the stated invariants from SPECS.md and that spec docs were updated where needed. If invariants were violated or docs not updated, add this to the implementation prompt feedback and loop back to Step 3.
 
 ### Step 5: Spawn Reviewers in Parallel
 

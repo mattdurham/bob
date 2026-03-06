@@ -1,196 +1,133 @@
-# 🏴‍☠️ Belayin' Pin Bob - Agent Guidance
+# Belayin' Pin Bob - Agent Guidance
 
-This repository uses **Belayin' Pin Bob** (bob) for workflow orchestration and task management.
-
-Bob is your ship's captain - he keeps your AI agent workflows organized, coordinated, and running smoothly through the Model Context Protocol (MCP).
+This repository uses **Belayin' Pin Bob** for workflow orchestration through Claude skills and subagents. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
 ## What Bob Provides
 
-Bob is an MCP server that gives Claude access to:
+Bob installs workflow skills and specialized subagents to `~/.claude/`:
 
-1. **Workflow Orchestration** - Multi-step workflows with loop-back rules
-2. **Task Management** - Git-backed task tracking with dependencies
-3. **State Persistence** - Shared JSON state across all sessions
-4. **Workflow Guidance** - Step-by-step prompts for each workflow phase
+1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:design`)
+2. **Subagent Orchestration** - Specialized agents for each workflow phase
+3. **State Management** - Persistent workflow artifacts in `.bob/state/` directory
+4. **Git Worktrees** - Isolated development environments
 
 ## Available Workflows
 
-### work
-Full development workflow with planning and iteration:
+### /bob:work — Simple Direct Workflow
+```
+INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
+```
+
+You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
+
+### /bob:work-agents — Sequential Subagent Workflow
 ```
 INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
+                      ^                                    |               |
+                      └────────────────────────────────────┴───────────────┘
 ```
 
-**Loop rules:**
-- `REVIEW → PLAN` (issues found require replanning)
-- `MONITOR → REVIEW` (always review before fixing)
-- `TEST → EXECUTE` (test failures require fixes)
+Full orchestration with specialized subagents for each phase.
 
-### code-review
-Review, fix, and iterate until clean:
+### /bob:work-teams — Concurrent Agent Team Workflow
 ```
-INIT → REVIEW → FIX → TEST → COMMIT → MONITOR → COMPLETE
+INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE <-> REVIEW → COMMIT → MONITOR → COMPLETE
 ```
 
-**Loop rules:**
-- `REVIEW → FIX` (issues found)
-- `TEST → REVIEW` (re-verify after fixes)
-- `MONITOR → REVIEW` (CI failures or feedback)
+Multiple coder and reviewer teammates work in parallel. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
-### performance
-Benchmark, analyze, optimize, and verify:
+### /bob:explore — Read-Only Exploration
 ```
-INIT → BENCHMARK → ANALYZE → OPTIMIZE → VERIFY → COMMIT → MONITOR → COMPLETE
+INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 ```
 
-**Loop rules:**
-- `VERIFY → ANALYZE` (targets not met)
-- `MONITOR → ANALYZE` (CI failures)
+Spec-aware codebase exploration. No code changes.
 
-### explore
-Read-only codebase exploration:
+### /bob:audit — Spec Audit
 ```
-DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
-No loops, no file changes, no worktree needed.
+Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
 
-## Using Bob
-
-### Start a Workflow
-
-Bob will guide you through workflows using these MCP tools:
-
-```typescript
-// List available workflows
-bob.workflow_list()
-
-// Get workflow definition
-bob.workflow_get({ keyword: "work" })
-
-// Create workflow instance
-bob.workflow_create({
-  workflowKeyword: "work",
-  repoPath: "/path/to/repo",
-  taskDescription: "Add user authentication"
-})
-
-// Progress through steps
-bob.workflow_progress({
-  instanceId: "...",
-  toStep: "PLAN"
-})
+### /bob:design — Spec Scaffolding
+```
+INIT → GATHER → [ANALYZE] → SCAFFOLD → COMPLETE
 ```
 
-### Task Management
+Create or apply spec-driven module structure.
 
-```typescript
-// Create task
-bob.task_create({
-  repoPath: "/path/to/repo",
-  title: "Fix authentication bug",
-  description: "...",
-  priority: "high"
-})
+## Loop-Back Rules
 
-// List tasks
-bob.task_list({
-  repoPath: "/path/to/repo",
-  state: "pending"
-})
+| Trigger | Route to | Reason |
+|---------|----------|--------|
+| CRITICAL/HIGH review issues | BRAINSTORM | Re-think the approach |
+| MEDIUM/LOW review issues | EXECUTE | Targeted fixes |
+| Test failures | EXECUTE | Fix the code |
+| CI failures or PR feedback | BRAINSTORM | Always re-brainstorm |
 
-// Update task
-bob.task_update({
-  repoPath: "/path/to/repo",
-  taskId: "...",
-  updates: { state: "in_progress" }
-})
-```
+REVIEW is mandatory — it cannot be skipped even if tests pass.
 
-## Bob Storage
+## Subagents
 
-Bob stores state in `~/.bob/`:
-- `~/.bob/state/` - JSON state with all workflows and tasks
-- All Claude sessions share this state
-- Updates from any session appear everywhere
+| Agent | Phase | Purpose |
+|-------|-------|---------|
+| workflow-brainstormer | BRAINSTORM | Research and creative ideation |
+| workflow-planner | PLAN | Implementation planning |
+| workflow-coder | EXECUTE | Code implementation coordination |
+| workflow-implementer | EXECUTE | Actual code writing (used by workflow-coder and design) |
+| workflow-tester | TEST | Test execution and quality checks |
+| review-consolidator | REVIEW | Multi-domain code review |
+| commit-agent | COMMIT | Git operations and PR creation |
+| monitor-agent | MONITOR | CI/CD and PR monitoring |
+| team-coder | EXECUTE | Concurrent coder teammate |
+| team-reviewer | REVIEW | Concurrent reviewer teammate |
+| Explore | DISCOVER | Codebase exploration |
 
-## Custom Workflows
+## Workflow Artifacts
 
-Create custom workflows in `.bob/workflows/*.json` in your repo:
-
-```json
-{
-  "keyword": "my-workflow",
-  "name": "My Custom Workflow",
-  "description": "STEP1 → STEP2 → STEP3",
-  "steps": [
-    {
-      "name": "STEP1",
-      "description": "First step",
-      "requirements": ["git_repo"]
-    }
-  ],
-  "loopRules": [
-    {
-      "fromStep": "STEP2",
-      "toStep": "STEP1",
-      "condition": "retry_needed",
-      "description": "Retry if needed"
-    }
-  ]
-}
-```
-
-Bob will automatically discover custom workflows in `.bob/workflows/`.
-
-## Planning Documents
-
-All planning documents, brainstorming notes, and workflow artifacts should be stored in the `.bob/` folder at the root of your repository. This folder is ignored by git and provides a clean workspace for agent-generated planning materials.
+All workflows store artifacts in `.bob/state/` within the worktree:
 
 ```
-your-repo/
-├── .bob/              # All planning docs go here (git ignored)
-│   ├── plans/
-│   ├── notes/
-│   └── research/
-├── .bob/              # Bob configuration and custom workflows
-└── src/               # Your source code
+.bob/
+  state/
+    brainstorm.md       # Research and approach decisions
+    plan.md             # Detailed implementation plan
+    test-results.md     # Test execution results
+    review.md           # Consolidated code review findings
 ```
 
-## Workflow Principles
+These files persist across Claude sessions and serve as context for subsequent phases.
 
-1. **Workflows are loops** - Most work needs iteration
-2. **Review before fix** - MONITOR → REVIEW → FIX (not MONITOR → FIX)
-3. **State persists** - Resume workflows across sessions
-4. **Git-based tasks** - Tasks stored in git on `bob` branch
-5. **Guidance-driven** - Bob provides step-by-step prompts
+## Spec-Driven Development
 
-## Task Files
+Bob treats spec documents as the **source of truth** for module behavior:
 
-Tasks are stored as JSON in `.bob/issues/<id>.json` on the `bob` git branch:
+- **Planner** reads SPECS.md/CLAUDE.md invariants and derives verification tests from them
+- **Coder** receives the actual invariants as hard constraints in the implementation prompt
+- **Reviewer** verifies code satisfies stated invariants (not just that docs were updated)
 
-```json
-{
-  "id": "task-001",
-  "title": "Add authentication",
-  "description": "Implement JWT authentication",
-  "type": "feature",
-  "priority": "high",
-  "state": "in_progress",
-  "assignee": "claude",
-  "blocks": [],
-  "blockedBy": [],
-  "tags": ["auth", "security"],
-  "metadata": {},
-  "createdAt": "2026-02-09T12:00:00Z",
-  "updatedAt": "2026-02-09T12:30:00Z"
-}
+See CLAUDE.md for full spec-driven module documentation.
+
+## Installation
+
+```bash
+make install                # Everything (skills + agents + LSP)
+make install-skills         # Skills only
+make install-agents         # Subagents only
+make install-mcp            # Filesystem MCP server (required)
+make enable-agent-teams     # Enable /bob:work-teams
+make hooks                  # Optional: pre-commit quality checks
 ```
 
-## MCP Configuration
+## Starting a Workflow
 
-Bob is configured in CLAUDE.md - see that file for MCP server setup.
+```
+/bob:work-agents "Add rate limiting to API"
+```
+
+The skill creates a worktree, spawns specialized subagents for each phase, and drives autonomously from INIT through COMMIT — only prompting at the final merge.
 
 ---
 
-*🏴‍☠️ Fair winds and following seas! - Captain Bob*
+*Bob - Captain of Your Agents*

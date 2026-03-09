@@ -6,7 +6,7 @@
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (bob:work-agents, bob:work-teams, bob:explore)
+- **Workflow Skills** - User-invocable workflows (bob:work-agents, bob:work-teams, bob:explore, bob:explore-teams)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
@@ -19,8 +19,9 @@ Invoke these workflows with slash commands:
 2. **`/bob:work-agents`** - Full development workflow with sequential subagents (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
 3. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
 4. **`/bob:explore`** - Read-only codebase exploration
-5. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
-6. **`/bob:audit`** - Verify code satisfies stated invariants in spec-driven modules (read-only)
+5. **`/bob:explore-teams`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
+6. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
+7. **`/bob:audit`** - Verify code satisfies stated invariants in spec-driven modules (read-only)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -67,7 +68,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, etc.
+After installation, skills are available via slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
 
 **Individual component installation:**
 ```bash
@@ -269,7 +270,7 @@ logic, phase structure, tool usage, etc.). Only spec-related sections differ bet
 
 Files with simple variants:
 - `agents/`: workflow-brainstormer, planner, workflow-implementer, workflow-coder, tester, review-consolidator
-- `skills/`: brainstorming, explore, work, work-agents, work-teams, writing-plans
+- `skills/`: brainstorming, explore, explore-teams, work, work-agents, work-teams, writing-plans
 - `skills/design-simple/` — complete alternative to `skills/design/` for simple mode
 
 ## Best Practices
@@ -398,7 +399,7 @@ If you previously used Bob as an MCP server:
 To migrate:
 1. Remove Bob MCP server from config: `claude mcp remove bob`
 2. Install Bob skills: `make install-skills`
-3. Use slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, etc.
+3. Use slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
 
 ---
 

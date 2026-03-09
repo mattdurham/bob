@@ -54,7 +54,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans work-teams audit; do \
+	for skill in work work-agents explore brainstorming writing-plans work-teams audit go-analyze; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -108,6 +108,7 @@ install-skills:
 	@echo "  /bob:work-agents - Full development workflow (sequential subagents)"
 	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
+	@echo "  /bob:go-analyze  - Go AST/call graph analysis, complexity scoring, coupling"
 	@echo "  /bob:version     - Show Bob version info"
 
 # Install workflow skills to Crush
@@ -115,7 +116,7 @@ install-crush-skills:
 	@echo "📚 Installing Bob workflow skills to Crush..."
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	mkdir -p "$$CRUSH_SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans; do \
+	for skill in work work-agents explore brainstorming writing-plans go-analyze; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \

@@ -54,7 +54,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans work-teams audit; do \
+	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -108,6 +108,7 @@ install-skills:
 	@echo "  /bob:work-agents - Full development workflow (sequential subagents)"
 	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
+	@echo "  /bob:explore-teams - Team-based exploration with adversarial challenge"
 	@echo "  /bob:version     - Show Bob version info"
 
 # Install workflow skills to Crush
@@ -360,7 +361,7 @@ install-personality:
 		else \
 			echo "✅ Already using default personality (no override file)"; \
 		fi; \
-		for skill in work work-agents work-teams brainstorming explore writing-plans; do \
+		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
 				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
@@ -373,7 +374,7 @@ install-personality:
 		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
 		echo "✅ Personality set to: $(PERSONALITY)"; \
 		echo "   Installed to: $$PERSONALITY_FILE"; \
-		for skill in work work-agents work-teams brainstorming explore writing-plans; do \
+		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ]; then \
 				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \

@@ -26,7 +26,7 @@ Bob treats **SPECS.md as the source of truth** for module behavior. Every workfl
 
 - **`/bob:work`**, **`/bob:work-agents`**, and **`/bob:work-teams`** all read existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
-- **`/bob:explore`** prioritizes spec docs when analyzing a codebase. For spec-driven modules, it reads SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code.
+- **`/bob:explore`** and **`/bob:explore-teams`** prioritize spec docs when analyzing a codebase. For spec-driven modules, they read SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code. The teams variant adds concurrent analysis and adversarial challenge phases for deeper, more reliable exploration.
 
 A spec-driven module is any directory containing SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or `.go` files with this comment:
 
@@ -97,6 +97,17 @@ INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
 ```
 
 Spec-aware codebase exploration. No code changes.
+
+### `/bob:explore-teams` — Team-Based Exploration with Adversarial Challenge
+
+```
+INIT → DISCOVER → ANALYZE (4 agents) → CHALLENGE (5 agents) → DOCUMENT → COMPLETE
+                     ↑                       ↓
+                     └───────────────────────┘
+                          (any FAIL, max 2 loops)
+```
+
+Like `/bob:explore` but with concurrent specialist agents. ANALYZE spawns 4 agents (structure, flow, patterns, dependencies). CHALLENGE spawns 5 adversarial agents (accuracy, completeness, architecture, operational/SRE, fresh-eyes) that stress-test the analysis. Failures loop back to re-analyze.
 
 ## Loop-Back Rules
 

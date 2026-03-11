@@ -12,10 +12,12 @@ requires_experimental: agent_teams
 
 You are orchestrating a **team-based development workflow** using Claude Code's experimental agent teams feature. You are the **team lead**, coordinating multiple **teammate agents** who work concurrently through:
 
-- **Shared task list**: Work queue coordination
+- **Shared task list**: Work queue coordination (TaskCreate, TaskList, TaskGet, TaskUpdate)
 - **Direct messaging**: Inter-agent communication
 - **Split panes**: Visual teammate display (if enabled)
 - **Concurrent execution**: Coders + reviewers work in parallel
+
+**Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly, instead of sequential subagent execution.
 
 ## Prerequisites
 
@@ -50,21 +52,21 @@ INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW 
 
 The final REVIEW phase invokes `/bob:code-review`, which handles REVIEW → FIX → TEST → COMMIT → MONITOR internally.
 
-**Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
-
 <strict_enforcement>
 All phases MUST be executed in the exact order specified.
 NO phases may be skipped under any circumstances.
-The orchestrator MUST follow each step exactly as written.
+The team lead MUST follow each step exactly as written.
 Each phase has specific prerequisites that MUST be satisfied before proceeding.
 </strict_enforcement>
 
 ## Flow Control Rules
 
 **Loop-back paths (the ONLY exceptions to forward progression):**
-- **REVIEW → BRAINSTORM**: Critical/high issues require re-brainstorming
-- **MONITOR → BRAINSTORM**: CI failures or PR feedback require re-brainstorming
+- **REVIEW → BRAINSTORM**: CRITICAL/HIGH issues found during review require re-brainstorming (code-review routes this internally)
 - **EXECUTE/REVIEW → EXECUTE**: Failed tasks or review issues create fix tasks
+- **TEST → EXECUTE**: Test failures require code fixes
+
+Note: MONITOR is handled inside `/bob:code-review`. CI failures loop back to REVIEW within that skill.
 
 <critical_gate>
 REVIEW phase is MANDATORY - it cannot be skipped even if all implementation tasks complete.
@@ -73,9 +75,30 @@ Every code change MUST go through REVIEW before COMMIT.
 
 <critical_gate>
 NO git operations before COMMIT phase.
-No `git add`, `git commit`, `git push`, or `gh pr create` until Phase 8: COMMIT.
+No `git add`, `git commit`, `git push`, or `gh pr create` until COMMIT.
 Teammates must not commit either.
 </critical_gate>
+
+---
+
+## Execution Rules
+
+**CRITICAL: All subagents MUST run in background**
+
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **After spawning agents, STOP** - do not poll or check status
+- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ❌ **Never use foreground execution** - it blocks the workflow
+
+**Example:**
+```
+Task(subagent_type: "any-agent",
+     description: "Brief description",
+     run_in_background: true,  // ← REQUIRED
+     prompt: "Detailed instructions...")
+```
+
+**Why?** Background execution allows the workflow to continue and enables true parallelism when spawning multiple agents.
 
 ---
 
@@ -121,20 +144,79 @@ Coordination:
 - ✅ Create tasks using TaskCreate
 - ✅ Monitor task list with TaskList
 - ✅ Message teammates directly
-- ✅ Read files to make routing decisions
+- ✅ Read `.bob/` files to make routing decisions
 - ✅ Run `cd` to switch working directory (after WORKTREE phase)
 - ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`, `/bob:code-review`)
 - ✅ Display brief status updates to the user between phases
 - ✅ Clean up team when workflow complete
 
 **Team Lead CANNOT:**
-- ❌ Write or edit any files (source code OR state files)
+- ❌ Write or edit any files (source code OR `.bob/` state files)
 - ❌ Run git commands (except `cd` into worktree)
 - ❌ Run tests, linters, or build commands
 - ❌ Make implementation decisions
+- ❌ Consolidate or analyze data
 - ❌ Do work that teammates should do
 
-**All implementation work MUST be performed by teammates.**
+**All file writes — including `.bob/state/*.md` artifacts — MUST be performed by teammates or subagents.** The team lead reads those files afterward to make routing decisions.
+
+---
+
+## Teammate Boundaries
+
+**Teammates report findings. The team lead makes decisions.**
+
+<subagent_principle>
+Teammates MUST report findings objectively without making pass/fail determinations
+or routing recommendations (except review-consolidator which provides rule-based
+routing based on severity counts).
+
+Teammates MUST report:
+- WHAT failed/was found
+- WHY it failed (error messages, root cause, specific violations)
+- WHERE it failed (file:line, test name, check name)
+
+Teammates MUST NOT report:
+- Whether results are "acceptable" or "good enough"
+- What should be done next
+- Subjective judgments or opinions
+
+The team lead reads teammate findings and makes ALL routing decisions.
+</subagent_principle>
+
+**Teammate responsibilities:**
+- ✅ Execute assigned tasks (implement code, review code, run tests)
+- ✅ Report findings objectively with severity levels
+- ✅ Write results to designated `.bob/state/*.md` files
+- ✅ Include specific details: WHAT, WHY, WHERE
+  - WHAT: Test failed, lint issue found, security vulnerability detected
+  - WHY: Error message, root cause, specific violation
+  - WHERE: file:line, test name, function name, CI check name
+- ✅ Message team lead and other teammates as needed
+
+**Teammates CANNOT:**
+- ❌ Determine if results are "acceptable" or "good enough"
+- ❌ Make recommendations on next steps (except consolidator's rule-based routing)
+- ❌ Decide whether to proceed or loop back
+- ❌ Override team lead routing logic
+
+**Example - TEST phase:**
+- ❌ Bad: "All tests passed. You can proceed to REVIEW."
+- ❌ Bad: "Test failed in auth_test.go:42" (missing WHY)
+- ✅ Good: "Test results: 47 passed, 2 failed.
+  - auth_test.go:42 TestLogin: expected status 200, got 401. Error: 'invalid credentials'
+  - db_test.go:89 TestConnection: connection timeout after 5s. Error: 'no route to host'"
+
+**Example - REVIEW phase:**
+- ❌ Bad: "Found 3 issues but they're minor. Code is acceptable."
+- ❌ Bad: "Found 1 HIGH severity issue in auth.go:42" (missing WHY)
+- ✅ Good: "Found 3 issues:
+  - HIGH (security) - auth.go:42: SQL injection vulnerability. User input concatenated directly into query string without parameterization.
+  - MEDIUM (performance) - db.go:156: N+1 query pattern. Loading users in loop instead of batch query.
+  - MEDIUM (performance) - cache.go:89: Missing cache on expensive API call. Same data fetched repeatedly."
+
+**Exception:** The review-consolidator provides a rule-based recommendation (BRAINSTORM/EXECUTE/COMMIT)
+based solely on severity distribution, not subjective judgment.
 
 ---
 
@@ -151,13 +233,54 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 | Teammates complete tasks | Monitor and wait for all complete | No |
 | Tasks approved | Route to next phase immediately | No |
 | Review creates fix tasks | Teammates pick them up automatically | No — just log what happened |
-| Review finds CRITICAL/HIGH issues | code-review loops to BRAINSTORM internally | No — code-review routes automatically |
-| All tasks complete and approved | Proceed to TEST | No |
-| CI failures | code-review loops to REVIEW internally | No — code-review routes automatically |
+| Tests fail | Loop to EXECUTE with failure details | No — just log what failed and loop |
+| Review finds issues (any severity) | code-review handles fix loop internally | No — code-review routes automatically |
+| Review complete (clean) | code-review commits and proceeds to COMPLETE | No |
+| Loop-back occurs | Log why, continue automatically | No |
 | Teammate fails with error | Message teammate to debug/retry | Only if unresolvable |
 | COMPLETE phase (merge PR) | Confirm with user | **Yes — only prompt in entire workflow** |
 
 **The ONLY user prompt in the standard workflow is the final merge confirmation at COMPLETE.**
+
+Everything else is automatic. The team lead logs brief status lines so the user can follow along, but never stops to ask. If something fails, it retries or loops back per the routing rules. If a loop-back is needed, it explains what happened and immediately continues.
+
+**Forbidden phrases (never output these):**
+- "Should I continue?"
+- "Do you want me to proceed?"
+- "Shall I move to the next phase?"
+- "Would you like me to..."
+- "Ready to continue?"
+- Any question asking permission to do what the workflow already defines
+
+**Brief status updates between phases (DO output these):**
+```
+✓ BRAINSTORM complete → .bob/state/brainstorm.md
+Moving to PLAN phase...
+
+✓ PLAN complete → .bob/state/plan.md
+Spawning team and starting EXECUTE phase...
+
+✓ All tasks complete and approved → routing to TEST
+
+✓ REVIEW found 3 issues → routing to EXECUTE to fix them
+```
+
+<hard_gate>
+NEVER skip REVIEW.
+REVIEW must complete (via /bob:code-review) before proceeding to COMPLETE.
+</hard_gate>
+
+---
+
+## Spec-Driven Module Context
+
+Directories containing SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or `.go` files with the
+NOTE invariant comment are **spec-driven modules**. The workflow enforces doc updates alongside
+code changes:
+
+- **BRAINSTORM:** Detect spec-driven modules in scope and note them in the brainstorm prompt
+- **EXECUTE:** teammates update SPECS.md/NOTES.md/TESTS.md/BENCHMARKS.md alongside code
+- **REVIEW:** review-consolidator verifies code satisfies stated invariants in SPECS.md and checks that spec docs were updated
 
 ---
 
@@ -235,10 +358,10 @@ Task(subagent_type: "Bash",
              4. Create .bob directory structure:
                 mkdir -p \"$WORKTREE_DIR/.bob/state\"
 
-             5. Print the absolute worktree path (IMPORTANT):
+             5. Print the absolute worktree path (IMPORTANT — team lead needs this):
                 echo \"WORKTREE_PATH=$(cd \"$WORKTREE_DIR\" && pwd)\"
 
-             6. Print the branch name:
+             6. Print the branch name for confirmation:
                 cd \"$WORKTREE_DIR\" && git branch --show-current")
 ```
 
@@ -255,7 +378,12 @@ Task(subagent_type: "Bash",
 
 **From this point forward, ALL file operations happen in the worktree.**
 
-**On loop-back:** Skip this phase — the worktree already exists and you're already in it.
+**On loop-back (REVIEW → BRAINSTORM):** Skip this phase — the worktree already exists and you're already in it.
+
+**Output:**
+- Isolated worktree in `../<repo>-worktrees/<feature>/`
+- `.bob/state/` directory created
+- Team lead working directory set to worktree
 
 ---
 
@@ -283,6 +411,9 @@ Write the brainstorm prompt to `.bob/state/brainstorm-prompt.md`:
 ```
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
+Spec-driven modules: [List any directories in scope that contain SPECS.md, NOTES.md, TESTS.md,
+  or BENCHMARKS.md — or any .go files with the NOTE invariant comment. These modules require
+  doc updates alongside code changes.]
 ```
 
 Then spawn the workflow-brainstormer agent:
@@ -303,7 +434,7 @@ Task(subagent_type: "workflow-brainstormer",
 
 **Goal:** Create detailed implementation plan AS A TASK LIST
 
-This is the key difference: instead of just writing `plan.md`, we create a task list that enables concurrent teammate execution.
+This is the key difference from bob:work-agents: instead of just writing `plan.md`, we create a task list that enables concurrent teammate execution.
 
 **Actions:**
 
@@ -319,6 +450,16 @@ The skill will:
 2. Subagent reads design from `.bob/state/brainstorm.md`
 3. Subagent creates concrete, bite-sized implementation plan
 4. Subagent writes plan to `.bob/state/plan.md`
+
+**Input:** `.bob/state/design.md` or `.bob/state/brainstorm.md`
+**Output:** `.bob/state/plan.md`
+
+Plan includes:
+- Exact file paths
+- Complete code snippets
+- Step-by-step actions (2-5 min each)
+- TDD approach (test first!)
+- Verification steps
 
 **Step 2: Read plan.md**
 
@@ -378,6 +519,8 @@ TaskUpdate(taskId: "<test-task-id>", addBlockedBy: ["<implementation-task-id>"])
 **Output:**
 - `.bob/state/plan.md` (written by planner)
 - Task list (created by team lead using TaskCreate)
+
+**If looping from REVIEW:** Update plan to address review findings and create new fix tasks
 
 ---
 
@@ -443,7 +586,10 @@ If found, this is a spec-driven module. You MUST:
 - Add the NOTE invariant comment to any new .go files you create
 - NEVER delete NOTES.md entries — add Addendum notes if a decision is reversed
 
-When you complete a task, send a brief message to the team lead summarizing what you did.
+Reporting: When you complete a task, message the team lead with:
+- WHAT you implemented
+- WHERE the changes are (file:line)
+- Any decisions or trade-offs made
 
 If you encounter issues, message the team lead or relevant teammates for help.
 
@@ -491,7 +637,10 @@ Review criteria:
 - Are edge cases handled?
 - Is complexity acceptable (< 40)?
 
-When you complete a review, message the team lead with the result (approved or issues found).
+Reporting: When you complete a review, message the team lead with:
+- WHAT you reviewed (task ID + summary)
+- Result: APPROVED or NEEDS_FIXES
+- For issues: severity (CRITICAL/HIGH/MEDIUM/LOW), WHAT the issue is, WHY it matters, WHERE (file:line)
 
 If you find critical issues, message the team lead immediately.
 
@@ -529,6 +678,8 @@ You should see:
 ## Phase 6: EXECUTE + REVIEW (Concurrent)
 
 **Goal:** Teammates work concurrently - coders implement, reviewers review
+
+**CRITICAL: You are the team lead. You NEVER write code, edit files, or fix issues yourself. Teammates do ALL the work.**
 
 This phase is different from bob:work-agents because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
 
@@ -683,19 +834,50 @@ Task(subagent_type: "workflow-tester",
      prompt: "Run the complete test suite, quality checks, and CI pipeline locally.
 
              IMPORTANT: Report findings objectively. Do NOT make pass/fail determinations.
+             Your job is to execute tests and report results - the team lead will
+             decide routing based on your findings.
 
              Steps:
-             1. Run `make ci` — this runs the full CI pipeline locally
-             2. If `make ci` is not available, run: go test, go test -race, go test -cover, go fmt, golangci-lint run, gocyclo
+             1. Run `make ci` — this runs the full CI pipeline locally:
+                - go test ./... (report all test results)
+                - go test -race ./... (report race conditions if found)
+                - go test -cover ./... (report coverage percentages)
+                - go fmt (report formatting issues if found)
+                - golangci-lint run (report lint issues if found)
+                - gocyclo -over 40 (report complex functions if found)
+                - GitHub Actions workflow commands (parsed from .github/workflows/)
+             2. If `make ci` is not available, run the steps individually
 
              Report ALL results objectively in .bob/state/test-results.md.
-             For each finding, include WHAT, WHY, and WHERE.
+             For each finding, include WHAT, WHY, and WHERE:
+             - Test execution output: counts (pass/fail) + specific failures with error messages
+             - Race condition results: which tests, what race, stack traces
+             - Coverage percentages: overall + per-package breakdown
+             - Formatting issues: which files, what's wrong
+             - Lint findings: rule violated, file:line, explanation
+             - Complexity violations: function name, complexity score, file:line
+             - CI workflow results: check name, status, error output
+
+             Example test failure format:
+             "TestLogin (auth_test.go:42) FAILED: expected status 200, got 401. Error: 'invalid credentials'"
+
+             Do NOT include recommendations or conclusions about whether to proceed.
+             Just report what you found with full detail.
 
              Working directory: [worktree-path]")
 ```
 
 **Input:** Code to test
 **Output:** `.bob/state/test-results.md`
+
+Checks:
+- All tests pass (new AND pre-existing — zero tolerance for regressions)
+- No race conditions
+- Good coverage (>80%)
+- Code formatted
+- Linter clean
+- Complexity < 40
+- GitHub Actions workflows pass locally
 
 <routing_rule>
 After TEST completes, read `.bob/state/test-results.md` and route:
@@ -781,6 +963,50 @@ After code-review completes, proceed to COMPLETE.
 
 ---
 
+## State Management
+
+Workflow state is maintained through:
+- **.bob/state/*.md files** - Persistent artifacts between phases
+- **Git branch** - Feature branch tracks work
+- **Git worktree** - Isolated development environment
+- **Shared task list** - Work queue for concurrent teammates
+
+**Key files:**
+- `.bob/state/brainstorm.md` - Research and approach
+- `.bob/state/plan.md` - Implementation plan
+- `.bob/state/test-results.md` - Test execution results
+- `.bob/state/review.md` - Code review findings
+
+---
+
+## Agent Chain
+
+Each phase spawns specialized agents with clear inputs/outputs:
+
+```
+BRAINSTORM:
+  Explore → .bob/state/brainstorm.md
+
+PLAN:
+  workflow-planner(.bob/state/brainstorm.md) → .bob/state/plan.md
+  Team lead converts plan → task list (TaskCreate)
+
+SPAWN TEAM:
+  Team lead creates team + spawns 4 teammates
+
+EXECUTE + REVIEW (concurrent):
+  team-coder teammates claim tasks → code changes
+  team-reviewer teammates review → approve/create fix tasks
+
+TEST:
+  workflow-tester(code) → .bob/state/test-results.md
+
+REVIEW (final):
+  /bob:code-review → (review + fix loop + commit + CI monitor)
+```
+
+---
+
 ## Team Management Best Practices
 
 ### Spawning Teammates
@@ -843,73 +1069,52 @@ Message both: "You're both working on overlapping areas.
 
 ---
 
-## Benefits of Agent Teams
+## Best Practices
 
-### vs Sequential bob:work-agents
+**Orchestration (read-only coordinator):**
+- Let teammates do ALL the work — including writing `.bob/state/*.md` files
+- Read `.bob/state/*.md` files to make routing decisions
+- Use task list for work coordination
+- Stay lean — team lead context should remain small
 
-| Aspect | bob:work-agents | bob:work-teams |
-|--------|----------|---------------|
-| Execution | Sequential | Concurrent |
-| Feedback | Batch at end | Incremental |
-| Collaboration | None | Direct messaging |
-| Visibility | Hidden | Split panes/messages |
-| Scalability | Fixed (1 agent) | Variable (N teammates) |
+**Flow Control:**
+- Execute phases in exact order: INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE+REVIEW → TEST → REVIEW → COMPLETE
+- Drive forward relentlessly — only prompt at COMPLETE (merge confirmation)
+- TEST → EXECUTE is the ONLY outer loop-back; all REVIEW loop-backs are internal to `/bob:code-review`
+- NEVER skip REVIEW phase
+- Validate test passage via `.bob/state/test-results.md` before REVIEW
 
-### vs Tasklist-only Coordination
-
-| Aspect | Tasklist-only | Agent Teams |
-|--------|---------------|-------------|
-| Communication | Task metadata | Direct messaging + metadata |
-| Debugging | Read task updates | Message teammates directly |
-| Flexibility | Task-driven only | Tasks + dynamic collaboration |
-| Display | Terminal only | Split panes (tmux/iTerm2) |
-
----
-
-## Troubleshooting
-
-### Teammates Not Appearing
-
-1. Check experimental flag is enabled
-2. Verify team creation message worked
-3. Check terminal mode (use tmux for split panes)
-4. List teammates to see status
-
-### Teammates Going Idle Early
-
-1. Check task list for blockers
-2. Message teammates to claim remaining tasks
-3. Verify dependencies are resolved
-
-### Review Bottleneck
-
-If reviewers can't keep up with coders:
-1. Message reviewers to prioritize high-priority tasks
-2. Consider spawning additional reviewer teammate
-
-### Coder Conflicts
-
-If coders work on same file:
-1. Message coders to coordinate
-2. Assign specific files to specific coders
+**Quality:**
+- TDD throughout (tests first)
+- Incremental review during EXECUTE + final comprehensive review
+- Fix issues properly (re-brainstorm if CRITICAL/HIGH)
+- Maintain code quality standards
 
 ---
 
 ## Summary
 
 **Remember:**
-- You are the **team lead** — you create the team, spawn teammates, monitor progress
-- **Teammates work autonomously** through task list + messaging
-- **Reviews are incremental** — happen as code completes
+- You are the **team lead** — you create the team, spawn teammates, monitor progress, and make routing decisions
+- **Never write files** — all writes are done by teammates or subagents
+- **Never prompt the user** — except at COMPLETE to confirm merge
+- **Teammates report findings objectively** — you make all pass/fail and routing determinations
 - **Concurrency is key** — coders and reviewers work in parallel
-- **Drive forward relentlessly** — only prompt at COMPLETE
 - **Clean up properly** — shut down teammates, clean up team
+- Log brief status lines between phases so the user can follow along
+
+**Strict Enforcement (XML tags mark critical rules):**
+- `<strict_enforcement>` - Phases MUST be executed in exact order, no skipping
+- `<critical_gate>` - Hard gates that cannot be bypassed
+- `<hard_gate>` - Specific blocking conditions
+- `<critical_requirement>` - Prerequisites for phase entry
+- `<routing_rule>` - Automatic routing logic with no override
 
 **Experimental Feature Requirements:**
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set
 - tmux or iTerm2 for split panes (optional)
 - Agent teams API available
 
-**Goal:** Guide complete, high-quality feature development using concurrent team agents with direct communication and shared task lists.
+**Goal:** Guide complete, high-quality feature development using concurrent team agents with direct communication and shared task lists — autonomously, following every step exactly as written.
 
 Good luck! 🏴‍☠️

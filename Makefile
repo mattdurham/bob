@@ -54,7 +54,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit go-analyze; do \
+	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -109,7 +109,7 @@ install-skills:
 	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
 	@echo "  /bob:explore-teams - Team-based exploration with adversarial challenge"
-	@echo "  /bob:go-analyze  - Go AST/call graph analysis, complexity scoring, coupling"
+	@echo "  /bob:audit       - Spec audit + optional Go structural analysis"
 	@echo "  /bob:version     - Show Bob version info"
 
 # Install workflow skills to Crush

@@ -1,25 +1,31 @@
 ---
 name: bob:audit
-description: Verify code satisfies stated invariants in spec-driven modules — DISCOVER → AUDIT → REPORT
+description: Verify spec invariants and optionally analyze Go structural health — DISCOVER → AUDIT → [ANALYZE → SCORE] → REPORT → COMPLETE
 user-invocable: true
 category: workflow
 ---
 
 # Spec Audit Workflow
 
-You orchestrate a **read-only audit** that verifies code satisfies the invariants stated in spec documents. No code changes — just a report of where reality diverges from the spec.
+You orchestrate a **read-only audit** that verifies code satisfies the invariants stated in spec documents. Optionally includes deep Go structural analysis: call graphs, complexity scoring, and module coupling. No code changes — just a report.
 
 ## When to Use
 
 - After `/bob:design apply` to verify freshly-generated specs match the existing code
 - Periodically to catch spec drift across many PRs
 - Before major refactors to confirm your understanding of current guarantees
-- As a health check on spec-driven modules
+- To identify Go complexity and coupling hot spots
 
 ## Workflow Diagram
 
+**Spec audit only:**
 ```
 INIT → DISCOVER → AUDIT → REPORT → COMPLETE
+```
+
+**With Go structural analysis:**
+```
+INIT → DISCOVER → [AUDIT + ANALYZE in parallel] → SCORE → REPORT → COMPLETE
 ```
 
 **Read-only:** No code changes, no commits. Output is `.bob/state/audit-report.md`.
@@ -39,22 +45,41 @@ INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 
 ## Phase 1: INIT
 
-**Goal:** Understand scope of the audit.
+**Goal:** Understand scope and analysis mode.
 
 **Actions:**
 
-1. Ask the user what to audit using `AskUserQuestion`:
+1. Ask the user using `AskUserQuestion`:
 
 ```
 What would you like to audit?
 
 1. All spec-driven modules — scan the entire repo for modules with SPECS.md
 2. Specific directory — audit one module (provide the path)
+
+Include Go structural analysis? (call graphs, complexity scoring, coupling)
+Enter 'y' to add Go structural analysis, or press Enter to skip.
 ```
 
-2. If the user provides a path, verify it contains spec files (SPECS.md, NOTES.md, TESTS.md, or BENCHMARKS.md). If not, tell them and suggest `/bob:design` to create specs first.
+2. If the user provides a specific path, verify it contains spec files (SPECS.md, NOTES.md, TESTS.md, or BENCHMARKS.md). If not, tell them and suggest `/bob:design` to create specs first.
 
-3. Create `.bob/state/` if it doesn't exist:
+3. If Go structural analysis is requested, ask:
+
+```
+Do you have these tools installed?
+- gocyclo   (go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)
+- gocognit  (go install github.com/uudashr/gocognit/v2/cmd/gocognit@latest)
+- callgraph (go install golang.org/x/tools/cmd/callgraph@latest)
+
+The analysis degrades gracefully without them — go vet and escape analysis always run.
+```
+
+4. Record:
+   - `SCOPE`: all | `path/to/module`
+   - `GO_ANALYSIS`: yes/no
+   - `HAS_GOCYCLO`, `HAS_GOCOGNIT`, `HAS_CALLGRAPH`: yes/no (if GO_ANALYSIS)
+
+5. Create state directory:
 ```bash
 mkdir -p .bob/state
 ```
@@ -63,11 +88,11 @@ mkdir -p .bob/state
 
 ## Phase 2: DISCOVER
 
-**Goal:** Find all spec-driven modules in scope.
+**Goal:** Find all spec-driven modules and (if Go analysis) collect raw structural data.
 
 **Actions:**
 
-Spawn an Explore agent to find spec-driven modules:
+Always spawn a spec discovery agent:
 
 ```
 Task(subagent_type: "Explore",
@@ -114,19 +139,122 @@ Task(subagent_type: "Explore",
               - Total invariants to verify: N")
 ```
 
-**Output:** `.bob/state/audit-discovery.md`
+If GO_ANALYSIS, also spawn a Go inventory agent in parallel:
+
+```
+Task(subagent_type: "Explore",
+     description: "Inventory Go packages and collect structural data",
+     run_in_background: true,
+     prompt: "You are inventorying a Go codebase for structural analysis.
+
+              SCOPE: [from INIT]
+
+              Step 1 — Package inventory
+              Run: go list -json ./...
+              (or scoped package if not whole repo)
+
+              For each package record:
+              - ImportPath
+              - Dir
+              - GoFiles count
+              - Imports (direct dependencies)
+              - TestImports
+
+              Step 2 — Detect spec-driven modules
+              For every directory encountered, check for:
+              - SPECS.md
+              - NOTES.md
+              - TESTS.md
+              - BENCHMARKS.md
+              - .go files containing: // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
+              For each spec-driven module found, read SPECS.md and extract:
+              - All stated invariants (numbered list)
+              - Complexity or coupling constraints mentioned
+              - Interface contracts
+
+              Step 3 — Run complexity tools (use whatever is available)
+
+              If gocyclo available:
+                Run: gocyclo -over 1 [scope]
+                Capture all output (complexity score, function, file:line)
+
+              If gocognit available:
+                Run: gocognit -over 1 [scope]
+                Capture all output
+
+              Always run:
+                go vet [scope]
+                Capture all output (warnings, errors)
+
+              Always run (escape/allocation analysis):
+                go build -gcflags='-m=1' [scope] 2>&1
+                Capture lines containing 'escapes to heap', 'does not escape', 'inlining call'
+
+              If callgraph tool available:
+                Run: callgraph -algo=cha [scope] 2>&1 | head -2000
+                (CHA is fast; RTA is more precise but slow)
+                Capture edge list: caller -> callee
+
+              Step 4 — Import coupling matrix
+              From go list -json output, build a dependency matrix:
+              For each package P:
+                Efferent coupling (Ce): count of packages P imports (excluding stdlib)
+                Afferent coupling (Ca): count of packages that import P (excluding stdlib)
+                Instability: Ce / (Ca + Ce)  [0=stable, 1=unstable]
+
+              Step 5 — Interface boundary detection
+              Search for interface definitions:
+                grep -rn 'type .* interface' [scope dirs]
+              For each interface, note:
+                - Which package defines it
+                - Which packages implement it (by searching for method signatures)
+                - Which packages consume it (accept/return the interface type)
+
+              Write ALL raw findings to .bob/state/go-discovery.md:
+
+              # Go Analysis Discovery
+
+              ## Packages
+              | Package | Dir | Files | Ce | Ca | Instability |
+              |---------|-----|-------|----|----|-------------|
+              | ...     | ... | ...   | .. | .. | ...         |
+
+              ## Spec-Driven Modules
+              For each: path, spec files present, invariants extracted
+
+              ## Raw Complexity Output
+              ### gocyclo
+              [raw output or 'not available']
+
+              ### gocognit
+              [raw output or 'not available']
+
+              ### go vet
+              [raw output]
+
+              ### Escape Analysis (go build -gcflags='-m=1')
+              [lines with 'escapes to heap', grouped by package]
+
+              ### Call Graph Edges
+              [callgraph output or 'not available']
+
+              ## Interface Boundaries
+              | Interface | Defined In | Implementors | Consumers |
+              |-----------|-----------|--------------|-----------|")
+```
+
+**Output:** `.bob/state/audit-discovery.md` (always), `.bob/state/go-discovery.md` (if GO_ANALYSIS)
 
 ---
 
-## Phase 3: AUDIT
+## Phase 3: AUDIT (and ANALYZE if GO_ANALYSIS)
 
-**Goal:** For each module, verify that the code satisfies every stated invariant.
+**Goal:** Verify spec invariants per module. If GO_ANALYSIS, build call graph and coupling model in parallel.
 
 **Actions:**
 
-Read `.bob/state/audit-discovery.md` to get the list of modules and their invariants.
-
-For each module (or batch modules into a single agent if there are few), spawn an Explore agent:
+Read `.bob/state/audit-discovery.md`. For each module (or batch if few), spawn an audit agent:
 
 ```
 Task(subagent_type: "Explore",
@@ -216,82 +344,344 @@ Task(subagent_type: "Explore",
               - Candidate new invariants: N")
 ```
 
-If there are multiple modules, spawn agents in parallel (one per module or batched sensibly).
+If multiple modules, spawn agents in parallel (one per module or batched sensibly).
 
-**Output:** `.bob/state/audit-module-*.md` (one per module)
+If GO_ANALYSIS, also spawn the structural analysis agent in parallel with the audit agents:
+
+```
+Task(subagent_type: "Explore",
+     description: "Analyze call graph, function metrics, and module coupling",
+     run_in_background: true,
+     prompt: "Read .bob/state/go-discovery.md.
+
+              You are building a structural model of the Go codebase.
+
+              === CALL GRAPH ANALYSIS ===
+
+              From the call graph edges (or by reading the source AST via go/ast if callgraph was unavailable):
+
+              For each function node, compute:
+              1. CALL DEPTH — longest path from this function to a leaf (no outgoing calls)
+                 - Leaf nodes: depth 0
+                 - Direct callers of leaves: depth 1
+                 - etc.
+              2. FAN-IN — number of distinct callers
+              3. FAN-OUT — number of distinct callees
+              4. IS_RECURSIVE — does any call path lead back to itself
+
+              If callgraph output was not available, reconstruct a partial graph by:
+              - Reading each .go file
+              - Parsing function declarations and their call expressions
+              - Building edges: (file:func) -> (callee name)
+              This gives a local call graph (cross-package calls may be approximate).
+
+              === PER-FUNCTION METRIC TABLE ===
+
+              For every function in scope, assemble all signals:
+              - Cyclomatic complexity (from gocyclo output, or 'N/A')
+              - Cognitive complexity (from gocognit output, or 'N/A')
+              - Call depth (computed above)
+              - Fan-in / Fan-out
+              - Heap allocations (count of 'escapes to heap' lines attributed to this function)
+              - Is recursive
+
+              === MODULE COUPLING ANALYSIS ===
+
+              From the package coupling matrix:
+
+              1. Identify HIGHLY COUPLED packages (Ce + Ca > threshold, suggest >10)
+              2. Identify UNSTABLE packages (instability > 0.7) that are depended upon by stable packages
+                 (violation of Stable Dependencies Principle)
+              3. Identify packages with NO interface boundary to callers (all coupling via concrete types)
+              4. Identify packages that import each other (import cycles — go will reject these, but note near-cycles)
+              5. Detect GOD PACKAGES: high fan-in AND high fan-out AND many files
+
+              === SPEC INVARIANT CROSS-REFERENCE ===
+
+              For each spec-driven module:
+              - Check if any of its invariants mention complexity bounds (e.g. 'functions must remain simple')
+              - Check if coupling invariants exist (e.g. 'this package must not import X')
+              - Flag any function in the module that appears in the high-complexity list
+
+              Write findings to .bob/state/go-analysis.md:
+
+              # Go Structural Analysis
+
+              ## Function Metrics Table
+              | Package | Function | File:Line | Cyclo | Cognit | CallDepth | FanIn | FanOut | HeapAllocs | Recursive |
+              |---------|----------|-----------|-------|--------|-----------|-------|--------|------------|-----------|
+              [one row per function, sorted by package]
+
+              ## Call Graph Hot Paths
+              List the top 10 longest call chains (entry point -> ... -> leaf), showing depth and packages crossed.
+
+              ## Module Coupling Matrix
+              | Package | Ce | Ca | Instability | Interface Boundary | Risk |
+              |---------|----|----|-------------|-------------------|------|
+              [sorted by instability descending]
+
+              ## Stable Dependencies Violations
+              List any case where an unstable package is imported by a stable one.
+
+              ## God Package Candidates
+              Packages with unusually high coupling in both directions.
+
+              ## Spec Module Cross-Reference
+              For each spec-driven module:
+                - Which functions appear as complexity hot spots?
+                - Do stated invariants mention coupling or complexity?
+                - Are interface boundaries respected?")
+```
+
+**Output:** `.bob/state/audit-module-*.md` (always), `.bob/state/go-analysis.md` (if GO_ANALYSIS)
 
 ---
 
-## Phase 4: REPORT
+## Phase 4: SCORE (only if GO_ANALYSIS)
 
-**Goal:** Consolidate all audit findings into a single report.
+**Goal:** Compute composite health scores per function and module, rank hot spots.
+
+Skip this phase if GO_ANALYSIS is no.
+
+Spawn an Explore agent:
+
+```
+Task(subagent_type: "Explore",
+     description: "Score functions and modules, rank hot spots",
+     run_in_background: true,
+     prompt: "Read .bob/state/go-analysis.md.
+
+              === FUNCTION SCORING ===
+
+              For each function, compute a COMPLEXITY SCORE (0-100, higher = more concerning):
+
+              Score = min(100, (
+                cyclo_points +
+                cognit_points +
+                depth_points +
+                alloc_points +
+                fanin_points
+              ))
+
+              Where:
+                cyclo_points  = min(40, cyclo * 2)        -- cyclomatic complexity, cap 40
+                cognit_points = min(30, cognit * 1.5)     -- cognitive complexity, cap 30
+                depth_points  = min(15, call_depth * 3)   -- call depth, cap 15
+                alloc_points  = min(10, heap_allocs * 2)  -- escaping allocations, cap 10
+                fanin_points  = min(5, fan_in)            -- high fan-in = blast radius, cap 5
+
+              If a metric is N/A, assign 0 for that component and note the gap.
+
+              RISK TIERS:
+                CRITICAL  (80-100): Refactor immediately
+                HIGH      (60-79):  Should be broken up in next sprint
+                MEDIUM    (40-59):  Worth watching, add complexity tests
+                LOW       (20-39):  Acceptable, monitor over time
+                CLEAN     (0-19):   No action needed
+
+              === MODULE SCORING ===
+
+              For each package, compute a COUPLING SCORE (0-100):
+
+              coupling_score = min(100, (
+                instability * 30 +               -- 0-30 points
+                interface_penalty +              -- +20 if NO interface boundary to callers
+                god_package_penalty +            -- +20 if god package candidate
+                spec_violation_penalty           -- +10 if spec-driven and has CRITICAL functions
+              ))
+
+              MODULE COUPLING RISK:
+                FRAGILE   (70-100): High risk — changes ripple widely
+                COUPLED   (40-69):  Needs interface boundaries or decomposition
+                MODERATE  (20-39):  Some coupling, manageable
+                CLEAN     (0-19):   Well-bounded, low coupling
+
+              === HOT SPOT RANKING ===
+
+              Produce two ranked lists:
+
+              1. TOP 20 FUNCTION HOT SPOTS (by function score, descending)
+              2. TOP 10 MODULE HOT SPOTS (by coupling score, descending)
+
+              For each hot spot note:
+              - Score and tier
+              - The dominant contributing metric (what drives the score)
+              - Whether it is in a spec-driven module (and which invariants apply)
+
+              Write to .bob/state/go-scores.md:
+
+              # Go Health Scores
+
+              ## Function Hot Spots (Top 20)
+              | Rank | Package | Function | File:Line | Score | Tier | Dominant Factor | Spec Module? |
+              |------|---------|----------|-----------|-------|------|----------------|--------------|
+
+              ## Module Hot Spots (Top 10)
+              | Rank | Package | Score | Tier | Ce | Ca | Interface Boundary | Spec Module? |
+              |------|---------|-------|------|----|----|-------------------|--------------|
+
+              ## Score Distribution
+              | Tier | Function Count | Module Count |
+              |------|---------------|--------------|
+              | CRITICAL  | N | N |
+              | HIGH      | N | N |
+              | MEDIUM    | N | N |
+              | LOW       | N | N |
+              | CLEAN     | N | N |
+
+              ## Coverage Gaps
+              Note any functions/packages where metrics were N/A due to missing tools,
+              and what installing those tools would reveal.")
+```
+
+**Input:** `.bob/state/go-analysis.md`
+**Output:** `.bob/state/go-scores.md`
+
+---
+
+## Phase 5: REPORT
+
+**Goal:** Consolidate all findings into a single report.
 
 **Actions:**
 
-Read all `.bob/state/audit-module-*.md` files and write a consolidated report:
+Spawn a consolidation agent:
 
 ```
 Task(subagent_type: "Explore",
      description: "Consolidate audit findings into final report",
      run_in_background: true,
-     prompt: "Read all .bob/state/audit-module-*.md files and consolidate into a single report.
+     prompt: "Read all .bob/state/audit-module-*.md files.
+              If .bob/state/go-scores.md exists, also read .bob/state/go-analysis.md and .bob/state/go-scores.md.
 
               Write to .bob/state/audit-report.md:
 
-              # Spec Audit Report
+              # Audit Report
 
               Generated: [ISO timestamp]
 
               ## Executive Summary
 
+              ### Spec Compliance
               - Modules audited: N
               - Total invariants verified: N
               - PASS: N | FAIL: N | PARTIAL: N | UNTESTABLE: N
               - Design decisions checked: N (N violations)
               - Stale spec references found: N
 
+              ### Go Structural Health (if applicable)
+              - Packages analyzed: N
+              - Functions analyzed: N
+              - CRITICAL functions: N
+              - FRAGILE modules: N
+              - Stable Dependencies Principle violations: N
+              - Tools available: [gocyclo yes/no, gocognit yes/no, callgraph yes/no]
+
               ## Overall Health: [HEALTHY / NEEDS ATTENTION / CRITICAL]
 
-              Use HEALTHY if no FAIL findings.
-              Use NEEDS ATTENTION if any FAIL or multiple PARTIAL findings.
-              Use CRITICAL if >30% of invariants FAIL.
+              HEALTHY if: no FAIL findings AND (no GO_ANALYSIS or no CRITICAL/FRAGILE)
+              NEEDS ATTENTION if: any FAIL, PARTIAL findings, HIGH functions, or COUPLED modules
+              CRITICAL if: >30% invariants FAIL, or any CRITICAL functions or FRAGILE modules
 
               ---
 
-              ## Failures (Code Violates Spec)
+              ## Spec Compliance Findings
+
+              ### Failures (Code Violates Spec)
 
               [List every FAIL finding across all modules, grouped by module]
 
-              ### `path/to/module/`
+              #### `path/to/module/`
 
               **Invariant N:** [text]
               **Violation:** [what the code does wrong, file:line]
               **Impact:** [what could go wrong because of this]
 
-              ---
-
-              ## Partial Compliance
+              ### Partial Compliance
 
               [List every PARTIAL finding]
 
-              ---
+              ### Design Decision Violations
 
-              ## Stale Specs
+              [List every VIOLATES finding from design decision checks]
+
+              ### Stale Spec References
 
               [List every stale reference — invariants about removed code, decisions about renamed types]
 
+              ### Undocumented Behaviors
+
+              [List behaviors found in code but not captured in SPECS.md]
+
               ---
 
-              ## Undocumented Behaviors
+              ## Go Structural Findings (if applicable)
 
-              [List behaviors found in code but not captured in specs]
+              ### Critical Hot Spots
+
+              #### CRITICAL Functions (score 80-100)
+              For each:
+
+              **`package.FunctionName`** — Score: N/100 (CRITICAL)
+              File: `path/file.go:line`
+              Dominant factor: [cyclomatic | cognitive | call depth | allocations | blast radius]
+              Metrics: cyclo=N, cognit=N, depth=N, heap_allocs=N, fan_in=N
+
+              If in a spec-driven module:
+              > **Spec context:** Relevant invariants: [list]
+              > Risk: complexity may make these invariants difficult to verify.
+
+              Recommendation: [specific, actionable refactoring suggestion]
+
+              #### FRAGILE Modules (coupling score 70-100)
+              For each:
+
+              **`package/path`** — Coupling Score: N/100 (FRAGILE)
+              Ce=N, Ca=N, Instability=0.N, Interface boundary: [NONE | PARTIAL | FULL]
+
+              Recommendation: [define interface at boundary X, extract sub-package Y]
+
+              ### Stable Dependencies Principle Violations
+
+              For each:
+              **`stable-package` imports `unstable-package`**
+              Fix: introduce an interface or invert the dependency
+
+              ### Module Coupling Overview
+
+              [Full Module Coupling Matrix table from go-analysis.md]
+
+              ### Call Graph Structure
+
+              **Deepest Call Chains:** [Top 5 longest chains]
+
+              **High Fan-In Functions (Blast Radius):**
+              | Function | Fan-In | Packages Affected |
+              |----------|--------|------------------|
+
+              **Recursive Functions:** [list; flag if unbounded recursion possible]
+
+              ### Allocation Hot Spots
+
+              | Function | Heap Escapes | Notes |
+              |----------|-------------|-------|
+
+              ### Tool Gap Analysis
+
+              If any tools were unavailable:
+              | Tool | What It Would Reveal | Install |
+              |------|---------------------|---------|
+              | gocyclo | Cyclomatic complexity per function | go install github.com/fzipp/gocyclo/cmd/gocyclo@latest |
+              | gocognit | Cognitive complexity per function | go install github.com/uudashr/gocognit/v2/cmd/gocognit@latest |
+              | callgraph | Precise cross-package call graph | go install golang.org/x/tools/cmd/callgraph@latest |
+              | staticcheck | Bug patterns, deprecated API usage | go install honnef.co/go/tools/cmd/staticcheck@latest |
 
               ---
 
               ## Proposed New Invariants
 
-              These invariants were discovered by scanning the code but are NOT yet documented
-              in any spec file. They require user approval before being added.
+              These invariants were discovered by scanning the code but are NOT yet documented.
+              They require user approval before being added.
 
               ### `path/to/module/`
 
@@ -299,37 +689,36 @@ Task(subagent_type: "Explore",
               |---|-------------------|----------|-----------|
               | 1 | [text] | [file:line] | [why this matters] |
 
-              [Group by module, list all candidates]
+              [Group by module]
 
               ---
 
               ## Recommendations
 
-              For each FAIL:
-              - Fix the code to satisfy the invariant, OR
-              - Update SPECS.md if the invariant is wrong (add NOTES.md entry explaining why)
+              ### Immediate (spec failures and CRITICAL structural issues)
+              For each FAIL: fix the code OR update SPECS.md if the invariant is wrong (add NOTES.md entry)
+              For each CRITICAL function: [specific refactoring action]
+              For each FRAGILE module: [specific decoupling action]
 
-              For each stale reference:
-              - Remove or update the spec entry
+              ### Short-term (partial compliance and HIGH structural issues)
 
-              For each undocumented behavior:
-              - Consider adding to SPECS.md if it's a guarantee callers rely on")
+              ### Backlog (stale specs, MEDIUM functions, SDP violations)")
 ```
 
 **Output:** `.bob/state/audit-report.md`
 
 ---
 
-## Phase 5: COMPLETE
+## Phase 6: COMPLETE
 
-**Goal:** Present the audit results to the user.
+**Goal:** Present results and handle proposed new invariants.
 
 **Actions:**
 
 Read `.bob/state/audit-report.md` and present the summary:
 
 ```
-Spec audit complete!
+Audit complete!
 
 Results: .bob/state/audit-report.md
 
@@ -342,7 +731,7 @@ Results: .bob/state/audit-report.md
   Fix the code or update the specs — use /bob:work-agents for code fixes
   or edit SPECS.md directly for spec corrections.
 
-[If CRITICAL]: Significant spec drift detected. N invariants violated.
+[If CRITICAL]: Significant spec drift or structural issues detected.
   Review .bob/state/audit-report.md and prioritize fixes.
 ```
 
@@ -377,6 +766,9 @@ Skip any the user declines. If the user says "none", proceed to completion witho
 
 - This workflow is **read-only** unless the user approves proposed new invariants
 - Spec files are only modified with explicit user consent
-- Findings from the audit can feed into `/bob:work-agents` to fix violations
+- Findings can feed into `/bob:work-agents` to fix violations
 - Run periodically (e.g., before releases) to catch spec drift
-- The audit checks code against specs, not specs against code — if you want to generate specs from code, use `/bob:design apply`
+- The audit checks code against specs, not specs against code — to generate specs from code, use `/bob:design apply`
+- Go structural analysis scoring weights are opinionated: cognitive complexity is weighted heavily because it predicts maintenance burden better than cyclomatic complexity alone
+- Instability scores near 0.5 are not inherently bad — the concern is when an unstable package is imported by a stable one
+- Missing tools degrade gracefully: go vet + escape analysis always run; gocyclo/gocognit/callgraph add depth

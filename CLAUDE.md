@@ -21,7 +21,7 @@ Invoke these workflows with slash commands:
 4. **`/bob:explore`** - Read-only codebase exploration
 5. **`/bob:explore-teams`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
 6. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
-7. **`/bob:audit`** - Verify code satisfies stated invariants in spec-driven modules (read-only)
+7. **`/bob:audit`** - Verify spec invariants and optionally analyze Go structural health (call graphs, complexity, coupling) (read-only)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 

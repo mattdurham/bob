@@ -3,55 +3,145 @@ name: bob:explore-teams
 description: Team-based codebase exploration with adversarial challenge - DISCOVER → ANALYZE → CHALLENGE → DOCUMENT
 user-invocable: true
 category: workflow
+requires_experimental: agent_teams
 ---
 
-# Team Exploration Workflow
+# Team Exploration Workflow (Agent Teams)
 
-You orchestrate **read-only exploration** with an adversarial **CHALLENGE** phase that stress-tests the analysis using concurrent specialist agents.
+<!-- AGENT CONDUCT: Be direct and challenging. Flag gaps, risks, and weak ideas proactively. -->
+
+You orchestrate **read-only exploration** with an adversarial **CHALLENGE** phase that stress-tests the analysis using concurrent specialist agents coordinated through a **shared task list**.
+
+## Prerequisites
+
+<experimental_feature>
+This workflow requires the experimental agent teams feature:
+
+```json
+// Add to ~/.claude/settings.json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+Or set environment variable:
+```bash
+export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
+```
+
+Without this flag, the workflow will fail.
+</experimental_feature>
 
 ## Workflow Diagram
 
 ```
-INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT → COMPLETE
-                     ↑           ↓
-                     └───────────┘
-                   (challenge fails)
+INIT → DISCOVER → SPAWN TEAM → CREATE TASKS → EXECUTE (ANALYZE ↔ CHALLENGE) → DOCUMENT → COMPLETE
+                                                          ↑            ↓
+                                                          └────────────┘
+                                                       (challenger FAILs →
+                                                        re-analysis tasks)
 ```
 
 **Read-only:** No code changes, no commits.
 
+**Key difference from bob:explore**: Analysts and challengers are persistent teammates that claim tasks from a shared list. Loop-back is natural — challengers create re-analysis tasks, analysts pick them up.
+
 ---
 
-## Execution Rules
+<strict_enforcement>
+All phases MUST be executed in the exact order specified.
+NO phases may be skipped under any circumstances.
+The orchestrator MUST follow each step exactly as written.
+Each phase has specific prerequisites that MUST be satisfied before proceeding.
+</strict_enforcement>
 
-**CRITICAL: All subagents MUST run in background**
+## Orchestrator Boundaries
 
-- ALWAYS use `run_in_background: true` for ALL Agent calls
-- After spawning agents, STOP - do not poll or check status
-- Wait for agent completion notification - you'll be notified automatically
-- Never use foreground execution - it blocks the workflow
+**The team lead coordinates. It never analyzes.**
+
+**Team Lead CAN:**
+- Create and manage the agent team
+- Spawn teammates with specific prompts
+- Create tasks using TaskCreate
+- Monitor task list with TaskList
+- Read files to make routing decisions
+- Merge analysis files into unified documents
+- Display brief status updates to the user between phases
+- Clean up team when workflow complete
+
+**Team Lead CANNOT:**
+- Write or edit source code files
+- Analyze code itself (that's what analyst teammates do)
+- Challenge analysis itself (that's what challenger teammates do)
+- Make analytical conclusions
+
+**All analysis and challenge work MUST be performed by teammates.**
+
+---
+
+## Autonomous Progression Rules
+
+**CRITICAL: The team lead drives forward relentlessly. It does NOT ask for permission.**
+
+The workflow runs autonomously from INIT through DOCUMENT. The team lead's job is to keep the pipeline moving — spawn teammates, create tasks, monitor progress, route to next phase. No pauses, no confirmations, no "should I continue?" prompts.
+
+**Auto-routing rules:**
+
+| Situation | Action | Prompt user? |
+|-----------|--------|--------------|
+| Analysts complete tasks | Challengers pick them up automatically | No |
+| Challengers PASS tasks | Monitor until all challenged | No |
+| Challengers FAIL tasks | Re-analysis tasks created, analysts pick them up | No — just log what happened |
+| All tasks challenged and PASSed | Proceed to DOCUMENT | No |
+| Max challenge rounds hit (2) | Proceed to DOCUMENT with caveats | No |
+| COMPLETE phase | Present findings | Yes — ask about next steps |
+
+**The ONLY user interaction is at COMPLETE.**
 
 ---
 
 ## Phase 1: INIT
 
-Understand exploration goal:
-- What to explore?
-- Specific feature/component?
-- Architecture overview?
+**Goal:** Understand exploration goal
 
-Create .bob/:
-```bash
-mkdir -p .bob/state
-```
+**Actions:**
+1. **Greet the user:**
+   ```
+   "Hey! Bob here, ready to coordinate the exploration team.
+
+   Exploring: [topic/component]
+
+   Let me rally the agents to dig into this."
+   ```
+
+2. **Verify experimental flag is enabled:**
+   ```
+   Check if CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is set
+   If not, STOP and say:
+   "Agent teams are not enabled.
+   Run this command to enable them:
+
+   make enable-agent-teams
+
+   Then restart Claude Code and try again!"
+   ```
+
+3. Create .bob/:
+   ```bash
+   mkdir -p .bob/state
+   ```
+
+4. Move to DISCOVER phase
 
 ---
 
 ## Phase 2: DISCOVER
 
-**Goal:** Find relevant code and understand its contracts
+**Goal:** Find relevant code and build a map
 
-Spawn Explore agent:
+Spawn an Explore agent (regular subagent, not a teammate):
 ```
 Agent(subagent_type: "Explore",
      description: "Discover codebase structure",
@@ -74,311 +164,359 @@ Agent(subagent_type: "Explore",
 
 ---
 
-## Phase 3: ANALYZE
+## Phase 3: SPAWN TEAM
 
-**Goal:** Understand how code works from multiple angles using concurrent specialist agents
-
-**This phase uses a team approach.** Instead of a single researcher, multiple agents analyze the codebase concurrently, each focusing on a different dimension. Their findings are then merged into a unified analysis.
+**Goal:** Create agent team with analyst and challenger teammates
 
 **Actions:**
 
-Spawn ALL analyst agents concurrently (in a single message with multiple Agent calls):
+**Step 1: Create the agent team**
 
-**Analyst 1 — Structure & Components**
 ```
-Agent(subagent_type: "Explore",
-     name: "analyst-structure",
-     description: "Analyze structure and components",
-     run_in_background: true,
-     prompt: "Read .bob/state/discovery.md for context on what was found.
-             Then read the identified source files.
+"I need to create an agent team for this exploration task.
 
-             Your focus: STRUCTURE and COMPONENTS.
-             - What are the key types, interfaces, and structs?
-             - What is each component's responsibility?
-             - How are components organized (packages, modules, layers)?
-             - What are the public APIs vs internal details?
-             - What are the key abstractions?
+Team structure:
+- 2 analyst teammates (team-analyst agents)
+- 2 challenger teammates (team-challenger agents)
 
-             For any CLAUDE.md modules identified in discovery, read CLAUDE.md
-             FIRST to understand the documented invariants before reading code.
+All teammates should use the Sonnet model for balanced quality and speed.
 
-             Write findings to .bob/state/analyze-structure.md.")
+Please create this team now."
 ```
 
-**Analyst 2 — Data Flow & Control Flow**
+**Step 2: Spawn analyst teammates**
+
+**Analyst 1:**
 ```
-Agent(subagent_type: "Explore",
-     name: "analyst-flow",
-     description: "Analyze data and control flow",
-     run_in_background: true,
-     prompt: "Read .bob/state/discovery.md for context on what was found.
-             Then read the identified source files.
+"Spawn a teammate named 'analyst-1' to analyze code from the shared task list.
 
-             Your focus: DATA FLOW and CONTROL FLOW.
-             - How does data enter the system?
-             - What transformations happen along the way?
-             - What are the key code paths (happy path, error paths)?
-             - How is state managed and passed between components?
-             - What are the entry points and exit points?
-             - Are there async/concurrent flows? How do they coordinate?
+Teammate prompt:
+'You are analyst-1, a team-analyst agent working on codebase exploration.
 
-             Trace actual execution paths through the code. Be concrete —
-             reference specific functions, methods, and call chains.
+Your job:
+1. Check TaskList for available analysis tasks (pending, task_type: analysis or re-analysis)
+2. Claim a task using TaskUpdate (set status: in_progress, owner: analyst-1)
+3. Read task details with TaskGet
+4. Read .bob/state/discovery.md for context
+5. Research the codebase thoroughly for your assigned dimension
+6. Write evidence-based findings to the output file specified in the task
+7. Mark task completed
+8. Repeat until no more tasks available
 
-             Write findings to .bob/state/analyze-flow.md.")
-```
+CLAUDE.md MODULES: For any directory with a CLAUDE.md file, read it FIRST to
+understand the documented invariants and constraints before reading code.
 
-**Analyst 3 — Patterns & Conventions**
-```
-Agent(subagent_type: "Explore",
-     name: "analyst-patterns",
-     description: "Analyze patterns and conventions",
-     run_in_background: true,
-     prompt: "Read .bob/state/discovery.md for context on what was found.
-             Then read the identified source files.
+Quality standards:
+- Every claim must cite a specific file:line
+- Verify relationships by reading actual code, not guessing
+- Be thorough within your assigned dimension
+- For re-analysis tasks, read ALL challenger feedback and address specific issues
 
-             Your focus: PATTERNS and CONVENTIONS.
-             - What design patterns are used (factory, strategy, observer, etc.)?
-             - What are the error handling conventions?
-             - What testing patterns are used?
-             - What naming conventions are followed?
-             - Are there recurring idioms or helper patterns?
-             - How is configuration handled?
-             - How are dependencies injected or managed?
-
-             For any CLAUDE.md modules, read CLAUDE.md for documented
-             invariants and constraints.
-
-             Write findings to .bob/state/analyze-patterns.md.")
+Working directory: [current-working-directory]'"
 ```
 
-**Analyst 4 — Dependencies & Integration**
+**Analyst 2:**
 ```
-Agent(subagent_type: "Explore",
-     name: "analyst-dependencies",
-     description: "Analyze dependencies and integration",
-     run_in_background: true,
-     prompt: "Read .bob/state/discovery.md for context on what was found.
-             Then read the identified source files.
-
-             Your focus: DEPENDENCIES and INTEGRATION.
-             - What external dependencies are used and why?
-             - How do components depend on each other?
-             - Are there circular dependencies?
-             - What are the integration points (APIs, databases, file systems, networks)?
-             - How is the system configured and initialized?
-             - What are the deployment or build concerns?
-
-             Map the dependency graph. Identify coupling hotspots.
-
-             Write findings to .bob/state/analyze-dependencies.md.")
+"Spawn a teammate named 'analyst-2' with the same prompt as analyst-1
+(with name changed to analyst-2)."
 ```
 
-**After ALL analysts complete:**
+**Step 3: Spawn challenger teammates**
 
-Read all four analysis files and merge them into a unified `.bob/state/analysis.md`:
+**Challenger 1:**
+```
+"Spawn a teammate named 'challenger-1' to challenge completed analysis.
+
+Teammate prompt:
+'You are challenger-1, a team-challenger agent stress-testing analysis quality.
+
+Your job:
+1. Check TaskList for completed analysis tasks (completed, task_type: analysis or re-analysis, not yet challenged)
+2. Claim a task using TaskUpdate (set metadata.challenging: true, challenger: challenger-1)
+3. Read the analysis output file
+4. INDEPENDENTLY read the source code and verify every major claim
+5. Either PASS (analysis accurate) or FAIL (significant issues)
+6. If FAIL: create a re-analysis task with specific issues and evidence
+7. Repeat until all completed analysis tasks are challenged
+
+Be SKEPTICAL. Verify claims against actual code. Don't trust the analysis —
+check it yourself.
+
+PASS criteria: Core claims accurate, no major gaps, evidence verifiable.
+FAIL criteria: Factual errors, major missing areas, unsupported claims.
+
+Minor issues = PASS with notes. Major issues = FAIL with re-analysis task.
+
+Working directory: [current-working-directory]'"
+```
+
+**Challenger 2:**
+```
+"Spawn a teammate named 'challenger-2' with the same prompt as challenger-1
+(with name changed to challenger-2)."
+```
+
+**Step 4: Verify team creation**
+
+Check that all teammates are spawned:
+```
+"Show me the current team members and their status."
+```
+
+You should see:
+- analyst-1 (active)
+- analyst-2 (active)
+- challenger-1 (active)
+- challenger-2 (active)
+
+---
+
+## Phase 4: CREATE TASKS
+
+**Goal:** Create analysis tasks in the shared task list
+
+Create one task per analysis dimension. Analysts will claim and work them autonomously.
+
+**Task 1 — Structure & Components:**
+```
+TaskCreate(
+  subject: "Analyze: Structure & Components",
+  description: "Read .bob/state/discovery.md for context, then analyze the codebase.
+
+  YOUR FOCUS: STRUCTURE and COMPONENTS.
+  - What are the key types, interfaces, and structs?
+  - What is each component's responsibility?
+  - How are components organized (packages, modules, layers)?
+  - What are the public APIs vs internal details?
+  - What are the key abstractions?
+
+  For any CLAUDE.md modules, read CLAUDE.md FIRST.
+
+  Write findings to .bob/state/analyze-structure.md",
+  activeForm: "Analyzing structure and components",
+  metadata: {
+    task_type: "analysis",
+    dimension: "structure",
+    output_file: "analyze-structure.md",
+    priority: "high"
+  }
+)
+```
+
+**Task 2 — Data Flow & Control Flow:**
+```
+TaskCreate(
+  subject: "Analyze: Data Flow & Control Flow",
+  description: "Read .bob/state/discovery.md for context, then analyze the codebase.
+
+  YOUR FOCUS: DATA FLOW and CONTROL FLOW.
+  - How does data enter the system?
+  - What transformations happen along the way?
+  - What are the key code paths (happy path, error paths)?
+  - How is state managed and passed between components?
+  - What are the entry points and exit points?
+  - Are there async/concurrent flows? How do they coordinate?
+
+  Trace actual execution paths. Be concrete — reference specific functions,
+  methods, and call chains.
+
+  Write findings to .bob/state/analyze-flow.md",
+  activeForm: "Analyzing data and control flow",
+  metadata: {
+    task_type: "analysis",
+    dimension: "flow",
+    output_file: "analyze-flow.md",
+    priority: "high"
+  }
+)
+```
+
+**Task 3 — Patterns & Conventions:**
+```
+TaskCreate(
+  subject: "Analyze: Patterns & Conventions",
+  description: "Read .bob/state/discovery.md for context, then analyze the codebase.
+
+  YOUR FOCUS: PATTERNS and CONVENTIONS.
+  - What design patterns are used (factory, strategy, observer, etc.)?
+  - What are the error handling conventions?
+  - What testing patterns are used?
+  - What naming conventions are followed?
+  - Are there recurring idioms or helper patterns?
+  - How is configuration handled?
+  - How are dependencies injected or managed?
+
+  For any CLAUDE.md modules, read CLAUDE.md for documented invariants.
+
+  Write findings to .bob/state/analyze-patterns.md",
+  activeForm: "Analyzing patterns and conventions",
+  metadata: {
+    task_type: "analysis",
+    dimension: "patterns",
+    output_file: "analyze-patterns.md",
+    priority: "high"
+  }
+)
+```
+
+**Task 4 — Dependencies & Integration:**
+```
+TaskCreate(
+  subject: "Analyze: Dependencies & Integration",
+  description: "Read .bob/state/discovery.md for context, then analyze the codebase.
+
+  YOUR FOCUS: DEPENDENCIES and INTEGRATION.
+  - What external dependencies are used and why?
+  - How do components depend on each other?
+  - Are there circular dependencies?
+  - What are the integration points (APIs, databases, file systems, networks)?
+  - How is the system configured and initialized?
+  - What are the deployment or build concerns?
+
+  Map the dependency graph. Identify coupling hotspots.
+
+  Write findings to .bob/state/analyze-dependencies.md",
+  activeForm: "Analyzing dependencies and integration",
+  metadata: {
+    task_type: "analysis",
+    dimension: "dependencies",
+    output_file: "analyze-dependencies.md",
+    priority: "high"
+  }
+)
+```
+
+**After creating all tasks:**
+
+Broadcast to all teammates:
+```
+"Broadcast to all team members:
+
+Exploration tasks are ready! Here's how it works:
+
+- Analysts: 4 analysis tasks are available. Claim and analyze.
+- Challengers: As analysis tasks complete, challenge them. Verify claims against actual code.
+- If a challenge FAILs, a re-analysis task will be created. Analysts pick those up.
+
+Let's get a thorough, verified exploration done."
+```
+
+---
+
+## Phase 5: EXECUTE (ANALYZE + CHALLENGE)
+
+**Goal:** Analysts and challengers work concurrently through the task list
+
+This is where the team pattern shines. Instead of sequential phases:
+- **Analysts** claim analysis tasks, research, write findings, mark complete
+- **Challengers** claim completed analysis tasks, verify against code, PASS or FAIL
+- **If FAIL**: Challenger creates re-analysis task → analyst picks it up → challenger re-verifies
+- This loops naturally through the task list until everything passes
+
+**Your role as team lead:**
+1. Monitor task list progress
+2. Message teammates as needed
+3. Track challenge rounds (max 2 per dimension)
+4. Decide when to proceed to DOCUMENT
+
+**Monitoring loop:**
+
+Periodically check the task list:
+```
+TaskList()
+```
+
+Track:
+- Analysis tasks pending
+- Analysis tasks in progress
+- Analysis tasks completed (waiting for challenge)
+- Analysis tasks challenged and PASSed
+- Analysis tasks challenged and FAILed
+- Re-analysis tasks pending/in-progress/completed
+
+**Example progression:**
+
+```
+[Initial state]
+TaskList: 4 analysis tasks pending
+
+Message from analyst-1: "Claimed Structure analysis"
+Message from analyst-2: "Claimed Flow analysis"
+TaskList: 2 pending, 2 in progress
+
+Message from analyst-1: "Completed Structure analysis → analyze-structure.md"
+TaskList: 2 pending, 1 in progress, 1 completed
+
+Message from challenger-1: "Challenging Structure analysis"
+Message from analyst-1: "Claimed Patterns analysis"
+TaskList: 1 pending, 2 in progress, 1 being challenged
+
+Message from challenger-1: "Structure analysis PASSED — accurate, well-evidenced"
+Message from analyst-2: "Completed Flow analysis → analyze-flow.md"
+TaskList: 1 pending, 1 in progress, 1 completed, 1 challenged+passed
+
+Message from challenger-2: "Challenging Flow analysis"
+Message from challenger-2: "Flow analysis FAILED — incorrect call chain in auth module, missing error recovery path. Created re-analysis task."
+TaskList: 0 pending, 1 in progress, 1 re-analysis pending, 1 challenged+passed, 1 challenged+failed
+
+Message from analyst-2: "Claimed re-analysis of Flow"
+...
+
+[Final state]
+TaskList: All analysis tasks challenged and PASSed (including re-analyses)
+→ Proceed to merge + DOCUMENT
+```
+
+**Completion criteria:**
+
+Move to DOCUMENT when:
+- All 4 original analysis dimensions have a PASSed analysis (original or re-analysis)
+- OR max 2 challenge rounds per dimension reached (proceed with caveats)
+
+**Handling stalls:**
+
+If teammates go idle but work remains:
+- Message analysts: "There are pending re-analysis tasks. Please claim them."
+- Message challengers: "There are completed analysis tasks waiting for challenge."
+
+**After all tasks complete:**
+
+**Step 1: Read all analysis files**
+
+Read all four PASSed analysis files:
+```
+Read(.bob/state/analyze-structure.md)
+Read(.bob/state/analyze-flow.md)
+Read(.bob/state/analyze-patterns.md)
+Read(.bob/state/analyze-dependencies.md)
+```
+
+**Step 2: Merge into unified analysis**
+
+Write a unified `.bob/state/analysis.md` that synthesizes all four dimensions:
 - Architecture overview (from structure + dependencies)
 - Key components and responsibilities (from structure)
 - Data flow and control flow (from flow)
 - Patterns and conventions (from patterns)
 - Dependencies and integration points (from dependencies)
 - Invariant compliance (from any analyst that found CLAUDE.md modules)
-- Assumptions and open questions (collected from all analysts)
+- Challenge results (what was corrected during challenge rounds)
+- Remaining uncertainties (any issues from max-round caveats)
 
-If looping back from CHALLENGE, include in each analyst's prompt:
+**Step 3: Shut down teammates**
+
 ```
-"Previous analysis had issues identified by challengers.
- Read .bob/state/challenge-accuracy.md, .bob/state/challenge-completeness.md,
- .bob/state/challenge-architecture.md, .bob/state/challenge-operational.md,
- and .bob/state/challenge-fresh-eyes.md for specific issues to address
- within your focus area."
+"Ask analyst-1 teammate to shut down"
+"Ask analyst-2 teammate to shut down"
+"Ask challenger-1 teammate to shut down"
+"Ask challenger-2 teammate to shut down"
 ```
 
-**Input:** `.bob/state/discovery.md`
-**Output:** `.bob/state/analyze-structure.md`, `.bob/state/analyze-flow.md`, `.bob/state/analyze-patterns.md`, `.bob/state/analyze-dependencies.md` → merged into `.bob/state/analysis.md`
+Wait for each to confirm shutdown.
 
 ---
 
-## Phase 4: CHALLENGE
-
-**Goal:** Stress-test the analysis using concurrent specialist agents that each focus on a different aspect. If challengers find significant gaps or errors, loop back to ANALYZE.
-
-**This is the key differentiator from bob:explore.** Multiple agents run concurrently, each probing the analysis from a different angle. They read the analysis and the source code independently to find mistakes, gaps, and unsupported claims.
-
-**Actions:**
-
-Spawn ALL challenger agents concurrently (in a single message with multiple Agent calls):
-
-**Challenger 1 — Accuracy**
-```
-Agent(subagent_type: "Explore",
-     name: "challenger-accuracy",
-     description: "Challenge analysis accuracy",
-     run_in_background: true,
-     prompt: "You are an adversarial reviewer checking the ACCURACY of an analysis.
-
-             Read .bob/state/analysis.md, then independently read the source code
-             referenced in .bob/state/discovery.md.
-
-             Your job: find factual errors in the analysis.
-             - Are component descriptions correct?
-             - Are function behaviors described accurately?
-             - Are data types and signatures right?
-             - Are claimed relationships between components real?
-             - Does the code actually do what the analysis says it does?
-
-             Be skeptical. Verify claims against the actual code.
-
-             Write your findings to .bob/state/challenge-accuracy.md:
-             - VERDICT: PASS or FAIL
-             - List of errors found (with file:line evidence)
-             - List of unverified claims
-             - Confidence level (high/medium/low)")
-```
-
-**Challenger 2 — Completeness**
-```
-Agent(subagent_type: "Explore",
-     name: "challenger-completeness",
-     description: "Challenge analysis completeness",
-     run_in_background: true,
-     prompt: "You are an adversarial reviewer checking the COMPLETENESS of an analysis.
-
-             Read .bob/state/analysis.md, then independently explore the codebase
-             using .bob/state/discovery.md as a starting point.
-
-             Your job: find what the analysis MISSED.
-             - Are there important components not mentioned?
-             - Are there key code paths not covered?
-             - Are error handling patterns described?
-             - Are edge cases and failure modes documented?
-             - Are there important dependencies or integrations missed?
-             - Are there configuration or initialization flows omitted?
-
-             Look beyond what the analysis covered.
-
-             Write your findings to .bob/state/challenge-completeness.md:
-             - VERDICT: PASS or FAIL
-             - List of significant omissions
-             - List of minor gaps
-             - Suggested areas for deeper exploration")
-```
-
-**Challenger 3 — Architecture**
-```
-Agent(subagent_type: "Explore",
-     name: "challenger-architecture",
-     description: "Challenge architecture claims",
-     run_in_background: true,
-     prompt: "You are an adversarial reviewer checking the ARCHITECTURE claims in an analysis.
-
-             Read .bob/state/analysis.md, then independently read the source code
-             referenced in .bob/state/discovery.md.
-
-             Your job: challenge the architectural understanding.
-             - Are the described patterns actually used consistently?
-             - Are dependency directions correct?
-             - Are layer boundaries real or assumed?
-             - Does the data flow description match reality?
-             - Are there hidden coupling or circular dependencies?
-             - Are concurrency/threading models described correctly?
-             - Is the module boundary analysis accurate?
-
-             Think structurally. Challenge assumptions about how pieces fit together.
-
-             Write your findings to .bob/state/challenge-architecture.md:
-             - VERDICT: PASS or FAIL
-             - List of architectural mischaracterizations
-             - List of missed architectural patterns
-             - Corrected architectural understanding (if needed)")
-```
-
-**Challenger 4 — Operational / SRE**
-```
-Agent(subagent_type: "Explore",
-     name: "challenger-operational",
-     description: "Challenge from SRE/ops perspective",
-     run_in_background: true,
-     prompt: "You are an adversarial reviewer with an SRE/OPERATIONAL mindset.
-
-             Read .bob/state/analysis.md, then independently read the source code
-             referenced in .bob/state/discovery.md.
-
-             Your job: evaluate the analysis through the lens of running this
-             code in production.
-             - What happens when things fail? Are failure modes documented?
-             - Is observability addressed (logging, metrics, tracing)?
-             - Are there resource leaks (goroutines, file handles, connections)?
-             - What are the scaling bottlenecks?
-             - Are timeouts, retries, and circuit breakers present where needed?
-             - How does the system degrade under load or partial failure?
-             - Are there operational concerns the analysis ignores (deployment,
-               configuration, secrets management, health checks)?
-             - What would wake you up at 3am?
-
-             Think like someone who has to keep this running in production.
-
-             Write your findings to .bob/state/challenge-operational.md:
-             - VERDICT: PASS or FAIL
-             - List of operational risks not covered in the analysis
-             - List of missing failure modes
-             - Recommendations for operational concerns to document")
-```
-
-**Challenger 5 — Fresh Eyes**
-```
-Agent(subagent_type: "Explore",
-     name: "challenger-fresh-eyes",
-     description: "Challenge with unbiased fresh perspective",
-     run_in_background: true,
-     prompt: "You are an adversarial reviewer providing a FRESH, UNBIASED perspective.
-
-             IMPORTANT: Read the source code in .bob/state/discovery.md FIRST.
-             Form your OWN understanding of what this code does and how it works
-             BEFORE reading the analysis. Then read .bob/state/analysis.md and
-             compare it against your independent understanding.
-
-             Your job: catch groupthink and blind spots by coming at this cold.
-             - Does your independent reading match the analysis narrative?
-             - Are there simpler explanations the analysis overcomplicates?
-             - Are there complexities the analysis glosses over?
-             - Does the analysis make assumptions that aren't in the code?
-             - Is the analysis telling a coherent story, or papering over
-               inconsistencies?
-             - What surprised you about the code that the analysis didn't mention?
-             - What questions would a newcomer to this codebase ask that
-               the analysis doesn't answer?
-
-             Be the outsider. No prior context, no shared assumptions.
-             If something doesn't make sense to you, it's a gap.
-
-             Write your findings to .bob/state/challenge-fresh-eyes.md:
-             - VERDICT: PASS or FAIL
-             - List of discrepancies between your reading and the analysis
-             - List of blind spots or groupthink patterns detected
-             - Questions a newcomer would still have after reading the analysis")
-```
-
-**After ALL challengers complete:**
-
-Read all five challenge files and make a routing decision:
-
-**Routing rules:**
-- **Any FAIL verdict** → Loop back to ANALYZE with challenger feedback
-  - Append challenger findings to `.bob/state/discovery.md` as additional context
-  - The re-analysis must address the specific issues raised
-  - Maximum 2 challenge loops (after 2 failures, proceed to DOCUMENT with caveats noted)
-- **All PASS** → Proceed to DOCUMENT
-
-When looping back, re-run the full ANALYZE team. Each analyst's prompt already includes
-instructions to read challenger feedback when looping back (see Phase 3).
-
-**Output:** `.bob/state/challenge-accuracy.md`, `.bob/state/challenge-completeness.md`, `.bob/state/challenge-architecture.md`, `.bob/state/challenge-operational.md`, `.bob/state/challenge-fresh-eyes.md`
-
----
-
-## Phase 5: DOCUMENT
+## Phase 6: DOCUMENT
 
 **Goal:** Create clear documentation incorporating challenge results
 
@@ -396,15 +534,88 @@ Create comprehensive report in `.bob/state/exploration-report.md`:
 
 ---
 
-## Phase 6: COMPLETE
+## Phase 7: COMPLETE
 
-Present findings to user:
-- Summarize learnings
-- Show key insights
-- Note confidence level (based on challenge results)
-- Point to detailed docs
+**Goal:** Present findings to user
 
-**Next steps:**
-- Explore deeper?
-- Related areas?
-- Start implementation? (switch to /work)
+**Actions:**
+
+1. **Clean up the team:**
+   ```
+   "Clean up the agent team"
+   ```
+
+2. **Present findings:**
+   - Summarize learnings
+   - Show key insights
+   - Note confidence level (based on challenge results)
+   - Point to detailed docs in `.bob/state/`
+
+3. **Ask about next steps:**
+   ```
+   "Exploration complete!
+
+   [Summary of key findings]
+
+   Detailed report: .bob/state/exploration-report.md
+   Unified analysis: .bob/state/analysis.md
+
+   What next?
+   - Explore deeper into a specific area?
+   - Related components?
+   - Start implementation? (switch to /work)"
+   ```
+
+---
+
+## Team Architecture
+
+```
+Team Lead (You)
+  ↓
+  ├── Teammate: analyst-1 (team-analyst agent)
+  ├── Teammate: analyst-2 (team-analyst agent)
+  ├── Teammate: challenger-1 (team-challenger agent)
+  └── Teammate: challenger-2 (team-challenger agent)
+
+Coordination:
+  - Shared task list (TaskCreate, TaskList, TaskGet, TaskUpdate)
+  - Direct messaging between teammates
+  - Team lead monitors and steers
+  - Natural loop-back via re-analysis tasks
+```
+
+**The loop-back mechanism:**
+```
+Analyst completes analysis task
+  → Challenger claims it, verifies against code
+  → PASS: done
+  → FAIL: Challenger creates re-analysis task
+    → Analyst claims re-analysis task
+    → Analyst writes corrected analysis
+    → Challenger claims corrected analysis
+    → PASS or FAIL (max 2 rounds)
+```
+
+This is the same pattern as team-coder/team-reviewer in work-teams — the loop happens naturally through the task list without requiring the orchestrator to re-run entire phases.
+
+---
+
+## Troubleshooting
+
+**Teammates not appearing:**
+1. Check experimental flag is enabled
+2. Verify team creation message worked
+3. List teammates to see status
+
+**Analysts going idle but challenges pending:**
+1. Message analysts: "Check for re-analysis tasks"
+2. Verify re-analysis tasks have correct metadata
+
+**Challengers too strict:**
+- If challengers FAIL everything, review their feedback
+- Message challengers: "Only FAIL for significant factual errors, not style"
+
+**Challenge loop stuck:**
+- After 2 rounds per dimension, proceed to DOCUMENT
+- Note unresolved issues in the report

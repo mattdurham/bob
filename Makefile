@@ -252,6 +252,8 @@ install-agents:
 	@echo "Workers - Teams:"
 	@echo "  team-coder                    - Concurrent coder teammate"
 	@echo "  team-reviewer                 - Concurrent reviewer teammate"
+	@echo "  team-analyst                  - Concurrent analyst teammate (exploration)"
+	@echo "  team-challenger               - Concurrent challenger teammate (exploration)"
 	@echo "  Explore                       - Codebase exploration"
 
 # Install Go LSP plugin

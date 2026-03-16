@@ -101,6 +101,14 @@ install-skills:
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
 	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
+	@SKILLS_DIR="$$HOME/.claude/skills"; \
+	if command -v codex >/dev/null 2>&1; then \
+		echo "   Installing talk-to-codex skill (codex CLI detected)..."; \
+		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
+		cp "skills/talk-to-codex/SKILL.md" "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+	else \
+		echo "   ⏭️  Skipping talk-to-codex (codex CLI not installed)"; \
+	fi
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"

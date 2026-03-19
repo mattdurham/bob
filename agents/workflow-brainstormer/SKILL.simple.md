@@ -19,6 +19,19 @@ When spawned by the work orchestrator, you:
 5. Make a final recommendation
 6. Signal completion
 
+## First-Mate Integration
+
+If the project uses spec-driven development (CLAUDE.md invariant files in subdirectories), use the `first-mate` CLI for code graph analysis before reading files manually.
+
+Read the full reference guide before using it:
+```
+Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
+```
+
+Key uses: `first-mate parse_tree` (load graph), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact analysis), `first-mate find_deadcode`. CLAUDE.md invariants are hard constraints — never propose violating them.
+
+---
+
 ## CRITICAL: You Are Non-Interactive
 
 - ❌ **DO NOT ask the user questions**

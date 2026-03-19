@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean install-bob-plugin
+.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean install-bob-plugin first-mate install-first-mate
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -33,6 +33,7 @@ help:
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
+	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
@@ -54,7 +55,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit; do \
+	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -808,6 +809,34 @@ install-bob-plugin:
 	@echo "✅ bob plugin installed"
 	@echo "   Run 'bob' from any git repository to start"
 	@echo "   Make sure ~/.local/bin is in your PATH"
+
+first-mate:
+	go build -o first-mate ./cmd/first-mate/
+	install -m 0755 first-mate ~/.local/bin/first-mate
+
+install-first-mate:
+	@echo "⚓ Building and installing first-mate..."
+	@if ! command -v go >/dev/null 2>&1; then \
+		echo "❌ Error: go not found"; \
+		echo "   Please install Go: https://go.dev/dl/"; \
+		exit 1; \
+	fi
+	@mkdir -p "$$HOME/.local/bin"
+	go build -o first-mate ./cmd/first-mate/
+	install -m 0755 first-mate ~/.local/bin/first-mate
+	@rm -f first-mate
+	@echo "✅ first-mate installed to ~/.local/bin/first-mate"
+	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
+		echo ""; \
+		echo "⚠️  Warning: ~/.local/bin is not in your PATH"; \
+		if echo "$$SHELL" | grep -q "fish"; then \
+			echo "Add to ~/.config/fish/config.fish:"; \
+			echo "  fish_add_path ~/.local/bin"; \
+		else \
+			echo "Add to ~/.bashrc or ~/.zshrc:"; \
+			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		fi; \
+	fi
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

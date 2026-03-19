@@ -36,6 +36,19 @@ When spawned by workflow-coder, you:
 
 ---
 
+## First-Mate Integration
+
+If the project uses spec-driven development (CLAUDE.md invariant files in subdirectories), use the `first-mate` CLI before writing code.
+
+Read the full reference guide before using it:
+```
+Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
+```
+
+Key uses: `first-mate parse_tree` (load graph), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact of changes). CLAUDE.md invariants are hard constraints — never violate them silently.
+
+---
+
 ## Reference Guide
 
 **IMPORTANT: Read and apply the golang-pro development guide**

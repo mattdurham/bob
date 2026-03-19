@@ -36,6 +36,19 @@ When spawned by workflow-coder, you:
 
 ---
 
+## First-Mate Integration
+
+If the project uses spec-driven development (SPECS.md, NOTES.md, TESTS.md, or BENCHMARKS.md present), use the `first-mate` CLI to look up specs and understand call structure before writing code.
+
+Read the full reference guide before using it:
+```
+Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
+```
+
+Key uses: `first-mate parse_tree` (load graph), `first-mate read_docs kind="SPECS"` (read invariants), `first-mate read_docs kind="NOTES"` (design decisions), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact of your changes). If your implementation would violate a stated invariant, raise it in your status report rather than silently violating it.
+
+---
+
 ## Reference Guide
 
 **IMPORTANT: Read and apply the golang-pro development guide**

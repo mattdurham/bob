@@ -77,7 +77,7 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
 ## Phase 2: REVIEW
 
-**Goal:** Run comprehensive multi-domain code review over changed files.
+**Goal:** Run comprehensive multi-domain code review over changed files, including a Go-specific pre-submit pass.
 
 **Actions:**
 
@@ -96,7 +96,8 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
    Context: [read .bob/state/plan.md and .bob/state/brainstorm.md if they exist]
    ```
 
-2. Spawn review-consolidator:
+2. Spawn **both reviewers in parallel** (start both before waiting for either):
+
    ```
    Task(subagent_type: "review-consolidator",
         description: "Multi-domain code review",
@@ -104,29 +105,37 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
         prompt: "Review the current code changes. Read .bob/state/review-prompt.md
                 for scope and context. Perform all review passes. Write consolidated
                 report to .bob/state/review.md.")
+
+   Task(subagent_type: "go-presubmit-reviewer",
+        description: "Go pre-submit checklist review",
+        run_in_background: true,
+        prompt: "Run the Go pre-submit checklist on the current code changes.
+                Read .bob/state/review-prompt.md for scope. Check all categories:
+                pool lifetimes, concurrency races, int64/int type boundaries,
+                error handling, spec accuracy, test quality, and I/O patterns.
+                Write findings to .bob/state/go-presubmit.md.")
    ```
 
-3. After completion, read `.bob/state/review.md` and move to ROUTE.
+3. Wait for both agents to complete. Then read **both** `.bob/state/review.md` and `.bob/state/go-presubmit.md` and move to ROUTE.
 
 ---
 
 ## Phase 3: ROUTE
 
-**Goal:** Decide next phase based on review findings.
+**Goal:** Decide next phase based on combined review findings.
 
-**Read** `.bob/state/review.md` and extract:
-- CRITICAL count
-- HIGH count
+**Read BOTH** `.bob/state/review.md` AND `.bob/state/go-presubmit.md` and sum the counts:
+- CRITICAL count (review.md + go-presubmit.md)
+- HIGH count (review.md + go-presubmit.md)
 - MEDIUM count
 - LOW count
-- Routing recommendation
 
 **Routing logic:**
 
 | Situation | Action |
 |-----------|--------|
-| No issues at all | → COMMIT |
-| MEDIUM/LOW only | → FIX (loop iteration +1) |
+| No issues in either report | → COMMIT |
+| MEDIUM/LOW only (across both) | → FIX (loop iteration +1) |
 | CRITICAL or HIGH present, loop < 3 | → FIX (loop iteration +1) |
 | CRITICAL or HIGH present, loop ≥ 3 | → EXIT with NEEDS_BRAINSTORM |
 | Loop complete, only MEDIUM/LOW remain | → COMMIT (acceptable) |
@@ -146,11 +155,22 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
    ## Issues to Fix
 
-   Read the full review at .bob/state/review.md.
+   Read the full review at .bob/state/review.md AND the Go pre-submit findings
+   at .bob/state/go-presubmit.md. Both reports contribute issues to fix.
 
-   Fix ALL issues of CRITICAL and HIGH severity first. Then fix MEDIUM
-   and LOW issues unless they require architectural changes (skip those
-   and note them).
+   Fix ALL issues of CRITICAL and HIGH severity first (from either report).
+   Then fix MEDIUM and LOW issues unless they require architectural changes
+   (skip those and note them).
+
+   ## Go Coding Guidelines
+
+   When fixing Go-specific issues, apply the patterns from `/bob:go-coding`:
+   - Pool/resource lifetime: release at true end-of-life, not end-of-call
+   - File writes: os.CreateTemp + os.Rename, never deterministic .tmp paths
+   - Goroutine fan-out: always use errgroup.SetLimit or a semaphore
+   - int64 sizes: convert to int with bounds check before make() or slice index
+   - Cache errors: only os.IsNotExist is a miss; surface other errors
+   - Spec files: update SPECS.md/NOTES.md in the same commit as the fix
 
    ## Constraints
    - Do NOT rewrite code that is not related to a reported issue
@@ -372,9 +392,10 @@ Timestamp: [ISO timestamp]
 
 | File | Written By | Purpose |
 |------|-----------|---------|
-| `.bob/state/review-prompt.md` | Orchestrator | Scoping instructions for review-consolidator |
-| `.bob/state/review.md` | review-consolidator | Review findings |
-| `.bob/state/fix-prompt.md` | Orchestrator | Fix instructions for workflow-coder |
+| `.bob/state/review-prompt.md` | Orchestrator | Scoping instructions for both reviewers |
+| `.bob/state/review.md` | review-consolidator | Multi-domain review findings |
+| `.bob/state/go-presubmit.md` | go-presubmit-reviewer | Go-specific pre-submit findings |
+| `.bob/state/fix-prompt.md` | Orchestrator | Fix instructions (references both review files) |
 | `.bob/state/implementation-status.md` | workflow-coder chain | What was fixed |
 | `.bob/state/test-results.md` | workflow-tester | Test run results |
 | `.bob/state/commit-prompt.md` | Orchestrator | Commit instructions |

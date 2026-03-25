@@ -3,7 +3,12 @@
 
 SPEC ?= full
 
-.PHONY: help install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality allow hooks enable-agent-teams resolve-copilot ci clean install-bob-plugin first-mate install-first-mate
+.PHONY: help all install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate
+
+all: install install-mcp install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
+	@echo ""
+	@echo "✅ Full system installation complete!"
+	@echo "🔄 Restart Claude/Crush to activate all components"
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
@@ -12,6 +17,7 @@ help:
 	@echo "No MCP servers needed - just intelligent workflow coordination!"
 	@echo ""
 	@echo "Available targets:"
+	@echo "  make all                      - Install + configure everything (the kitchen sink)"
 	@echo "  make install                  - Install everything (skills + agents + LSP) [RECOMMENDED]"
 	@echo "  make install SPEC=simple      - Install with simple spec mode (CLAUDE.md only per folder)"
 	@echo "  make install-skills           - Install workflow skills to Claude Code"
@@ -19,6 +25,7 @@ help:
 	@echo "  make install-crush-skills     - Install workflow skills to Crush"
 	@echo "  make install-crush-agents     - Install specialized subagents to Crush"
 	@echo "  make install-lsp              - Install Go LSP plugin"
+	@echo "  make install-plugins          - Install Claude plugins (grafana-engineering@grafana-ai-kit)"
 	@echo "  make install-mcp [DIRS=...]   - Install filesystem MCP server (required for Bob)"
 	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
@@ -32,8 +39,8 @@ help:
 	@echo "  make ci                       - Run full CI pipeline locally (tests, lint, fmt, race, GHA)"
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
-	@echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
+	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
@@ -319,9 +326,22 @@ install-mcp:
 		done; \
 	fi
 
+# Install Claude plugins
+install-plugins:
+	@echo "🔌 Installing Claude plugins..."
+	@if ! command -v claude >/dev/null 2>&1; then \
+		echo "❌ Error: claude command not found"; \
+		exit 1; \
+	fi
+	@echo "   Adding grafana/ai-kit to marketplace..."
+	@claude plugin marketplace add grafana/ai-kit
+	@echo "   Installing grafana-engineering@grafana-ai-kit..."
+	@claude plugin install grafana-engineering@grafana-ai-kit
+	@echo "✅ Claude plugins installed"
+
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
-install: install-skills install-agents install-crush-skills install-crush-agents install-lsp
+install: install-skills install-agents install-crush-skills install-crush-agents install-lsp install-plugins
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \
@@ -346,6 +366,7 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo ""
 	@echo "Installed:"
 	@echo "  ✓ Go LSP plugin (if available)"
+	@echo "  ✓ Claude plugins (grafana-engineering@grafana-ai-kit)"
 	@echo ""
 	@echo "Optional (not installed by default):"
 	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
@@ -789,26 +810,26 @@ ci:
 	fi
 
 # Clean temporary files
-install-bob-plugin:
-	@echo "🔌 Building and installing bob Zellij plugin..."
-	@command -v cargo >/dev/null 2>&1 || { echo "❌ cargo not found. Install Rust: https://rustup.rs"; exit 1; }
-	@command -v zellij >/dev/null 2>&1 || { echo "❌ zellij not found. Install: https://zellij.dev"; exit 1; }
-	@echo "   Building WASM plugin (this may take a while)..."
-	@cargo build --release --target wasm32-wasip1 \
-		--manifest-path cmd/bob-plugin/Cargo.toml
-	@mkdir -p "$$HOME/.local/share/bob"
-	@cp cmd/bob-plugin/target/wasm32-wasip1/release/bob_plugin.wasm \
-		"$$HOME/.local/share/bob/bob-plugin.wasm"
-	@mkdir -p "$$HOME/.config/zellij/layouts"
-	@cp config/bob.kdl "$$HOME/.config/zellij/layouts/bob.kdl"
-	@mkdir -p "$$HOME/.local/bin"
-	@cp scripts/bob "$$HOME/.local/bin/bob"
-	@chmod +x "$$HOME/.local/bin/bob"
-	@cp scripts/statusline-command.sh "$$HOME/.claude/statusline-command.sh"
-	@chmod +x "$$HOME/.claude/statusline-command.sh"
-	@echo "✅ bob plugin installed"
-	@echo "   Run 'bob' from any git repository to start"
-	@echo "   Make sure ~/.local/bin is in your PATH"
+# install-bob-plugin:
+# 	@echo "🔌 Building and installing bob Zellij plugin..."
+# 	@command -v cargo >/dev/null 2>&1 || { echo "❌ cargo not found. Install Rust: https://rustup.rs"; exit 1; }
+# 	@command -v zellij >/dev/null 2>&1 || { echo "❌ zellij not found. Install: https://zellij.dev"; exit 1; }
+# 	@echo "   Building WASM plugin (this may take a while)..."
+# 	@cargo build --release --target wasm32-wasip1 \
+# 		--manifest-path cmd/bob-plugin/Cargo.toml
+# 	@mkdir -p "$$HOME/.local/share/bob"
+# 	@cp cmd/bob-plugin/target/wasm32-wasip1/release/bob_plugin.wasm \
+# 		"$$HOME/.local/share/bob/bob-plugin.wasm"
+# 	@mkdir -p "$$HOME/.config/zellij/layouts"
+# 	@cp config/bob.kdl "$$HOME/.config/zellij/layouts/bob.kdl"
+# 	@mkdir -p "$$HOME/.local/bin"
+# 	@cp scripts/bob "$$HOME/.local/bin/bob"
+# 	@chmod +x "$$HOME/.local/bin/bob"
+# 	@cp scripts/statusline-command.sh "$$HOME/.claude/statusline-command.sh"
+# 	@chmod +x "$$HOME/.claude/statusline-command.sh"
+# 	@echo "✅ bob plugin installed"
+# 	@echo "   Run 'bob' from any git repository to start"
+# 	@echo "   Make sure ~/.local/bin is in your PATH"
 
 first-mate:
 	go build -o first-mate ./cmd/first-mate/

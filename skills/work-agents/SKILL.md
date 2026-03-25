@@ -394,6 +394,15 @@ Task(subagent_type: "workflow-coder",
              Keep functions small (complexity < 40).
              Follow existing code patterns.
 
+             GO CODING GUIDELINES (/bob:go-coding):
+             - Pool lifetime: release pooled objects only at true end-of-life of all derived data
+             - File writes: use os.CreateTemp + os.Rename, never deterministic .tmp paths
+             - Goroutine fan-out: always use errgroup.SetLimit or a semaphore
+             - int64 sizes: convert to int with bounds check before make() or slice index
+             - Cache errors: only os.IsNotExist is a miss; return other errors to callers
+             - Spec files: update SPECS.md/NOTES.md in the same commit as any contract change
+             - Tests: name must match assertion; use //go:noinline + KeepAlive for GC-dependent tests
+
              SPEC-DRIVEN MODULES: Before writing any code, check each target directory for
              SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
                // NOTE: Any changes to this file must be reflected in the corresponding specs.md or NOTES.md.

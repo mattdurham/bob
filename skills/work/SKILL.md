@@ -139,8 +139,8 @@ Wait for brainstorming to complete before proceeding.
 - Pool lifetime: release pooled objects only at true end-of-life of all derived data
 - File writes: use `os.CreateTemp` + `os.Rename`, never deterministic `.tmp` paths
 - Goroutine fan-out: always use `errgroup.SetLimit` or a semaphore
-- `int64` sizes: convert to `int` with bounds check before `make()` or slice index
-- Cache errors: only `os.IsNotExist` is a miss; return other errors to callers
+- Numeric sizes: validate and convert `int64`/`uint64` to `int` before `make()` or slice index
+- Store errors: only `fs.ErrNotExist` is a miss; propagate other errors to callers
 - Tests: name must match assertion; use `//go:noinline` + `runtime.KeepAlive` for GC-dependent tests
 
 **Actions:**

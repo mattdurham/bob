@@ -1,54 +1,53 @@
 ---
 name: bob:go-coding
-description: Go coding guidelines targeting patterns that cause bugs in real production code — pool lifetime contracts, concurrency safety, int64/int type boundaries, error handling, spec accuracy, and test discipline
+description: Go coding guidelines for production-quality code — pool lifetimes, concurrency safety, numeric type boundaries, error handling, and test discipline
 user-invocable: true
 category: reference
 ---
 
 # Go Coding Guidelines
 
-These guidelines exist because the same class of bugs appears in code review again and again. Read this before writing Go code that touches pooled resources, concurrent file I/O, storage-backed paths, or spec-driven modules.
+These guidelines address patterns that appear in code review again and again. Read this before writing Go code that touches pooled resources, concurrent I/O, or external data sources.
 
-This is also invoked automatically during fix cycles via `.bob/state/fix-prompt.md` so that workflow-coder follows these rules during every repair iteration.
+Also injected into fix cycles via `.bob/state/fix-prompt.md` so `workflow-coder` follows these rules during every repair iteration.
 
 ---
 
 ## 1. Pool and Resource Lifetime
 
-**The rule:** Return a pooled object to the pool only at the true end-of-life of all data derived from it.
+**The rule:** Return a pooled object to the pool only when ALL data derived from it has been consumed.
 
-### ❌ Wrong — released too early
+### ❌ Wrong — released while derived data is still live
 ```go
-internMap := pool.AcquireInternMap()
-rows := streamSortedRows(block, internMap) // rows hold references into internMap
-pool.ReleaseInternMap(internMap)           // RACE: rows still alive, lazy decode will read internMap
-return rows
+buf := pool.Get().(*[]byte)
+results := process(buf) // results contains slices or references into *buf
+pool.Put(buf)           // RACE: results still alive, any access reads freed memory
+return results
 ```
 
 ### ✅ Right — caller owns the release
 ```go
-internMap := pool.AcquireInternMap()
-rows := streamSortedRows(block, internMap)
-// Document: caller must call pool.ReleaseInternMap(internMap) after
-// the last GetField/IterateFields call on any row in `rows`.
-return rows, internMap
+buf := pool.Get().(*[]byte)
+results := process(buf)
+// Document: caller must call pool.Put(buf) after the last use of results.
+return results, buf
 ```
 
-**Key checks before every pool.Put / Release call:**
-- Am I inside a function that returns data derived from this pool object?
-- Can any caller of MY function (or my caller's caller) still call GetField / IterateFields / decodeNow on data that touches this pool object?
-- If yes: don't release here. Return the pool object to the caller.
+**Ask before every `pool.Put` / `Release` call:**
+- Does this function return anything derived from the pooled object?
+- Can any caller still read from that returned data?
+- If yes: don't release here — pass ownership to the caller.
 
-**Typed-nil guard:** Any `ReleaseXxx(interface{})` function must guard against typed-nil:
+**Typed-nil guard:** Any release function that accepts an interface must guard against typed-nil — a `(*T)(nil)` passes a type assertion but panics on dereference:
 ```go
-func ReleaseAdapter(p SpanFieldsProvider) {
-    if a, ok := p.(*modulesSpanFieldsAdapter); ok && a != nil {
-        putAdapter(a)
+func ReleaseWidget(w Widget) {
+    if c, ok := w.(*concreteWidget); ok && c != nil {
+        widgetPool.Put(c)
     }
 }
 ```
 
-**Pool + AllocsPerRun:** `sync.Pool` drops entries at GC. Don't assert exactly 0 allocations in `testing.AllocsPerRun` on pooled code paths. Accept ≤1 or warm the pool inside the closure.
+**Pool + `testing.AllocsPerRun`:** `sync.Pool` drops entries at GC, which `AllocsPerRun` triggers. Don't assert exactly 0 allocations on pooled code paths — accept ≤1, or warm the pool inside the measurement closure.
 
 ---
 
@@ -56,267 +55,280 @@ func ReleaseAdapter(p SpanFieldsProvider) {
 
 ### File writes: use unique temp paths
 ```go
-// ❌ Wrong — concurrent writes to same key corrupt each other
-tmp := path + ".tmp"
-os.WriteFile(tmp, data, 0600)
-os.Rename(tmp, path)
+// ❌ Wrong — two concurrent writers for the same destination corrupt each other
+tmp := dest + ".tmp"
+os.WriteFile(tmp, data, 0o600)
+os.Rename(tmp, dest)
 
-// ✅ Right — each write gets a unique temp name
-f, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-*")
+// ✅ Right — each writer gets a unique temp name; Rename is atomic
+f, err := os.CreateTemp(filepath.Dir(dest), filepath.Base(dest)+".tmp-*")
 if err != nil { return err }
 tmp := f.Name()
-// write to f, then:
+if _, err := f.Write(data); err != nil {
+    f.Close()
+    os.Remove(tmp)
+    return err
+}
 f.Close()
-os.Rename(tmp, path)
+return os.Rename(tmp, dest)
 ```
 
-### Eviction: don't release the lock before deleting files
+### Eviction / index update: keep lock held across file removal, or use unique names
 ```go
-// ❌ Wrong — new Put can recreate the file between Unlock and Remove
-c.mu.Lock()
-delete(c.index, key)
-c.mu.Unlock()
-os.Remove(filePath)  // removes the NEW file, not the evicted one
+// ❌ Wrong — new writer can recreate the path between Unlock and Remove
+mu.Lock()
+delete(index, key)
+mu.Unlock()
+os.Remove(path) // may delete a newly written file, not the evicted one
 
-// ✅ Option A: hold the lock during removal (simple, correct for short-lived I/O)
-c.mu.Lock()
-delete(c.index, key)
-c.mu.Unlock()
-// Only safe if filePath is unique-per-write (from CreateTemp), not deterministic
+// ✅ Safe option A: unique file names per write (from CreateTemp)
+//    The evicted path can never alias a new write, so removal is safe after unlock.
 
-// ✅ Option B: unique file names — the evicted file's path can never alias a new write
+// ✅ Safe option B: hold the lock during short removals
+mu.Lock()
+delete(index, key)
+os.Remove(path) // deterministic path — hold lock so no new writer can race
+mu.Unlock()
 ```
 
-### Same-key concurrent Put: use singleflight or per-key lock
+### Duplicate writes: use singleflight
 ```go
-// Both goroutines pass the "already exists?" check → both write → loser deletes winner's file
-// Use singleflight.Group or mark the key as "in-flight" under the main lock
+// ❌ Wrong — two goroutines both pass the "already cached?" check and both write
+if _, ok := index[key]; !ok {
+    write(key, value) // both goroutines reach here; loser cleanup deletes winner's file
+}
+
+// ✅ Right — deduplicate in-flight writes with singleflight
 var sf singleflight.Group
-sf.Do(key, func() (interface{}, error) {
+sf.Do(key, func() (any, error) {
     return nil, writeAndIndex(key, value)
 })
 ```
 
 ### Goroutine fan-out: always cap concurrency
 ```go
-// ❌ Wrong — one goroutine per group, no limit
-for _, grp := range groups {
-    go func(g Group) { process(g) }(grp)
+// ❌ Wrong — unbounded goroutines; can exhaust fds, memory, or downstream rate limits
+for _, item := range items {
+    go func(item Item) { process(item) }(item)
 }
 
-// ✅ Right — bounded worker pool
+// ✅ Right — bounded worker pool with context cancellation
 g, ctx := errgroup.WithContext(ctx)
-g.SetLimit(8) // document why 8
-for _, grp := range groups {
-    grp := grp
-    g.Go(func() error { return process(ctx, grp) })
+g.SetLimit(8) // tune to downstream capacity; document the rationale
+for _, item := range items {
+    item := item
+    g.Go(func() error { return process(ctx, item) })
 }
+if err := g.Wait(); err != nil { return err }
 ```
 
-### Early-stop: cancel, don't just return
+### Early-stop: cancel the context, don't just return
 ```go
-// When a query limit is satisfied, cancel the context so workers stop
 ctx, cancel := context.WithCancel(parentCtx)
 defer cancel()
-// ...
-if err == errLimitReached {
-    cancel()
-    break
+
+for _, item := range items {
+    result, err := fetch(ctx, item)
+    if err != nil { return err }
+    if done(result) {
+        cancel() // stop in-flight workers
+        break
+    }
 }
 ```
 
-### Pre-fetch patterns: pipeline, don't batch-all-then-process
+### Pre-fetch: pipeline, don't batch-all-then-process
 ```go
-// ❌ Wrong — defeats early-stop, spikes memory
-allBytes := fetchAll(groups)  // Phase 1: fetch everything
-process(allBytes)              // Phase 2: process (limit may be hit on group 1)
+// ❌ Wrong — fetches everything before processing; defeats early-stop; spikes memory
+all := fetchAll(items)
+for _, r := range all { process(r) }
 
-// ✅ Right — pipelined with bounded prefetch
-sem := make(chan struct{}, 4) // 4 groups in flight at a time
-for _, grp := range groups {
+// ✅ Right — bounded prefetch pipeline
+sem := make(chan struct{}, 4)
+for _, item := range items {
     if ctx.Err() != nil { break }
     sem <- struct{}{}
-    go func(g Group) {
+    go func(item Item) {
         defer func() { <-sem }()
-        data := fetch(ctx, g)
-        process(data) // if limit → cancel(ctx)
-    }(grp)
+        r := fetch(ctx, item)
+        process(r) // cancel ctx on limit reached
+    }(item)
 }
 ```
 
 ---
 
-## 3. Type Safety: int64 and int Boundaries
+## 3. Numeric Type Boundaries
 
-Go `make`, slice indices, and most library functions require `int`, not `int64`. Sizes read from disk or computed from file offsets are often `int64`. You must convert with a bounds check before use.
+Go's `make`, slice indices, and most standard library functions require `int`, not `int64`. Sizes from external sources (disk, network, protobuf) are often `int64` or `uint64` — always validate and convert explicitly.
 
 ```go
-// ❌ Won't compile
-buf := make([]byte, blockLen)       // blockLen is int64
-slice := buf[colStart:colStart+colLen]  // colStart, colLen are int64
+// ❌ Won't compile — make requires int
+size := computeSize() // returns int64
+buf := make([]byte, size)
+chunk := buf[offset : offset+length] // offset, length are int64
 
-// ✅ Convert with bounds check
-if blockLen > int64(maxBlockSize) || blockLen < 0 {
-    return fmt.Errorf("invalid block length %d", blockLen)
+// ✅ Validate then convert
+if size < 0 || size > maxAllowed {
+    return fmt.Errorf("invalid size %d", size)
 }
-buf := make([]byte, int(blockLen))
-colStartInt := int(colStart) // after validating colStart >= 0 && colStart <= int64(len(buf))
+buf := make([]byte, int(size))
+// same for offset and length
 ```
 
-**Pattern for sizes from disk:**
+**Sizes derived from external data (files, headers, wire format):**
 ```go
-valueSize := info.Size() - int64(fileHeaderLen) - int64(keyLen)
-if valueSize < 0 {
-    return fmt.Errorf("corrupt file: negative value size %d", valueSize)
+// Subtraction can produce negative results — always check before using
+dataSize := totalSize - int64(headerLen)
+if dataSize < 0 {
+    return fmt.Errorf("corrupt header: negative data size %d", dataSize)
 }
-if valueSize > maxValueSize {
-    return fmt.Errorf("value too large: %d bytes", valueSize)
+if dataSize > maxDataSize {
+    return fmt.Errorf("data too large: %d bytes", dataSize)
 }
+```
+
+**Length fields from untrusted sources:**
+```go
+n := binary.LittleEndian.Uint32(buf[0:4])
+if n == 0 || n > maxLen {
+    return fmt.Errorf("invalid length field %d", n)
+}
+data := make([]byte, int(n))
 ```
 
 ---
 
 ## 4. Error Handling
 
-### Cache/store misses: only treat IsNotExist as a miss
+### Distinguish "not found" from "broken"
 ```go
-// ❌ Wrong — hides real I/O failures
-data, err := readCacheFile(path)
+// ❌ Wrong — treats all failures as a clean miss; hides real I/O errors
+data, err := readFromStore(key)
 if err != nil {
-    return nil, false, nil  // silently pretends it's a miss
+    return nil, false, nil // permission denied? disk full? both silently ignored
 }
 
-// ✅ Right — only NotExist is a miss
-data, err := readCacheFile(path)
-if os.IsNotExist(err) {
+// ✅ Right — only absence is a miss; everything else propagates
+data, err := readFromStore(key)
+if errors.Is(err, fs.ErrNotExist) {
     return nil, false, nil
 }
 if err != nil {
-    return nil, false, fmt.Errorf("cache read %s: %w", path, err)
+    return nil, false, fmt.Errorf("store read %q: %w", key, err)
 }
 ```
 
-### Protect against corruption in untrusted data
+### Validate untrusted input before use
 ```go
-// When reading length fields from disk:
-keyLen := binary.LittleEndian.Uint32(header[4:8])
-if keyLen == 0 || keyLen > maxKeyLen {
-    return fmt.Errorf("invalid key length %d in %s", keyLen, path)
-}
-
-// Use LimitReader on untrusted streams:
-r := io.LimitReader(f, maxValueSize)
+// Bound reads from external sources
+r := io.LimitReader(src, maxBytes)
 data, err := io.ReadAll(r)
+
+// Validate length fields before allocation
+if n > maxAllowed {
+    return fmt.Errorf("length %d exceeds maximum %d", n, maxAllowed)
+}
+```
+
+### Wrap errors with context
+```go
+// ❌ Loses call site information
+return err
+
+// ✅ Caller knows where and why
+return fmt.Errorf("load config from %s: %w", path, err)
+```
+
+### Don't swallow errors with blank identifier
+```go
+// ❌ Silent failure
+_ = file.Close()
+
+// ✅ At minimum log; for write paths, return or join the error
+if err := file.Close(); err != nil {
+    return fmt.Errorf("close %s: %w", file.Name(), err)
+}
 ```
 
 ---
 
-## 5. Spec Accuracy
+## 5. Test Discipline
 
-**When you change a contract, update the spec file in the same commit.**
-
-| Change | What to update |
-|--------|----------------|
-| New public function or type | SPECS.md — add contract, invariants, back-ref |
-| Changed function signature | SPECS.md — update entry, add NOTES.md entry |
-| New design decision / algorithm | NOTES.md — dated entry with `NOTE-XXX` ID |
-| New test function | TESTS.md |
-| New benchmark | BENCHMARKS.md |
-
-**Spec IDs in code:** Tag every non-trivial implementation with the relevant spec ID:
+### Name tests to match what they actually assert
 ```go
-// SPEC-007: single I/O per block — never issue per-column reads
-func (r *Reader) GetBlockWithBytes(ctx context.Context, id ulid.ULID) ([]byte, error) {
-```
-
-**Back-refs in specs must be valid:** When writing `Back-ref: pkg/file.go:FunctionName`, verify the function exists with that exact name. Renames without updating specs are a HIGH-severity finding.
-
-**"Experimental" vs "active use":** If you promote an experimental code path to the hot path, update the spec section that says "retained for future use" to say "in active use as of [date]".
-
----
-
-## 6. Test Discipline
-
-### Name tests accurately
-```go
-// ❌ Misleading — allows boxing allocations
-func TestIterateFieldsZeroAllocs(t *testing.T) {
+// ❌ Misleading — name promises zero allocs; body allows several
+func TestProcessZeroAllocs(t *testing.T) {
     allocs := testing.AllocsPerRun(100, fn)
-    assert.Less(t, allocs, 5.0) // "zero allocs" but allows 5?
+    assert.Less(t, allocs, 5.0)
 }
 
-// ✅ Name matches assertion
-func TestIterateFieldsNoSeenMapAllocs(t *testing.T) {
+// ✅ Name reflects the actual regression guard
+func TestProcessNoMapAllocPerCall(t *testing.T) {
     allocs := testing.AllocsPerRun(100, fn)
-    assert.Less(t, allocs, 2.0) // guards against the seen-map alloc regressing
+    assert.Less(t, allocs, 2.0)
 }
 ```
 
-### GC-safe weak.Pointer and sync.Pool tests
+### GC-safe tests for weak references and sync.Pool
 ```go
 //go:noinline
-func putValue(c *objectcache.Cache[myStruct]) {
-    v := &myStruct{n: 1}
+func storeValue(c *Cache[Thing]) {
+    v := &Thing{id: 1}
     c.Put("key", v)
-    // v goes out of scope when putValue returns
+    // v goes out of scope when storeValue returns
 }
 
-func TestGCEviction(t *testing.T) {
-    c := objectcache.New[myStruct]()
-    putValue(c)          // strong ref dropped when putValue returns
+func TestEvictedAfterGC(t *testing.T) {
+    c := NewCache[Thing]()
+    storeValue(c)   // strong ref dropped on return
     runtime.GC()
-    runtime.GC()         // two cycles reduces nondeterminism
-    got, ok := c.Get("key")
-    assert.False(t, ok, "expected GC to evict")
-    _ = got
+    runtime.GC()    // two cycles reduces scheduler nondeterminism
+    _, ok := c.Get("key")
+    assert.False(t, ok)
 }
 ```
 
-### KeepAlive in ownership tests
+### Keep strong references alive until after the assertion
 ```go
-v := &myStruct{n: 1}
+v := &Thing{id: 1}
 c.Put("key", v)
 got, ok := c.Get("key")
 require.True(t, ok)
-assert.Equal(t, 1, got.n)
-runtime.KeepAlive(v) // prevent v from being collected before Get
+assert.Equal(t, 1, got.id)
+runtime.KeepAlive(v) // prevent v from being collected before Get returns
 ```
 
-### Concurrent tests must be actually concurrent
+### Concurrent tests must exercise actual concurrent access
 ```go
-// ❌ Tests concurrent Get but not concurrent Put
-func TestConcurrentPutGet(t *testing.T) {
-    c.Put("key", v)  // single put before goroutines
-    var wg sync.WaitGroup
-    for i := 0; i < 10; i++ {
-        wg.Add(1)
-        go func() { defer wg.Done(); c.Get("key") }()  // only Get is concurrent
-    }
+// ❌ Only reads are concurrent — misses write/write and read/write races
+c.Put("key", v)
+var wg sync.WaitGroup
+for range 10 {
+    wg.Add(1)
+    go func() { defer wg.Done(); c.Get("key") }()
 }
 
-// ✅ Tests both concurrent Put and Get
-func TestConcurrentPutGet(t *testing.T) {
-    var wg sync.WaitGroup
-    for i := 0; i < 10; i++ {
-        wg.Add(1)
-        go func(i int) {
-            defer wg.Done()
-            v := &myStruct{n: i}
-            c.Put(fmt.Sprintf("key-%d", i%5), v)
-            c.Get(fmt.Sprintf("key-%d", i%5))
-        }(i)
-    }
-    wg.Wait()
+// ✅ Mix of concurrent reads and writes
+var wg sync.WaitGroup
+for i := range 10 {
+    wg.Add(1)
+    go func(i int) {
+        defer wg.Done()
+        c.Put(fmt.Sprintf("k%d", i%3), &Thing{id: i})
+        c.Get(fmt.Sprintf("k%d", i%3))
+    }(i)
 }
+wg.Wait()
 ```
 
-### Assert panic messages, not just panic occurrence
+### Assert panic values, not just panic occurrence
 ```go
-// ❌ Only checks that panic happens
+// ❌ Only verifies a panic happens — message is part of the contract too
 require.Panics(t, func() { c.Put("k", nil) })
 
-// ✅ Checks the contract (message is part of the spec)
-require.PanicsWithValue(t, "objectcache: value must be non-nil", func() {
+// ✅ Locks in the contract
+require.PanicsWithValue(t, "cache: value must be non-nil", func() {
     c.Put("k", nil)
 })
 ```
@@ -325,15 +337,13 @@ require.PanicsWithValue(t, "objectcache: value must be non-nil", func() {
 
 ## Quick Checklist (Before Every Commit)
 
-Before submitting Go code, run through:
-
-- [ ] Every `pool.Put` / `Release`: have ALL callers finished using data from this pool object?
-- [ ] Every file write path: using `os.CreateTemp` + `os.Rename`, not a deterministic `.tmp` path?
-- [ ] Every eviction: file removal happens either under lock, or the file name is unique (non-deterministic)?
+- [ ] Every `pool.Put` / `Release`: have ALL callers finished using data derived from this object?
+- [ ] Every file write: using `os.CreateTemp` + `os.Rename`, not a deterministic `.tmp` path?
+- [ ] Every index/eviction update that removes files: either holding the lock, or using unique file names?
 - [ ] Every goroutine fan-out: `errgroup.SetLimit` or semaphore in place?
-- [ ] Every `int64` size/offset: converted to `int` with bounds check before `make` or slice?
-- [ ] Every error from a cache/store: only `os.IsNotExist` suppressed as a miss?
-- [ ] Every size read from disk: validated for negative values before arithmetic or cast?
-- [ ] Changed a contract? SPECS.md / NOTES.md updated in same commit?
-- [ ] New test named `TestFooZeroAllocs`? Does it actually assert ≤0 (or is the name a lie)?
-- [ ] New GC-dependent test? `//go:noinline` helper + `runtime.KeepAlive` in place?
+- [ ] Every `int64` / `uint64` size or offset: validated and converted to `int` before `make` or slice?
+- [ ] Every external length field: validated for zero, negative, and upper-bound before use?
+- [ ] Every store/cache read error: only `fs.ErrNotExist` suppressed as a miss?
+- [ ] Every `_ = expr`: is there a reason this error is intentionally ignored? Add a comment.
+- [ ] New test named `TestFooZeroAllocs`: does the assertion actually require ≤0?
+- [ ] GC-dependent test: `//go:noinline` helper to drop the strong ref + `runtime.KeepAlive` after assertions?

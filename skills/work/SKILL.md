@@ -135,6 +135,14 @@ Wait for brainstorming to complete before proceeding.
 
 **Goal:** Implement the plan directly using TDD.
 
+**Go Coding Guidelines** — apply throughout this phase (`/bob:go-coding`):
+- Pool lifetime: release pooled objects only at true end-of-life of all derived data
+- File writes: use `os.CreateTemp` + `os.Rename`, never deterministic `.tmp` paths
+- Goroutine fan-out: always use `errgroup.SetLimit` or a semaphore
+- Numeric sizes: validate and convert `int64`/`uint64` to `int` before `make()` or slice index
+- Store errors: only `fs.ErrNotExist` is a miss; propagate other errors to callers
+- Tests: name must match assertion; use `//go:noinline` + `runtime.KeepAlive` for GC-dependent tests
+
 **Actions:**
 
 For each task in `.bob/state/plan.md`:

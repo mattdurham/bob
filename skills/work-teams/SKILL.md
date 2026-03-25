@@ -575,6 +575,14 @@ Quality standards:
 - Follow existing code patterns
 - Write clear, idiomatic Go code
 
+GO CODING GUIDELINES (/bob:go-coding):
+- Pool lifetime: release pooled objects only at true end-of-life of all derived data
+- File writes: use os.CreateTemp + os.Rename, never deterministic .tmp paths
+- Goroutine fan-out: always use errgroup.SetLimit or a semaphore
+- Numeric sizes: validate and convert int64/uint64 to int before make() or slice index
+- Store errors: only fs.ErrNotExist is a miss; propagate other errors to callers
+- Tests: name must match assertion; use //go:noinline + KeepAlive for GC-dependent tests
+
 SPEC-DRIVEN MODULES: Before writing any code, check each target directory for
 SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
   // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.

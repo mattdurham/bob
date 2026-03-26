@@ -164,7 +164,7 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
    ## Go Coding Guidelines
 
-   When fixing Go-specific issues, apply the patterns from `/bob:go-coding`:
+   When fixing Go-specific issues, apply the patterns from `/bob:internal:go-coding`:
    - Pool/resource lifetime: release at true end-of-life, not end-of-call
    - File writes: os.CreateTemp + os.Rename, never deterministic .tmp paths
    - Goroutine fan-out: always use errgroup.SetLimit or a semaphore

@@ -563,7 +563,7 @@ Working with NOTES.md:
 
 Next steps:
   - Review and refine SPECS.md — make it the authoritative contract before implementing
-  - Use /bob:work-agents to implement against the spec (the workflow will keep docs in sync)
+  - Use /bob:work or /bob:work-teams to implement against the spec (the workflow will keep docs in sync)
 ```
 
 ---

@@ -692,7 +692,7 @@ Results: .bob/state/audit-report.md
 
 [If NEEDS ATTENTION]: Found N issues where code diverges from invariants.
   Review .bob/state/audit-report.md for details.
-  Fix the code or update CLAUDE.md — use /bob:work-agents for code fixes.
+  Fix the code or update CLAUDE.md — use /bob:work or /bob:work-teams for code fixes.
 
 [If CRITICAL]: Significant invariant drift or structural issues detected.
   Review .bob/state/audit-report.md and prioritize fixes.
@@ -729,7 +729,7 @@ Skip any the user declines. If the user says "none", proceed to completion witho
 
 - This workflow is **read-only** unless the user approves proposed new invariants
 - CLAUDE.md files are only modified with explicit user consent
-- Findings can feed into `/bob:work-agents` to fix violations
+- Findings can feed into `/bob:work` or `/bob:work-teams` to fix violations
 - Run periodically (e.g., before releases) to catch invariant drift
 - The audit checks code against invariants, not invariants against code — to generate invariants from code, use `/bob:design apply`
 - Go structural analysis scoring weights are opinionated: cognitive complexity is weighted heavily because it predicts maintenance burden better than cyclomatic complexity alone

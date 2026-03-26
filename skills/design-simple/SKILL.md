@@ -293,5 +293,5 @@ Rules:
 
 Next steps:
   - Review CLAUDE.md and refine the invariants
-  - Use /bob:work-agents to implement (the workflow will check invariants)
+  - Use /bob:work or /bob:work-teams to implement (the workflow will check invariants)
 ```

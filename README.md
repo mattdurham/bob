@@ -16,7 +16,7 @@ Workflow orchestration for Claude Code through skills and subagents.
 
 ## What is Bob?
 
-Bob coordinates AI agent workflows for feature development. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
+Bob coordinates AI agent workflows for feature development. Skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
 ## Spec-Driven Development
 
@@ -149,7 +149,6 @@ repo-worktrees/
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make install-mcp            # Filesystem MCP server
 make enable-agent-teams     # Enable /bob:work-teams
 make hooks                  # Optional: pre-commit quality checks
 ```

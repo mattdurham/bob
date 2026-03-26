@@ -1,6 +1,6 @@
 # Claude Configuration for Bob
 
-**Bob** is a workflow orchestration system implemented entirely through **Claude skills** and **subagents**. No MCP servers, no daemons—just intelligent workflow coordination through specialized Claude agents.
+**Bob** is a workflow orchestration system implemented entirely through **Claude skills** and **subagents** — intelligent workflow coordination through specialized Claude agents.
 
 ## What Bob Provides
 
@@ -87,30 +87,6 @@ Pre-commit hooks enforce quality gates before commits:
 - Verify formatting (`go fmt`)
 
 Hooks are opt-in to give you control over your workflow. Install them when you want automatic quality enforcement.
-
-### 2. Required MCP Server (Filesystem Only)
-
-Bob workflows require the filesystem MCP server for file operations.
-
-**Quick install (recommended):**
-```bash
-# Default directories ($HOME/source and /tmp)
-make install-mcp
-
-# Custom directories (comma-delimited)
-make install-mcp DIRS="/home/matt/projects,/home/matt/work,/tmp"
-```
-
-**Manual install:**
-```bash
-# Check if already installed
-claude mcp list
-
-# Install manually if needed
-claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$HOME/source" /tmp
-```
-
-That's it! No Bob-specific MCP server needed—everything runs through skills and subagents.
 
 ## Starting a Workflow
 
@@ -378,30 +354,8 @@ category: workflow
 3. Check disk space: `df -h`
 
 **Subagents failing:**
-1. Check filesystem MCP server: `claude mcp list`
-2. Verify allowed directories include your repo
-3. Check subagent has necessary tools in skill definition
-
-## Migration from MCP-Based Bob
-
-If you previously used Bob as an MCP server:
-
-**Old approach:**
-- Bob binary running as MCP server
-- `bob.workflow_register()` tool calls
-- Manual progress tracking
-- Complex state management
-
-**New approach (current):**
-- Pure skill-based orchestration
-- No MCP server needed
-- Automatic subagent coordination
-- Simple artifact-based state in `.bob/`
-
-To migrate:
-1. Remove Bob MCP server from config: `claude mcp remove bob`
-2. Install Bob skills: `make install-skills`
-3. Use slash commands: `/bob:work`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
+1. Check subagent has necessary tools in skill definition
+2. Check disk space: `df -h`
 
 ---
 

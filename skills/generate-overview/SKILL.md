@@ -53,7 +53,7 @@ find . -path "*/vendor" -prune -o \( -name "SPECS.md" -o -name "NOTES.md" -o -na
 Read every spec file found. These are the **authoritative source** for contracts, invariants,
 and design decisions — read them before reading code.
 
-If first-mate MCP tools are available, use:
+If first-mate CLI is available, use:
 ```
 first-mate list_specs
 first-mate find_spec query="<subject>"

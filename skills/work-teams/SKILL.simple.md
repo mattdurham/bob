@@ -50,7 +50,7 @@ INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW 
 
 The final REVIEW phase invokes `/bob:code-review`, which handles REVIEW → FIX → TEST → COMMIT → MONITOR internally.
 
-**Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
+**Key difference from bob:work**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
 
 <strict_enforcement>
 All phases MUST be executed in the exact order specified.
@@ -530,7 +530,7 @@ You should see:
 
 **Goal:** Teammates work concurrently - coders implement, reviewers review
 
-This phase is different from bob:work-agents because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
+This phase is different from bob:work because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
 
 **Your role as team lead:**
 1. Monitor task list progress
@@ -845,9 +845,9 @@ Message both: "You're both working on overlapping areas.
 
 ## Benefits of Agent Teams
 
-### vs Sequential bob:work-agents
+### vs bob:work
 
-| Aspect | bob:work-agents | bob:work-teams |
+| Aspect | bob:work | bob:work-teams |
 |--------|----------|---------------|
 | Execution | Sequential | Concurrent |
 | Feedback | Batch at end | Incremental |

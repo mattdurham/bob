@@ -48,7 +48,7 @@ help:
 	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:work-teams)"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
-	@echo "  /bob:work-agents \"feature\" - Start a workflow"
+	@echo "  /bob:work-teams \"feature\" - Start a workflow"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install PERSONALITY=pirate"
@@ -62,7 +62,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams generate-overview; do \
+	for skill in work explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams generate-overview; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -121,7 +121,6 @@ install-skills:
 	@echo ""
 	@echo "Available workflow commands:"
 	@echo "  /bob:work        - Simple direct workflow (no agents)"
-	@echo "  /bob:work-agents - Full development workflow (sequential subagents)"
 	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
 	@echo "  /bob:explore-teams - Team-based exploration with adversarial challenge"
@@ -133,7 +132,7 @@ install-crush-skills:
 	@echo "📚 Installing Bob workflow skills to Crush..."
 	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
 	mkdir -p "$$CRUSH_SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans go-analyze; do \
+	for skill in work explore brainstorming writing-plans go-analyze; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \
@@ -375,8 +374,8 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo "🔄 Restart Claude/Crush to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /bob:work-agents \"Add new feature\" - Start full development workflow"
-	@echo "  /bob:work-teams \"feature\"         - Team-based workflow (run 'make enable-agent-teams' first)"
+	@echo "  /bob:work \"Add new feature\"         - Start simple direct workflow"
+	@echo "  /bob:work-teams \"feature\"           - Team-based workflow (run 'make enable-agent-teams' first)"
 
 # Install Bob personality
 # Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
@@ -394,7 +393,7 @@ install-personality:
 		else \
 			echo "✅ Already using default personality (no override file)"; \
 		fi; \
-		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
 				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
@@ -407,7 +406,7 @@ install-personality:
 		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
 		echo "✅ Personality set to: $(PERSONALITY)"; \
 		echo "   Installed to: $$PERSONALITY_FILE"; \
-		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ]; then \
 				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \

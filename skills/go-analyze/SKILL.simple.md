@@ -579,7 +579,7 @@ Report: .bob/state/go-analysis-report.md
 
 [If CRITICAL]: N critical hot spots found. Immediate refactoring recommended.
   See .bob/state/go-analysis-report.md → "Critical Hot Spots"
-  Use /bob:work-agents to fix — pass the report as context.
+  Use /bob:work or /bob:work-teams to fix — pass the report as context.
 
 [If NEEDS ATTENTION]: Some high-complexity or tightly-coupled areas found.
   Review .bob/state/go-analysis-report.md for prioritized recommendations.

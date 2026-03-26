@@ -341,7 +341,7 @@ install-plugins:
 
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
-install: install-skills install-agents install-crush-skills install-crush-agents install-lsp install-plugins
+install: install-skills install-agents install-crush-skills install-crush-agents install-lsp install-plugins allow
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \

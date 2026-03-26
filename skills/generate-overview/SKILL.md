@@ -53,6 +53,14 @@ find . -path "*/vendor" -prune -o \( -name "SPECS.md" -o -name "NOTES.md" -o -na
 Read every spec file found. These are the **authoritative source** for contracts, invariants,
 and design decisions — read them before reading code.
 
+If first-mate CLI is available, use:
+```
+first-mate list_specs
+first-mate find_spec query="<subject>"
+first-mate read_docs kind="SPECS" pattern="<subject>"
+first-mate read_docs kind="NOTES" pattern="<subject>"
+```
+
 ### 3b. Find source code
 
 Locate the relevant packages and files:

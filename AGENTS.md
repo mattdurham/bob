@@ -1,6 +1,6 @@
 # Belayin' Pin Bob - Agent Guidance
 
-This repository uses **Belayin' Pin Bob** for workflow orchestration through Claude skills and subagents. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
+This repository uses **Belayin' Pin Bob** for workflow orchestration through Claude skills and subagents. Skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
 ## What Bob Provides
 
@@ -106,7 +106,6 @@ See CLAUDE.md for full spec-driven module documentation.
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make install-mcp            # Filesystem MCP server (required)
 make enable-agent-teams     # Enable /bob:work-teams
 make hooks                  # Optional: pre-commit quality checks
 ```

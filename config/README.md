@@ -42,8 +42,6 @@ The `make allow` command **intelligently merges** these permissions into your ex
 - `Edit` - File editing
 - `Skill` - Skill invocation
 - `WebFetch` - Web content fetching
-- `mcp__*` - All MCP server tools (wildcard)
-
 ## Permission Modes
 
 Claude Code supports three permission modes via `defaultMode`:

@@ -81,6 +81,26 @@ Also read the implementation plan for context:
 Read(file_path: ".bob/state/plan.md")
 ```
 
+### Step 3.5: Navigator: Pull Patterns Before Coding
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+Call `mcp__navigator__recall` with:
+- query: "[the feature or package being implemented]"
+- scope: the primary package being modified
+- limit: 10
+
+If navigator returns past findings, extract proven patterns to follow and known pitfalls to avoid.
+
+After completing the implementation, report what was done:
+
+Call `mcp__navigator__remember` with:
+- content: "Implementation: [what was built]. Key decisions: [non-obvious choices]. Patterns used: [which patterns were followed]."
+- scope: primary package
+- tags: ["implementation"]
+- confidence: "observed"
+- source: "implementation"
+
 ### Step 4: Implement the Task
 
 Follow TDD approach:

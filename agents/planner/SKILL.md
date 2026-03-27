@@ -63,6 +63,25 @@ If the brainstorm doesn't include this section, detect spec-driven modules yours
 - Update `BENCHMARKS.md` for new benchmarks
 - Add NOTE invariant to any new `.go` files (except package-level files with responsibility boundary comments)
 
+### Step 1.7: Navigator: Consult for Prior Patterns
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+Call `mcp__navigator__consult` with:
+- question: "What implementation patterns, prior decisions, or known pitfalls exist for: [paste task description]? What has worked well or poorly in this area before?"
+- scope: the primary package this plan will touch
+
+If navigator responds, treat its answer as input from a senior developer. Incorporate relevant prior patterns directly into the plan — don't re-invent something that already has a proven approach.
+
+After writing the complete plan, report key decisions:
+
+Call `mcp__navigator__remember` with:
+- content: "Plan: [task summary]. Approach: [chosen strategy]. Key design decisions: [list 2-4 specific decisions with brief rationale]."
+- scope: primary package
+- tags: ["plan", "design-decision"]
+- confidence: "observed"
+- source: "planning"
+
 ### Step 2: Break Down Into Steps
 
 Create concrete, ordered tasks:

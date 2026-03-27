@@ -80,6 +80,23 @@ Understand:
 - **Description**: Requirements and acceptance criteria
 - **Metadata**: Files changed, implementation details
 
+### Step 3.5: Navigator: Check for Known Issues
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+Call `mcp__navigator__consult` with:
+- question: "What issues, bugs, or patterns have been flagged in past reviews of this area?"
+- scope: the primary package being reviewed
+
+After writing the review, report CRITICAL and HIGH findings:
+
+Call `mcp__navigator__remember` with:
+- content: "Review finding [severity]: [issue title]. [What and why]. [File:line]."
+- scope: affected package
+- tags: ["review-finding", severity tag]
+- confidence: "observed"
+- source: "code-review"
+
 ### Step 4: Review the Implementation
 
 Comprehensive review process:

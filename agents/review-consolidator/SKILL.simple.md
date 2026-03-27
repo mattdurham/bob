@@ -38,6 +38,40 @@ Work through each domain systematically. For each issue found, record:
 - **Severity**: CRITICAL / HIGH / MEDIUM / LOW
 - **Fix**: Concrete suggestion
 
+## Navigator Integration
+
+### Before Review: Consult for Known Issues
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+Call `mcp__navigator__consult` with:
+- question: "What issues, bugs, or patterns have been flagged in past reviews of this area? What should I look for carefully?"
+- scope: the primary package being reviewed
+
+If navigator responds, add its findings to your review checklist — known recurring issues deserve extra scrutiny.
+
+### After Review: Report All Findings
+
+After writing the consolidated review report, report significant findings back to navigator so future reviewers benefit.
+
+For CRITICAL and HIGH severity issues, call `mcp__navigator__remember` with:
+- content: "Review finding [severity]: [issue title]. [What the problem is]. [Why it matters]. [How to fix it]. [File:line location]."
+- scope: the affected package
+- tags: ["review-finding", severity-as-tag, issue-type e.g. "nil-pointer", "race-condition", "security"]
+- confidence: "observed"
+- source: "code-review"
+
+For overall review patterns (e.g. "this package consistently lacks error wrapping"), also record:
+
+Call `mcp__navigator__remember` with:
+- content: "Pattern observed in review: [codebase-level pattern]. Affects: [scope]. Recommendation for future work: [what to do]."
+- scope: package
+- tags: ["review-pattern"]
+- confidence: "observed"
+- source: "code-review"
+
+---
+
 ### Pass 1: Security
 
 Focus: OWASP Top 10, secrets, auth/authz, cryptography, input validation.

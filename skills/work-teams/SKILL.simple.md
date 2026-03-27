@@ -52,6 +52,15 @@ The final REVIEW phase invokes `/bob:code-review`, which handles REVIEW → FIX 
 
 **Key difference from bob:work**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly.
 
+## Navigator: Treat as Senior Developer
+
+Navigator (`mcp__navigator__*` tools) is a persistent knowledge base that accumulates findings across sessions. If available, use it throughout this workflow:
+- **consult** before brainstorming, planning, and reviewing — ask what it knows about the task scope
+- **recall** before coding — pull proven patterns for the package
+- **remember** after each major phase — record decisions and findings for future sessions
+
+All navigator calls are optional. If the tool is unavailable (server not running), skip and continue normally.
+
 <strict_enforcement>
 All phases MUST be executed in the exact order specified.
 NO phases may be skipped under any circumstances.

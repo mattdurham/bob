@@ -40,10 +40,10 @@ help:
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
-	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:work-teams)"
+	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:work)"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
-	@echo "  /bob:work-teams \"feature\" - Start a workflow"
+	@echo "  /bob:work \"feature\" - Start a workflow"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install PERSONALITY=pirate"
@@ -56,7 +56,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams generate-overview; do \
+	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -69,13 +69,6 @@ install-skills:
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
 	done; \
-	echo "   Installing design skill (SPEC=$(SPEC))..."; \
-	mkdir -p "$$SKILLS_DIR/design"; \
-	if [ "$(SPEC)" = "simple" ]; then \
-		cp "skills/design-simple/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
-	else \
-		cp "skills/design/SKILL.md" "$$SKILLS_DIR/design/SKILL.md"; \
-	fi
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	echo "   Generating bob:version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
@@ -114,10 +107,8 @@ install-skills:
 	@echo "✅ Skills installed to ~/.claude/skills/"
 	@echo ""
 	@echo "Available workflow commands:"
-	@echo "  /bob:work        - Simple direct workflow (no agents)"
-	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
-	@echo "  /bob:explore     - Codebase exploration"
-	@echo "  /bob:explore-teams - Team-based exploration with adversarial challenge"
+	@echo "  /bob:work        - Team-based workflow (requires enable-agent-teams)"
+	@echo "  /bob:explore     - Team-based exploration with adversarial challenge"
 	@echo "  /bob:audit       - Spec audit + optional Go structural analysis"
 	@echo "  /bob:version     - Show Bob version info"
 
@@ -231,8 +222,7 @@ install: install-skills install-agents install-lsp install-plugins allow
 	@echo "🔄 Restart Claude to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /bob:work \"Add new feature\"         - Start simple direct workflow"
-	@echo "  /bob:work-teams \"feature\"           - Team-based workflow (run 'make enable-agent-teams' first)"
+	@echo "  /bob:work \"Add new feature\"         - Start team-based workflow (run 'make enable-agent-teams' first)"
 
 # Install Bob personality
 # Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
@@ -250,7 +240,7 @@ install-personality:
 		else \
 			echo "✅ Already using default personality (no override file)"; \
 		fi; \
-		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work brainstorming explore writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
 				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
@@ -263,7 +253,7 @@ install-personality:
 		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
 		echo "✅ Personality set to: $(PERSONALITY)"; \
 		echo "   Installed to: $$PERSONALITY_FILE"; \
-		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work brainstorming explore writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ]; then \
 				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
@@ -506,7 +496,7 @@ enable-agent-teams:
 	fi
 	@echo ""
 	@echo "Usage:"
-	@echo "  /bob:work-teams \"Add new feature\" - Start team-based workflow"
+	@echo "  /bob:work \"Add new feature\" - Start team-based workflow"
 	@echo ""
 	@echo "🔄 Restart Claude Code for changes to take effect"
 

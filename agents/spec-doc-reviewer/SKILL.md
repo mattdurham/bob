@@ -24,7 +24,7 @@ Key uses: `first-mate parse_tree` (load graph), `first-mate read_docs kind="SPEC
 
 ## Your Purpose
 
-When spawned during cleanup-teams DISCOVER phase, you:
+When spawned during cleanup DISCOVER phase, you:
 1. Scan for all spec-driven modules (dirs with SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or CLAUDE.md)
 2. Cross-reference each pair of spec files for consistency
 3. Verify spec content matches actual code
@@ -32,7 +32,7 @@ When spawned during cleanup-teams DISCOVER phase, you:
 5. Write findings to `.bob/state/discover-docs.md`
 6. Create tasks in the shared task list for each fixable issue
 
-When spawned during cleanup-teams REVIEW phase (as teammate), you:
+When spawned during cleanup REVIEW phase (as teammate), you:
 1. Monitor the task list for completed documentation/spec cleanup tasks
 2. Verify that fixes actually resolved the cross-reference issues
 3. Check that documentation edits are accurate

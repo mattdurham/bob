@@ -1,5 +1,5 @@
 ---
-name: bob:cleanup-teams
+name: bob:cleanup
 description: Team-based code cleanup workflow - DISCOVER → PLAN → CLEANUP LOOP → COMMIT. Simplifies, removes complexity, fixes documentation. Never introduces new functionality.
 user-invocable: true
 category: workflow
@@ -22,7 +22,7 @@ You are orchestrating a **team-based code cleanup workflow** using Claude Code's
 - Simplifies over-engineered code
 - Removes dead code and unjustified abstractions
 - Fixes stale, misleading, or missing documentation
-- Aligns spec files (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md) with actual code
+- Aligns CLAUDE.md invariants with actual code
 - Fixes comment inaccuracies and broken cross-references
 
 **What this workflow does NOT do:**
@@ -63,8 +63,7 @@ CLEANUP LOOP detail:
   coder-1 claims tasks → implements cleanup → marks done
   reviewer-1 (Go idioms) ─┐
   reviewer-2 (arch)       ├─ review completed tasks concurrently → approve or create fix tasks
-  reviewer-3 (spec/docs)  │
-  reviewer-4 (bugs)       ┘
+  reviewer-3 (spec/docs)  ┘
 ```
 
 <strict_enforcement>
@@ -232,17 +231,12 @@ If no diff (working on full codebase), note that reviewers should scan everythin
 
 **Step 1: Run `/bob:audit` for structural baseline**
 
-Invoke the audit skill first to get spec invariant violations and Go structural health (call graphs, complexity scores, coupling):
+Invoke the audit skill first to get spec invariant violations and Go structural health:
 ```
 Invoke: /bob:audit
 ```
 
-The audit skill writes its findings to its own report. After it completes, read the report to extract:
-- Spec invariant violations → feed to spec-doc-reviewer context
-- High-complexity functions → feed to architecture-introspector context
-- Coupling hotspots → feed to architecture-introspector context
-
-Copy the audit report to `.bob/state/audit-results.md` if not already there, or note the path.
+Copy or reference the audit report at `.bob/state/audit-results.md` for downstream agents.
 
 **Step 2: Spawn all five DISCOVER agents simultaneously (single message, all background):**
 
@@ -253,27 +247,20 @@ Task(subagent_type: "bug-finder",
      run_in_background: true,
      prompt: "You are scanning for BUGS IN EXISTING CODE — not proposing new features.
 
-             Find and create tasks for:
-             - Nil pointer dereferences
-             - Race conditions
-             - Resource leaks (file handles, HTTP bodies, SQL rows, goroutines)
-             - Silently swallowed errors on critical paths
-             - Logic errors producing wrong results
-             - Off-by-one errors
+             Find and create tasks for: nil dereferences, race conditions, resource leaks,
+             silently swallowed errors, logic errors, off-by-one errors.
 
-             Run automated checks: go test -race, go vet, staticcheck (if available).
-             Then manually review changed files for the above categories.
+             Run: go test -race, go vet, staticcheck (if available).
+             Then manually review changed files.
 
              For each bug, create a task using TaskCreate with:
              - subject: 'Fix [category]: [title] in [file]'
              - description: location, trigger, impact, concrete fix
              - metadata: {task_type: 'cleanup', cleanup_type: 'bug-fix', severity: '...', source: 'bug-finder'}
 
-             Bugs that require new functionality to fix: mark as NEEDS_DESIGN, do NOT create tasks.
+             Bugs requiring new functionality: mark NEEDS_DESIGN, skip task creation.
 
              Write full report to .bob/state/discover-bugs.md.
-
-             Changed files scope: [list from git diff, or 'full codebase']
              Working directory: [worktree-path]")
 ```
 
@@ -320,10 +307,6 @@ Task(subagent_type: "architecture-introspector",
              - Duplicate logic that can be consolidated
              - Anti-patterns (Enterprise Fizz-Buzz, Cargo Cult, etc.)
 
-             Structural context from /bob:audit (read .bob/state/audit-results.md if it exists):
-             - Pay special attention to high-complexity functions flagged by audit
-             - Use coupling hotspots from audit to prioritize architectural issues
-
              For each finding, create a task using TaskCreate with:
              - subject: brief description
              - description: exact location, what to delete/simplify, why
@@ -353,9 +336,10 @@ Task(subagent_type: "spec-doc-reviewer",
              - Broken example functions
              - README inaccuracies
 
-             Spec context from /bob:audit (read .bob/state/audit-results.md if it exists):
-             - Audit may have already identified spec invariant violations — include those as tasks
-             - Do not duplicate tasks audit already flagged; reference them instead
+             For simple spec modules (directories with CLAUDE.md):
+             - Verify each numbered invariant is still accurate
+             - Find invariants that describe removed behavior
+             - Find exported APIs not covered by invariants
 
              For each finding, create a task using TaskCreate with:
              - subject: brief description
@@ -367,12 +351,12 @@ Task(subagent_type: "spec-doc-reviewer",
              Working directory: [worktree-path]")
 ```
 
-**Wait for all five to complete.**
+**Wait for all three to complete.**
 
-After all five finish:
-- Read `.bob/state/audit-results.md`, `.bob/state/discover-bugs.md`, `.bob/state/discover-quality.md`, `.bob/state/discover-architecture.md`, `.bob/state/discover-docs.md`
+After all three finish:
+- Read `.bob/state/discover-quality.md`, `.bob/state/discover-architecture.md`, `.bob/state/discover-docs.md`
 - Check TaskList to confirm tasks were created
-- Log summary: "DISCOVER complete — [N] tasks found ([audit], [bugs], [quality], [arch], [docs])"
+- Log summary: "DISCOVER complete — [N] tasks found ([quality], [arch], [docs])"
 
 If TaskList is empty (no issues found): skip to FINAL REVIEW.
 
@@ -513,27 +497,7 @@ Report to team lead: task ID, result, any cascading doc issues.
 Working directory: [worktree-path]'
 ```
 
-```
-Spawn teammate 'reviewer-bugs' (team-reviewer agent):
-
-'You are reviewer-bugs, focused on verifying bug fixes are correct and complete.
-
-Your job:
-1. Monitor TaskList for completed bug-fix tasks (cleanup_type: "bug-fix", status: completed, no metadata.reviewing)
-2. Claim: TaskUpdate(taskId, {metadata: {reviewing: true, reviewer: "reviewer-bugs"}})
-3. Review the fix:
-   - Does it actually eliminate the bug trigger? Read the code and verify.
-   - Does it introduce any new behavior?
-   - Does it introduce a new bug?
-   - Run go test -race ./[affected-package]/... if the fix touched concurrency
-   - Is there a test covering this bug? If not, flag as MEDIUM missing regression test.
-4. Decision: APPROVE or NEEDS_FIXES + follow-up task
-
-Report to team lead: task ID, result, specifically whether the bug trigger is gone.
-Working directory: [worktree-path]'
-```
-
-**Step 4: Verify team created** — confirm 5 teammates active (1 coder + 4 reviewers).
+**Step 4: Verify team created** — confirm 4 teammates active.
 
 ---
 
@@ -557,7 +521,6 @@ Tasks at start: [count from TaskList]
 - coder-1: claim available tasks and work them
 - reviewers: review completed tasks as they come in, write findings to .bob/state/loop-[N]-review-[reviewer].md
 - No new functionality — cleanup only
-- reviewer-bugs: run go test -race on any concurrency fix, verify bug trigger is gone
 - Flag anything that would require new code"
 ```
 
@@ -757,11 +720,9 @@ Clean up the team if not already done.
 
 | File | Written By | Purpose |
 |------|-----------|---------|
-| `.bob/state/audit-results.md` | /bob:audit | Structural health: complexity, coupling, spec violations |
-| `.bob/state/discover-bugs.md` | DISCOVER agent 0 | Bug findings: races, leaks, nil-derefs, logic errors |
 | `.bob/state/discover-quality.md` | DISCOVER agent 1 | Go idiom findings |
-| `.bob/state/discover-architecture.md` | DISCOVER agent 2 | Architecture findings (informed by audit) |
-| `.bob/state/discover-docs.md` | DISCOVER agent 3 | Spec/doc findings (informed by audit) |
+| `.bob/state/discover-architecture.md` | DISCOVER agent 2 | Architecture findings |
+| `.bob/state/discover-docs.md` | DISCOVER agent 3 | Spec/doc findings |
 | `.bob/state/cleanup-plan.md` | Team lead writes | Constraints + summary for coder |
 | `.bob/state/loop-N-status.md` | Team lead writes | Per-iteration entry/exit status |
 | `.bob/state/loop-N-review-go.md` | reviewer-go | Per-iteration Go idiom review findings |

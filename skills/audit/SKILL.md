@@ -728,7 +728,7 @@ Results: .bob/state/audit-report.md
 
 [If NEEDS ATTENTION]: Found N issues where code diverges from specs.
   Review .bob/state/audit-report.md for details.
-  Fix the code or update the specs — use /bob:work-agents for code fixes
+  Fix the code or update the specs — use /bob:work or /bob:work-teams for code fixes
   or edit SPECS.md directly for spec corrections.
 
 [If CRITICAL]: Significant spec drift or structural issues detected.
@@ -766,7 +766,7 @@ Skip any the user declines. If the user says "none", proceed to completion witho
 
 - This workflow is **read-only** unless the user approves proposed new invariants
 - Spec files are only modified with explicit user consent
-- Findings can feed into `/bob:work-agents` to fix violations
+- Findings can feed into `/bob:work` or `/bob:work-teams` to fix violations
 - Run periodically (e.g., before releases) to catch spec drift
 - The audit checks code against specs, not specs against code — to generate specs from code, use `/bob:design apply`
 - Go structural analysis scoring weights are opinionated: cognitive complexity is weighted heavily because it predicts maintenance burden better than cyclomatic complexity alone

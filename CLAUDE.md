@@ -1,12 +1,12 @@
 # Claude Configuration for Bob
 
-**Bob** is a workflow orchestration system implemented entirely through **Claude skills** and **subagents**. No MCP servers, no daemons—just intelligent workflow coordination through specialized Claude agents.
+**Bob** is a workflow orchestration system implemented entirely through **Claude skills** and **subagents** — intelligent workflow coordination through specialized Claude agents.
 
 ## What Bob Provides
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (bob:work-agents, bob:work-teams, bob:explore, bob:explore-teams)
+- **Workflow Skills** - User-invocable workflows (bob:work, bob:work-teams, bob:explore, bob:explore-teams)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
@@ -16,8 +16,7 @@ Bob gives Claude access to:
 Invoke these workflows with slash commands:
 
 1. **`/bob:work`** - Simple direct workflow — no agents, no ceremony (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE)
-2. **`/bob:work-agents`** - Full development workflow with sequential subagents (INIT → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR)
-3. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
+2. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
 4. **`/bob:explore`** - Read-only codebase exploration
 5. **`/bob:explore-teams`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
 6. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
@@ -30,7 +29,7 @@ See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 **Skills are orchestration layers:**
 
 ```
-Skill (/bob:work-agents)
+Skill (/bob:work-teams)
   ↓
 Creates worktree & .bob directory
   ↓
@@ -68,7 +67,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
+After installation, skills are available via slash commands: `/bob:work`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
 
 **Individual component installation:**
 ```bash
@@ -88,30 +87,6 @@ Pre-commit hooks enforce quality gates before commits:
 - Verify formatting (`go fmt`)
 
 Hooks are opt-in to give you control over your workflow. Install them when you want automatic quality enforcement.
-
-### 2. Required MCP Server (Filesystem Only)
-
-Bob workflows require the filesystem MCP server for file operations.
-
-**Quick install (recommended):**
-```bash
-# Default directories ($HOME/source and /tmp)
-make install-mcp
-
-# Custom directories (comma-delimited)
-make install-mcp DIRS="/home/matt/projects,/home/matt/work,/tmp"
-```
-
-**Manual install:**
-```bash
-# Check if already installed
-claude mcp list
-
-# Install manually if needed
-claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem "$HOME/source" /tmp
-```
-
-That's it! No Bob-specific MCP server needed—everything runs through skills and subagents.
 
 ## Starting a Workflow
 
@@ -134,7 +109,7 @@ All workflows store artifacts in `.bob/` directory within the worktree:
 
 ```
 .bob/
-  state/             # Workflow progress (created by /bob:work-agents, etc.)
+  state/             # Workflow progress (created by /bob:work, /bob:work-teams, etc.)
     brainstorm.md    # Research and approach decisions
     plan.md          # Detailed implementation plan
     test-results.md  # Test execution results
@@ -205,7 +180,7 @@ the code. Bob detects and enforces this pattern automatically.
 **The invariant:** Any change to a `.go` file in a spec-driven module MUST be reflected in
 `SPECS.md` (API/contract changes) or `NOTES.md` (design decisions).
 
-**Bob's enforcement during `/bob:work-agents`:**
+**Bob's enforcement during workflows:**
 - BRAINSTORM: detect spec-driven modules in scope, read their invariants, and constrain approach selection
 - EXECUTE: workflow-coder passes actual invariants from SPECS.md to implementer as hard constraints
 - REVIEW: review-consolidator verifies code satisfies stated invariants in SPECS.md (primary) and checks that spec docs were updated (secondary)
@@ -270,7 +245,7 @@ logic, phase structure, tool usage, etc.). Only spec-related sections differ bet
 
 Files with simple variants:
 - `agents/`: workflow-brainstormer, planner, workflow-implementer, workflow-coder, tester, review-consolidator
-- `skills/`: brainstorming, explore, explore-teams, work, work-agents, work-teams, writing-plans
+- `skills/`: brainstorming, explore, explore-teams, work, work-teams, writing-plans
 - `skills/design-simple/` — complete alternative to `skills/design/` for simple mode
 
 ## Best Practices
@@ -296,11 +271,12 @@ Files with simple variants:
 ## Example Session
 
 ```
-You: /bob:work-agents "Add rate limiting to API"
+You: /bob:work-teams "Add rate limiting to API"
 
-Claude: I'll orchestrate the work workflow...
+Claude: I'll orchestrate the work-teams workflow...
 
 [INIT Phase]
+Verifying experimental agent teams flag...
 Creating .bob directory...
 ✓ Ready to brainstorm
 
@@ -313,14 +289,16 @@ Spawning Explore agent to research patterns...
 [PLAN Phase]
 Spawning workflow-planner agent...
 ✓ Implementation plan in .bob/state/plan.md
+✓ Created 8 tasks in task list
 
-[EXECUTE Phase]
-Spawning workflow-coder agent...
-✓ Code implementation complete
+[SPAWN TEAM]
+✓ Spawned coder-1, coder-2, reviewer-1, reviewer-2
 
-[TEST Phase]
-Spawning workflow-tester agent...
-✓ All tests passing, results in .bob/state/test-results.md
+[EXECUTE + REVIEW - Concurrent]
+coder-1: "Claimed task 1: Implement rate limiter"
+coder-2: "Claimed task 2: Add config"
+reviewer-1: "Reviewing task 1..."
+✓ All tasks complete and reviewed
 
 [REVIEW Phase]
 Spawning review-consolidator...
@@ -328,11 +306,11 @@ Spawning review-consolidator...
 ✓ 3 medium issues found in .bob/state/review.md
 
 [Loop to EXECUTE]
-Spawning workflow-coder to fix medium issues...
+Teammates fixing medium issues...
 ...
 
 [COMMIT Phase]
-Creating commit and PR...
+Shutting down teammates...
 ✓ PR created: https://github.com/user/repo/pull/123
 
 [MONITOR Phase]
@@ -340,7 +318,7 @@ Checking CI status...
 ✓ All checks passing
 
 [COMPLETE]
-🎉 Workflow complete!
+Workflow complete!
 ```
 
 ## Customization
@@ -376,30 +354,8 @@ category: workflow
 3. Check disk space: `df -h`
 
 **Subagents failing:**
-1. Check filesystem MCP server: `claude mcp list`
-2. Verify allowed directories include your repo
-3. Check subagent has necessary tools in skill definition
-
-## Migration from MCP-Based Bob
-
-If you previously used Bob as an MCP server:
-
-**Old approach:**
-- Bob binary running as MCP server
-- `bob.workflow_register()` tool calls
-- Manual progress tracking
-- Complex state management
-
-**New approach (current):**
-- Pure skill-based orchestration
-- No MCP server needed
-- Automatic subagent coordination
-- Simple artifact-based state in `.bob/`
-
-To migrate:
-1. Remove Bob MCP server from config: `claude mcp remove bob`
-2. Install Bob skills: `make install-skills`
-3. Use slash commands: `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
+1. Check subagent has necessary tools in skill definition
+2. Check disk space: `df -h`
 
 ---
 

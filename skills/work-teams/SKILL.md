@@ -17,7 +17,7 @@ You are orchestrating a **team-based development workflow** using Claude Code's 
 - **Split panes**: Visual teammate display (if enabled)
 - **Concurrent execution**: Coders + reviewers work in parallel
 
-**Key difference from bob:work-agents**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly, instead of sequential subagent execution.
+**Key difference from bob:work**: EXECUTE and REVIEW phases run concurrently with teammate agents communicating directly, instead of sequential subagent execution.
 
 ## Prerequisites
 
@@ -443,7 +443,7 @@ Task(subagent_type: "workflow-brainstormer",
 
 **Goal:** Create detailed implementation plan AS A TASK LIST
 
-This is the key difference from bob:work-agents: instead of just writing `plan.md`, we create a task list that enables concurrent teammate execution.
+This is the key difference from bob:work: instead of just writing `plan.md`, we create a task list that enables concurrent teammate execution.
 
 **Actions:**
 
@@ -584,7 +584,7 @@ Quality standards:
 - Follow existing code patterns
 - Write clear, idiomatic Go code
 
-GO CODING GUIDELINES (/bob:go-coding):
+GO CODING GUIDELINES (/bob:internal:go-coding):
 - Pool lifetime: release pooled objects only at true end-of-life of all derived data
 - File writes: use os.CreateTemp + os.Rename, never deterministic .tmp paths
 - Goroutine fan-out: always use errgroup.SetLimit or a semaphore
@@ -698,7 +698,7 @@ You should see:
 
 **CRITICAL: You are the team lead. You NEVER write code, edit files, or fix issues yourself. Teammates do ALL the work.**
 
-This phase is different from bob:work-agents because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
+This phase is different from bob:work because EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
 
 **Your role as team lead:**
 1. Monitor task list progress

@@ -1,12 +1,12 @@
 # Belayin' Pin Bob - Agent Guidance
 
-This repository uses **Belayin' Pin Bob** for workflow orchestration through Claude skills and subagents. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
+This repository uses **Belayin' Pin Bob** for workflow orchestration through Claude skills and subagents. Skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
 ## What Bob Provides
 
 Bob installs workflow skills and specialized subagents to `~/.claude/`:
 
-1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:work-agents`, `/bob:work-teams`, `/bob:explore`, `/bob:design`)
+1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:work-teams`, `/bob:explore`, `/bob:design`)
 2. **Subagent Orchestration** - Specialized agents for each workflow phase
 3. **State Management** - Persistent workflow artifacts in `.bob/state/` directory
 4. **Git Worktrees** - Isolated development environments
@@ -19,15 +19,6 @@ INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → CO
 ```
 
 You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
-
-### /bob:work-agents — Sequential Subagent Workflow
-```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-                      ^                                    |               |
-                      └────────────────────────────────────┴───────────────┘
-```
-
-Full orchestration with specialized subagents for each phase.
 
 ### /bob:work-teams — Concurrent Agent Team Workflow
 ```
@@ -115,7 +106,6 @@ See CLAUDE.md for full spec-driven module documentation.
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make install-mcp            # Filesystem MCP server (required)
 make enable-agent-teams     # Enable /bob:work-teams
 make hooks                  # Optional: pre-commit quality checks
 ```
@@ -123,10 +113,10 @@ make hooks                  # Optional: pre-commit quality checks
 ## Starting a Workflow
 
 ```
-/bob:work-agents "Add rate limiting to API"
+/bob:work-teams "Add rate limiting to API"
 ```
 
-The skill creates a worktree, spawns specialized subagents for each phase, and drives autonomously from INIT through COMMIT — only prompting at the final merge.
+The skill creates a worktree, spawns teammate agents that work concurrently, and drives autonomously from INIT through COMMIT — only prompting at the final merge.
 
 ---
 

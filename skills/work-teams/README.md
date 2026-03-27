@@ -196,12 +196,12 @@ Teammates communicate through messages:
 [coder-1 → reviewer-1]: "Fixed the nil check, can you re-review?"
 ```
 
-## Comparison with bob:work-agents
+## Comparison with bob:work
 
-| Aspect | bob:work-agents | bob:work-teams |
+| Aspect | bob:work | bob:work-teams |
 |--------|----------|---------------|
 | **Execution** | Sequential | Concurrent |
-| **Agents** | 1 coder, 1 reviewer | 2 coders, 2 reviewers (teammates) |
+| **Agents** | None (you do the work) | 2 coders, 2 reviewers (teammates) |
 | **Review timing** | After all code complete | Incremental as code completes |
 | **Feedback loops** | Long (batch) | Short (real-time) |
 | **Communication** | File-based | Direct messaging + task list |
@@ -217,7 +217,7 @@ Teammates communicate through messages:
 ✅ **Quality-critical** - Need thorough incremental review
 ✅ **Parallel-friendly** - Independent modules or components
 
-### Use bob:work-agents (Sequential) When:
+### Use bob:work When:
 
 ✅ Simple, small tasks (single file, quick fixes)
 ✅ Exploratory work (requirements unclear)

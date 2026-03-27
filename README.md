@@ -16,7 +16,7 @@ Workflow orchestration for Claude Code through skills and subagents.
 
 ## What is Bob?
 
-Bob coordinates AI agent workflows for feature development. No MCP servers, no daemons — skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
+Bob coordinates AI agent workflows for feature development. Skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
 
 ## Spec-Driven Development
 
@@ -24,7 +24,7 @@ Bob treats **SPECS.md as the source of truth** for module behavior. Every workfl
 
 - **`/bob:design`** creates or applies spec-driven module structure. Call this first when starting a new module, or before major design changes. It scaffolds SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and adds the NOTE invariant to `.go` files.
 
-- **`/bob:work`**, **`/bob:work-agents`**, and **`/bob:work-teams`** all read existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
+- **`/bob:work`** and **`/bob:work-teams`** both read existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
 - **`/bob:explore`** and **`/bob:explore-teams`** prioritize spec docs when analyzing a codebase. For spec-driven modules, they read SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code. The teams variant adds concurrent analysis and adversarial challenge phases for deeper, more reliable exploration.
 
@@ -63,16 +63,6 @@ INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → CO
 ```
 
 You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
-
-### `/bob:work-agents` — Sequential Subagent Workflow
-
-```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → MONITOR → COMPLETE
-                      ↑                                    ↓               ↓
-                      └────────────────────────────────────┴───────────────┘
-```
-
-Full orchestration with specialized subagents for each phase. You coordinate; agents do the work. Autonomous progression — only prompts at the final merge.
 
 ### `/bob:work-teams` — Concurrent Agent Team Workflow
 
@@ -159,7 +149,6 @@ repo-worktrees/
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make install-mcp            # Filesystem MCP server
 make enable-agent-teams     # Enable /bob:work-teams
 make hooks                  # Optional: pre-commit quality checks
 ```

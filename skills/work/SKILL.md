@@ -150,7 +150,7 @@ Wait for brainstorming to complete before proceeding.
 
 **Goal:** Implement the plan directly using TDD.
 
-**Go Coding Guidelines** — apply throughout this phase (`/bob:go-coding`):
+**Go Coding Guidelines** — apply throughout this phase (`/bob:internal:go-coding`):
 - Pool lifetime: release pooled objects only at true end-of-life of all derived data
 - File writes: use `os.CreateTemp` + `os.Rename`, never deterministic `.tmp` paths
 - Goroutine fan-out: always use `errgroup.SetLimit` or a semaphore

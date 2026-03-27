@@ -3,18 +3,17 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator
 
-all: install install-mcp install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
+all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
 	@echo "✅ Full system installation complete!"
-	@echo "🔄 Restart Claude/Crush to activate all components"
+	@echo "🔄 Restart Claude to activate all components"
 
 help:
 	@echo "🏴‍☠️ Belayin' Pin Bob - Captain of Your Agents"
 	@echo ""
 	@echo "Bob is a workflow orchestration system implemented through Claude skills and subagents."
-	@echo "No MCP servers needed - just intelligent workflow coordination!"
 	@echo ""
 	@echo "Available targets:"
 	@echo "  make all                      - Install + configure everything (the kitchen sink)"
@@ -22,12 +21,8 @@ help:
 	@echo "  make install SPEC=simple      - Install with simple spec mode (CLAUDE.md only per folder)"
 	@echo "  make install-skills           - Install workflow skills to Claude Code"
 	@echo "  make install-agents           - Install specialized subagents to Claude Code"
-	@echo "  make install-crush-skills     - Install workflow skills to Crush"
-	@echo "  make install-crush-agents     - Install specialized subagents to Crush"
 	@echo "  make install-lsp              - Install Go LSP plugin"
 	@echo "  make install-plugins          - Install Claude plugins (grafana-engineering@grafana-ai-kit)"
-	@echo "  make install-mcp [DIRS=...]   - Install filesystem MCP server (required for Bob)"
-	@echo "                                  DIRS: comma-delimited paths (default: \$$HOME/source,/tmp)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
 	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
 	@echo "  make install-worktree         - Install create-worktree script to ~/.local/bin"
@@ -45,16 +40,14 @@ help:
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
-	@echo "  make install-mcp              - Install filesystem MCP server (required)"
 	@echo "  make enable-agent-teams       - Enable experimental agent teams (for /bob:work-teams)"
 	@echo "  make hooks                    - [OPTIONAL] Install pre-commit hooks"
 	@echo "  make allow                    - Apply permissions"
-	@echo "  /bob:work-agents \"feature\" - Start a workflow"
+	@echo "  /bob:work-teams \"feature\" - Start a workflow"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make install PERSONALITY=pirate"
 	@echo "  make install PERSONALITY=cartoon_pirate"
-	@echo "  make install-mcp DIRS=\"/home/matt/projects,/tmp\""
 	@echo "  make install-guidance PATH=/home/matt/myproject"
 	@echo "  make install-statusline"
 
@@ -63,7 +56,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work work-agents explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams generate-overview; do \
+	for skill in work explore explore-teams brainstorming writing-plans work-teams audit code-review cleanup-teams generate-overview; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -122,100 +115,11 @@ install-skills:
 	@echo ""
 	@echo "Available workflow commands:"
 	@echo "  /bob:work        - Simple direct workflow (no agents)"
-	@echo "  /bob:work-agents - Full development workflow (sequential subagents)"
 	@echo "  /bob:work-teams  - Team-based workflow (requires enable-agent-teams)"
 	@echo "  /bob:explore     - Codebase exploration"
 	@echo "  /bob:explore-teams - Team-based exploration with adversarial challenge"
 	@echo "  /bob:audit       - Spec audit + optional Go structural analysis"
 	@echo "  /bob:version     - Show Bob version info"
-
-# Install workflow skills to Crush
-install-crush-skills:
-	@echo "📚 Installing Bob workflow skills to Crush..."
-	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
-	mkdir -p "$$CRUSH_SKILLS_DIR"; \
-	for skill in work work-agents explore brainstorming writing-plans go-analyze; do \
-		if [ -d "skills/$$skill" ]; then \
-			echo "   Installing $$skill skill..."; \
-			mkdir -p "$$CRUSH_SKILLS_DIR/$$skill"; \
-			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
-				cp "skills/$$skill/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$skill/SKILL.md"; \
-			else \
-				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
-			fi; \
-		else \
-			echo "   ⚠️  Skill $$skill not found, skipping..."; \
-		fi; \
-	done; \
-	echo "   Installing design skill (SPEC=$(SPEC))..."; \
-	mkdir -p "$$CRUSH_SKILLS_DIR/design"; \
-	if [ "$(SPEC)" = "simple" ]; then \
-		cp "skills/design-simple/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
-	else \
-		cp "skills/design/SKILL.md" "$$CRUSH_SKILLS_DIR/design/SKILL.md"; \
-	fi
-	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
-	echo "   Generating bob-version skill..."; \
-	GIT_HASH=$$(git rev-parse HEAD); \
-	GIT_SHORT=$$(git rev-parse --short HEAD); \
-	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
-	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-	GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
-	INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
-	BOB_REPO_PATH=$$(pwd); \
-	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
-	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
-	mkdir -p "$$CRUSH_SKILLS_DIR/bob-version"; \
-	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
-	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
-	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
-	    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
-	    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
-	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
-	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
-	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
-	    skills/bob-version/SKILL.md.template > "$$CRUSH_SKILLS_DIR/bob-version/SKILL.md"
-	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
-	echo "✅ Skills installed to $$CRUSH_SKILLS_DIR"
-	@echo ""
-	@echo "Set CRUSH_SKILLS_DIR environment variable to use a custom directory:"
-	@echo "  export CRUSH_SKILLS_DIR=/path/to/crush/skills"
-	@echo "  make install-crush-skills"
-
-# Install specialized subagents to Crush
-install-crush-agents:
-	@echo "🤖 Installing workflow subagents to Crush..."
-	@CRUSH_SKILLS_DIR=$${CRUSH_SKILLS_DIR:-$$HOME/.config/crush/skills}; \
-	mkdir -p "$$CRUSH_SKILLS_DIR"; \
-	AGENT_COUNT=0; \
-	if [ -d "agents" ]; then \
-		for agent_dir in agents/*; do \
-			if [ -d "$$agent_dir" ] && [ -f "$$agent_dir/SKILL.md" ]; then \
-				agent=$$(basename "$$agent_dir"); \
-				echo "   Installing $$agent agent..."; \
-				mkdir -p "$$CRUSH_SKILLS_DIR/$$agent"; \
-				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
-					cp "$$agent_dir/SKILL.simple.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
-				else \
-					cp "$$agent_dir/SKILL.md" "$$CRUSH_SKILLS_DIR/$$agent/SKILL.md"; \
-				fi; \
-				if [ -f "$$agent_dir/style.md" ]; then \
-					cp "$$agent_dir/style.md" "$$CRUSH_SKILLS_DIR/$$agent/style.md"; \
-				fi; \
-				if [ -f "$$agent_dir/golang-pro.md" ]; then \
-					cp "$$agent_dir/golang-pro.md" "$$CRUSH_SKILLS_DIR/$$agent/golang-pro.md"; \
-				fi; \
-				AGENT_COUNT=$$((AGENT_COUNT + 1)); \
-			fi; \
-		done; \
-	else \
-		echo "   ⚠️  No agents directory found"; \
-	fi; \
-	echo "✅ $$AGENT_COUNT subagents installed to $$CRUSH_SKILLS_DIR"
-	@echo ""
-	@echo "Set CRUSH_SKILLS_DIR environment variable to use a custom directory:"
-	@echo "  export CRUSH_SKILLS_DIR=/path/to/crush/skills"
-	@echo "  make install-crush-agents"
 
 # Install specialized subagents
 install-agents:
@@ -282,51 +186,6 @@ install-lsp:
 		echo "   ⚠️  LSP installation script not found, skipping..."; \
 	fi
 
-# Install filesystem MCP server (required for Bob workflows)
-# Usage: make install-mcp [DIRS=/path1,/path2,/path3]
-# If DIRS not specified, defaults to $HOME/source and /tmp
-install-mcp:
-	@echo "📁 Installing filesystem MCP server..."
-	@if ! command -v claude >/dev/null 2>&1; then \
-		echo "❌ Error: claude command not found"; \
-		echo "   Please install Claude Code first"; \
-		exit 1; \
-	fi
-	@if ! command -v npm >/dev/null 2>&1; then \
-		echo "❌ Error: npm not found"; \
-		echo "   Please install Node.js and npm first:"; \
-		echo "   - Ubuntu/Debian: sudo apt-get install nodejs npm"; \
-		echo "   - macOS: brew install node"; \
-		echo "   - Or visit: https://nodejs.org/"; \
-		exit 1; \
-	fi
-	@if ! command -v npx >/dev/null 2>&1; then \
-		echo "❌ Error: npx not found"; \
-		echo "   Please install Node.js (npx comes with npm 5.2+):"; \
-		echo "   - Ubuntu/Debian: sudo apt-get install nodejs npm"; \
-		echo "   - macOS: brew install node"; \
-		echo "   - Or visit: https://nodejs.org/"; \
-		exit 1; \
-	fi
-	@if [ -n "$(DIRS)" ]; then \
-		MCP_DIRS=$$(echo "$(DIRS)" | tr ',' ' '); \
-	else \
-		MCP_DIRS="$$HOME/source /tmp"; \
-	fi; \
-	if claude mcp list | grep -q "filesystem:"; then \
-		echo "   ⚠️  Filesystem MCP server already installed"; \
-		echo "   Remove it first with: claude mcp remove filesystem"; \
-	else \
-		echo "   Installing filesystem MCP server..."; \
-		claude mcp add filesystem -- npx -y @modelcontextprotocol/server-filesystem $$MCP_DIRS; \
-		echo "   ✅ Filesystem MCP server installed"; \
-		echo ""; \
-		echo "Configured directories:"; \
-		for dir in $$MCP_DIRS; do \
-			echo "  ✓ $$dir"; \
-		done; \
-	fi
-
 # Install Claude plugins
 install-plugins:
 	@echo "🔌 Installing Claude plugins..."
@@ -342,7 +201,7 @@ install-plugins:
 
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
-install: install-skills install-agents install-crush-skills install-crush-agents install-lsp install-plugins allow
+install: install-skills install-agents install-lsp install-plugins allow
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \
@@ -361,10 +220,6 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 		echo "  ✓ Personality → Default (built-in)"; \
 	fi
 	@echo ""
-	@echo "Installed to Crush:"
-	@echo "  ✓ Workflow skills → ~/.config/crush/skills/"
-	@echo "  ✓ Specialized subagents → ~/.config/crush/skills/"
-	@echo ""
 	@echo "Installed:"
 	@echo "  ✓ Go LSP plugin (if available)"
 	@echo "  ✓ Claude plugins (grafana-engineering@grafana-ai-kit)"
@@ -373,11 +228,11 @@ install: install-skills install-agents install-crush-skills install-crush-agents
 	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
 	@echo "  - Personality → Run 'make install PERSONALITY=pirate' or 'make install PERSONALITY=cartoon_pirate'"
 	@echo ""
-	@echo "🔄 Restart Claude/Crush to activate all components"
+	@echo "🔄 Restart Claude to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /bob:work-agents \"Add new feature\" - Start full development workflow"
-	@echo "  /bob:work-teams \"feature\"         - Team-based workflow (run 'make enable-agent-teams' first)"
+	@echo "  /bob:work \"Add new feature\"         - Start simple direct workflow"
+	@echo "  /bob:work-teams \"feature\"           - Team-based workflow (run 'make enable-agent-teams' first)"
 
 # Install Bob personality
 # Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
@@ -395,7 +250,7 @@ install-personality:
 		else \
 			echo "✅ Already using default personality (no override file)"; \
 		fi; \
-		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ] && grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \
 				if [ -d "skills/$$skill" ] && [ -f "skills/$$skill/SKILL.md" ]; then \
@@ -408,7 +263,7 @@ install-personality:
 		cp "personalities/$(PERSONALITY).md" "$$PERSONALITY_FILE"; \
 		echo "✅ Personality set to: $(PERSONALITY)"; \
 		echo "   Installed to: $$PERSONALITY_FILE"; \
-		for skill in work work-agents work-teams brainstorming explore explore-teams writing-plans; do \
+		for skill in work work-teams brainstorming explore explore-teams writing-plans; do \
 			SKILL_FILE="$$SKILLS_DIR/$$skill/SKILL.md"; \
 			if [ -f "$$SKILL_FILE" ]; then \
 				if ! grep -q "$$INJECT_LINE" "$$SKILL_FILE" 2>/dev/null; then \

@@ -77,6 +77,23 @@ Also read the discovery file for context:
 Read(file_path: ".bob/state/discovery.md")
 ```
 
+### Step 3.5: Navigator: Check for Prior Knowledge
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+Call `mcp__navigator__consult` with:
+- question: "What do we know about [the area being analyzed]? Any prior findings or architectural decisions?"
+- scope: the primary package being analyzed
+
+After completing analysis, record key findings:
+
+Call `mcp__navigator__remember` with:
+- content: "Analysis: [key finding or observation about the codebase]."
+- scope: package
+- tags: ["analysis"]
+- confidence: "observed"
+- source: "exploration"
+
 ### Step 4: Analyze the Codebase
 
 **Read source files** identified in discovery.md. Your analysis must be:

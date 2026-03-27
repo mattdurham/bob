@@ -556,3 +556,25 @@ Write(file_path: "/path/to/worktree/.bob/state/test-results.md",
 3. Ensure the content is properly saved
 
 **You are not done until the file is written.** Your task is incomplete if you only output the results without using Write.
+
+## Navigator: Report Test Results
+
+Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
+
+After writing test results, record a summary for future agents:
+
+Call `mcp__navigator__remember` with:
+- content: "Test run: [pass/fail]. [X] tests passed, [Y] failed. Coverage: [Z%]. Failing tests: [list names if any]. Root cause of failures: [brief description if failed]."
+- scope: primary package tested
+- tags: ["test-results", "pass" or "fail"]
+- confidence: "verified"
+- source: "testing"
+
+If tests revealed non-obvious issues (flaky tests, race conditions, unexpected failures), record those separately:
+
+Call `mcp__navigator__remember` with:
+- content: "Test issue: [description of the non-obvious problem found during testing]."
+- scope: package
+- tags: ["test-issue"]
+- confidence: "observed"
+- source: "testing"

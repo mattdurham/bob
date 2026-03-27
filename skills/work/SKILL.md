@@ -21,6 +21,17 @@ No loop-backs in the outer workflow. The REVIEW phase invokes `/bob:code-review`
 
 ---
 
+## Navigator: Treat as Senior Developer
+
+Navigator (`mcp__navigator__*` tools) is a persistent knowledge base that accumulates findings across sessions. If available, use it throughout this workflow:
+- **consult** before brainstorming, planning, and reviewing — ask what it knows about the task scope
+- **recall** before coding — pull proven patterns for the package
+- **remember** after each major phase — record decisions and findings for future sessions
+
+All navigator calls are optional. If the tool is unavailable (server not running), skip and continue normally.
+
+---
+
 ## Phase 1: INIT
 
 **Goal:** Brief greeting and acknowledgment.
@@ -91,6 +102,8 @@ The brainstorming skill will:
 
 Wait for brainstorming to complete before proceeding.
 
+**Navigator (after brainstorming):** Attempt `mcp__navigator__consult` asking what patterns or approaches exist for the task scope. Incorporate any relevant findings into your understanding before PLAN. Then call `mcp__navigator__remember` to record the chosen approach and key design decisions. If navigator tools are unavailable, skip and continue.
+
 ---
 
 ## Phase 4: PLAN
@@ -127,6 +140,8 @@ Wait for brainstorming to complete before proceeding.
 ## Task 2: ...
 ```
 
+**Navigator (before writing the plan):** Attempt `mcp__navigator__consult` for prior implementations and known pitfalls in the target packages. After writing the plan, call `mcp__navigator__remember` to record key planning decisions. If navigator tools are unavailable, skip and continue.
+
 **Only artifact:** `.bob/state/plan.md`
 
 ---
@@ -142,6 +157,8 @@ Wait for brainstorming to complete before proceeding.
 - Numeric sizes: validate and convert `int64`/`uint64` to `int` before `make()` or slice index
 - Store errors: only `fs.ErrNotExist` is a miss; propagate other errors to callers
 - Tests: name must match assertion; use `//go:noinline` + `runtime.KeepAlive` for GC-dependent tests
+
+**Navigator (before coding):** Attempt `mcp__navigator__recall` to pull proven patterns for the packages in scope. After completing all tasks, call `mcp__navigator__remember` to record implementation decisions and any non-obvious choices. If navigator tools are unavailable, skip and continue.
 
 **Actions:**
 
@@ -197,6 +214,8 @@ Do not proceed until tests pass. Fix issues inline — no separate EXECUTE loop.
 **Goal:** Comprehensive code review, fix, commit, and CI monitoring.
 
 **Actions:**
+
+**Navigator (before reviewing):** Attempt `mcp__navigator__consult` for known issues, past bugs, or quality findings in the packages being changed. After the review completes, call `mcp__navigator__remember` to record all high/critical findings for future sessions. If navigator tools are unavailable, skip and continue.
 
 Invoke the code-review skill:
 ```

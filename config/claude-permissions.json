@@ -61,6 +61,14 @@
       "mcp__first-mate__run_tests",
       "mcp__first-mate__run_vet",
       "mcp__first-mate__tools_help",
+      "mcp__navigator__remember",
+      "mcp__navigator__recall",
+      "mcp__navigator__consult",
+      "mcp__navigator__reindex",
+      "mcp__navigator__status",
+      "mcp__navigator__update",
+      "mcp__navigator__forget",
+      "mcp__navigator__list",
       "LSP"
     ],
     "defaultMode": "dontAsk"

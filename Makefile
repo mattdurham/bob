@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate
+.PHONY: help all install install-skills install-agents install-lsp install-mcp install-crush-skills install-crush-agents install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator
 
 all: install install-mcp install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
@@ -40,6 +40,7 @@ help:
 	@echo "  make resolve-copilot PR=<url> - Resolve Copilot review comments and re-request review"
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
+	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -847,6 +848,63 @@ install-first-mate:
 	install -m 0755 first-mate ~/.local/bin/first-mate
 	@rm -f first-mate
 	@echo "✅ first-mate installed to ~/.local/bin/first-mate"
+	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
+		echo ""; \
+		echo "⚠️  Warning: ~/.local/bin is not in your PATH"; \
+		if echo "$$SHELL" | grep -q "fish"; then \
+			echo "Add to ~/.config/fish/config.fish:"; \
+			echo "  fish_add_path ~/.local/bin"; \
+		else \
+			echo "Add to ~/.bashrc or ~/.zshrc:"; \
+			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
+		fi; \
+	fi
+
+LLAMA_VERSION ?= b8533
+EMBED_MODEL_URL ?= https://huggingface.co/nomic-ai/nomic-embed-text-v1.5-GGUF/resolve/main/nomic-embed-text-v1.5.Q8_0.gguf
+LLAMA_URL ?= https://github.com/ggml-org/llama.cpp/releases/download/$(LLAMA_VERSION)/llama-$(LLAMA_VERSION)-bin-ubuntu-x64.tar.gz
+
+install-navigator:
+	@echo "🧭 Building and installing navigator..."
+	@if ! command -v go >/dev/null 2>&1; then \
+		echo "❌ Error: go not found"; \
+		echo "   Please install Go: https://go.dev/dl/"; \
+		exit 1; \
+	fi
+	@mkdir -p "$$HOME/.local/bin"
+	go build -o navigator ./cmd/navigator/
+	install -m 0755 navigator ~/.local/bin/navigator
+	@rm -f navigator
+	@echo "✅ navigator binary installed"
+	@echo ""
+	@echo "   Downloading llama.cpp shared libraries..."
+	@mkdir -p "$$HOME/.bob/navigator/lib"
+	@if [ -f "$$HOME/.bob/navigator/lib/libllama.so" ]; then \
+		echo "   ⏭️  llama.cpp libs already present"; \
+	else \
+		curl -sL "$(LLAMA_URL)" | tar xz -C "$$HOME/.bob/navigator/lib" --strip-components=1 --wildcards '*/lib*.so*' && \
+		echo "   ✅ llama.cpp libs downloaded"; \
+	fi
+	@echo ""
+	@echo "   Downloading nomic-embed-text model (~140MB)..."
+	@mkdir -p "$$HOME/.bob/navigator/models"
+	@if [ -f "$$HOME/.bob/navigator/models/nomic-embed-text-v1.5.Q8_0.gguf" ]; then \
+		echo "   ⏭️  model already present"; \
+	else \
+		curl -sL -o "$$HOME/.bob/navigator/models/nomic-embed-text-v1.5.Q8_0.gguf" "$(EMBED_MODEL_URL)" && \
+		echo "   ✅ nomic-embed-text model downloaded"; \
+	fi
+	@echo ""
+	@echo "   Database: ~/.bob/navigator/thoughts.db"
+	@echo ""
+	@echo "   Registering navigator MCP server..."
+	@if claude mcp list 2>/dev/null | grep -q "^navigator"; then \
+		claude mcp remove navigator 2>/dev/null; \
+	fi
+	@claude mcp add --scope user navigator navigator && \
+		echo "   ✅ navigator registered (stdio)"
+	@echo "   Set NAVIGATOR_API_KEY in your shell profile to enable consult"
+	@$(MAKE) allow
 	@if ! echo "$$PATH" | grep -q "$$HOME/.local/bin"; then \
 		echo ""; \
 		echo "⚠️  Warning: ~/.local/bin is not in your PATH"; \

@@ -22,11 +22,9 @@ Bob coordinates AI agent workflows for feature development. Skills invoke specia
 
 Bob treats **SPECS.md as the source of truth** for module behavior. Every workflow is spec-aware:
 
-- **`/bob:design`** creates or applies spec-driven module structure. Call this first when starting a new module, or before major design changes. It scaffolds SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and adds the NOTE invariant to `.go` files.
+- **`/bob:work`** reads existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
-- **`/bob:work`** and **`/bob:work-teams`** both read existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
-
-- **`/bob:explore`** and **`/bob:explore-teams`** prioritize spec docs when analyzing a codebase. For spec-driven modules, they read SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code. The teams variant adds concurrent analysis and adversarial challenge phases for deeper, more reliable exploration.
+- **`/bob:explore`** prioritizes spec docs when analyzing a codebase. For spec-driven modules, it reads SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code. Uses concurrent analysis and adversarial challenge phases for deep, reliable exploration.
 
 A spec-driven module is any directory containing SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or `.go` files with this comment:
 
@@ -46,25 +44,7 @@ This installs workflow skills to `~/.claude/skills/` and subagents to `~/.claude
 
 ## Workflows
 
-### `/bob:design` — Spec Scaffolding
-
-```
-INIT → GATHER → [ANALYZE] → SCAFFOLD → COMPLETE
-```
-
-Two modes:
-- **New module** — describe what you're building, get SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and stub `.go` files
-- **Apply to existing** — point at a directory, get spec docs generated from the existing implementation
-
-### `/bob:work` — Simple Direct Workflow
-
-```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
-```
-
-You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
-
-### `/bob:work-teams` — Concurrent Agent Team Workflow
+### `/bob:work` — Concurrent Agent Team Workflow
 
 ```
 INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW → COMMIT → MONITOR → COMPLETE
@@ -78,17 +58,9 @@ Multiple coder and reviewer teammates work in parallel through a shared task lis
 INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
-Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it. Run after `/bob:design apply` or periodically to catch spec drift.
+Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
 
-### `/bob:explore` — Read-Only Exploration
-
-```
-INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
-```
-
-Spec-aware codebase exploration. No code changes.
-
-### `/bob:explore-teams` — Team-Based Exploration with Adversarial Challenge
+### `/bob:explore` — Team-Based Exploration with Adversarial Challenge
 
 ```
 INIT → DISCOVER → ANALYZE (4 agents) → CHALLENGE (5 agents) → DOCUMENT → COMPLETE
@@ -97,7 +69,7 @@ INIT → DISCOVER → ANALYZE (4 agents) → CHALLENGE (5 agents) → DOCUMENT �
                           (any FAIL, max 2 loops)
 ```
 
-Like `/bob:explore` but with concurrent specialist agents. ANALYZE spawns 4 agents (structure, flow, patterns, dependencies). CHALLENGE spawns 5 adversarial agents (accuracy, completeness, architecture, operational/SRE, fresh-eyes) that stress-test the analysis. Failures loop back to re-analyze.
+Concurrent specialist agents for codebase exploration. ANALYZE spawns 4 agents (structure, flow, patterns, dependencies). CHALLENGE spawns adversarial agents that stress-test the analysis. Failures loop back to re-analyze. No code changes.
 
 ## Loop-Back Rules
 
@@ -149,7 +121,7 @@ repo-worktrees/
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make enable-agent-teams     # Enable /bob:work-teams
+make enable-agent-teams     # Enable /bob:work
 make hooks                  # Optional: pre-commit quality checks
 ```
 

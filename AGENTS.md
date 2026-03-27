@@ -6,33 +6,26 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration through Cla
 
 Bob installs workflow skills and specialized subagents to `~/.claude/`:
 
-1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:work-teams`, `/bob:explore`, `/bob:design`)
+1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:explore`)
 2. **Subagent Orchestration** - Specialized agents for each workflow phase
 3. **State Management** - Persistent workflow artifacts in `.bob/state/` directory
 4. **Git Worktrees** - Isolated development environments
 
 ## Available Workflows
 
-### /bob:work — Simple Direct Workflow
-```
-INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE
-```
-
-You do all the work yourself. No subagents, no orchestration. Linear flow, local commit only.
-
-### /bob:work-teams — Concurrent Agent Team Workflow
+### /bob:work — Concurrent Agent Team Workflow
 ```
 INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE <-> REVIEW → COMMIT → MONITOR → COMPLETE
 ```
 
 Multiple coder and reviewer teammates work in parallel. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
 
-### /bob:explore — Read-Only Exploration
+### /bob:explore — Team-Based Exploration with Adversarial Challenge
 ```
-INIT → DISCOVER → ANALYZE → DOCUMENT → COMPLETE
+INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT → COMPLETE
 ```
 
-Spec-aware codebase exploration. No code changes.
+Concurrent specialist agents for codebase exploration. No code changes.
 
 ### /bob:audit — Spec Audit
 ```
@@ -40,13 +33,6 @@ INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
 Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
-
-### /bob:design — Spec Scaffolding
-```
-INIT → GATHER → [ANALYZE] → SCAFFOLD → COMPLETE
-```
-
-Create or apply spec-driven module structure.
 
 ## Loop-Back Rules
 
@@ -106,14 +92,14 @@ See CLAUDE.md for full spec-driven module documentation.
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make enable-agent-teams     # Enable /bob:work-teams
+make enable-agent-teams     # Enable /bob:work
 make hooks                  # Optional: pre-commit quality checks
 ```
 
 ## Starting a Workflow
 
 ```
-/bob:work-teams "Add rate limiting to API"
+/bob:work "Add rate limiting to API"
 ```
 
 The skill creates a worktree, spawns teammate agents that work concurrently, and drives autonomously from INIT through COMMIT — only prompting at the final merge.

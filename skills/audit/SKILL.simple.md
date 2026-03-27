@@ -1,29 +1,29 @@
 ---
 name: bob:audit
-description: Verify CLAUDE.md invariants and optionally analyze Go structural health — DISCOVER → AUDIT → [ANALYZE → SCORE] → REPORT → COMPLETE
+description: Verify CLAUDE.md invariants and analyze codebase health — DISCOVER → AUDIT → [ANALYZE → SCORE] → REPORT → COMPLETE
 user-invocable: true
 category: workflow
 ---
 
 # Invariant Audit Workflow
 
-You orchestrate a **read-only audit** that verifies code satisfies the invariants stated in CLAUDE.md files. Optionally includes deep Go structural analysis: call graphs, complexity scoring, and module coupling. No code changes — just a report.
+You orchestrate a **read-only audit** that verifies code satisfies the invariants stated in CLAUDE.md files. Automatically detects Go codebases and includes deep structural analysis: call graphs, complexity scoring, and module coupling. No code changes — just a report.
 
 ## When to Use
 
-- After `/bob:design apply` to verify freshly-generated invariants match the existing code
+- After generating invariants to verify they match the existing code
 - Periodically to catch invariant drift across many PRs
 - Before major refactors to confirm your understanding of current guarantees
 - To identify Go complexity and coupling hot spots
 
 ## Workflow Diagram
 
-**Invariant audit only:**
+**Non-Go codebase:**
 ```
 INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
-**With Go structural analysis:**
+**Go codebase (auto-detected via go.mod):**
 ```
 INIT → DISCOVER → [AUDIT + ANALYZE in parallel] → SCORE → REPORT → COMPLETE
 ```
@@ -45,7 +45,7 @@ INIT → DISCOVER → [AUDIT + ANALYZE in parallel] → SCORE → REPORT → COM
 
 ## Phase 1: INIT
 
-**Goal:** Understand scope and analysis mode.
+**Goal:** Understand scope and detect codebase type.
 
 **Actions:**
 
@@ -56,27 +56,23 @@ What would you like to audit?
 
 1. All documented modules — scan the entire repo for modules with CLAUDE.md
 2. Specific directory — audit one module (provide the path)
-
-Include Go structural analysis? (call graphs, complexity scoring, coupling)
-Enter 'y' to add Go structural analysis, or press Enter to skip.
 ```
 
-2. If the user provides a specific path, verify it contains a `CLAUDE.md`. If not, tell them and suggest `/bob:design` to create one first.
+2. If the user provides a specific path, verify it contains a `CLAUDE.md`. If not, tell them they need to create a CLAUDE.md first.
 
-3. If Go structural analysis is requested, ask:
-
-```
-Do you have these tools installed?
-- gocyclo   (go install github.com/fzipp/gocyclo/cmd/gocyclo@latest)
-- gocognit  (go install github.com/uudashr/gocognit/v2/cmd/gocognit@latest)
-- callgraph (go install golang.org/x/tools/cmd/callgraph@latest)
-
-The analysis degrades gracefully without them — go vet and escape analysis always run.
-```
+3. **Auto-detect Go codebase:** Check if `go.mod` exists at the repo root (or in the scoped directory).
+   - If `go.mod` exists, set `GO_ANALYSIS=yes` and probe for available tools:
+     ```bash
+     command -v gocyclo >/dev/null 2>&1 && echo "HAS_GOCYCLO=yes" || echo "HAS_GOCYCLO=no"
+     command -v gocognit >/dev/null 2>&1 && echo "HAS_GOCOGNIT=yes" || echo "HAS_GOCOGNIT=no"
+     command -v callgraph >/dev/null 2>&1 && echo "HAS_CALLGRAPH=yes" || echo "HAS_CALLGRAPH=no"
+     ```
+   - If `go.mod` does not exist, set `GO_ANALYSIS=no`.
+   - The analysis degrades gracefully without optional tools — `go vet` and escape analysis always run.
 
 4. Record:
    - `SCOPE`: all | `path/to/module`
-   - `GO_ANALYSIS`: yes/no
+   - `GO_ANALYSIS`: yes/no (auto-detected)
    - `HAS_GOCYCLO`, `HAS_GOCOGNIT`, `HAS_CALLGRAPH`: yes/no (if GO_ANALYSIS)
 
 5. Create state directory:
@@ -88,7 +84,7 @@ mkdir -p .bob/state
 
 ## Phase 2: DISCOVER
 
-**Goal:** Find all documented modules and (if Go analysis) collect raw structural data.
+**Goal:** Find all documented modules and (if Go codebase) collect raw structural data.
 
 **Actions:**
 
@@ -692,7 +688,7 @@ Results: .bob/state/audit-report.md
 
 [If NEEDS ATTENTION]: Found N issues where code diverges from invariants.
   Review .bob/state/audit-report.md for details.
-  Fix the code or update CLAUDE.md — use /bob:work or /bob:work-teams for code fixes.
+  Fix the code or update CLAUDE.md — use /bob:work for code fixes.
 
 [If CRITICAL]: Significant invariant drift or structural issues detected.
   Review .bob/state/audit-report.md and prioritize fixes.
@@ -729,9 +725,9 @@ Skip any the user declines. If the user says "none", proceed to completion witho
 
 - This workflow is **read-only** unless the user approves proposed new invariants
 - CLAUDE.md files are only modified with explicit user consent
-- Findings can feed into `/bob:work` or `/bob:work-teams` to fix violations
+- Findings can feed into `/bob:work` to fix violations
 - Run periodically (e.g., before releases) to catch invariant drift
-- The audit checks code against invariants, not invariants against code — to generate invariants from code, use `/bob:design apply`
+- The audit checks code against invariants, not invariants against code
 - Go structural analysis scoring weights are opinionated: cognitive complexity is weighted heavily because it predicts maintenance burden better than cyclomatic complexity alone
 - Instability scores near 0.5 are not inherently bad — the concern is when an unstable package is imported by a stable one
 - Missing tools degrade gracefully: go vet + escape analysis always run; gocyclo/gocognit/callgraph add depth

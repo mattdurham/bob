@@ -4,7 +4,7 @@
 
 ## What Is This?
 
-`/bob:work-teams` is a development workflow where multiple **teammate agents** work in parallel:
+`/bob:work` is a development workflow where multiple **teammate agents** work in parallel:
 - **2 coder agents** claim tasks and implement features concurrently
 - **2 reviewer agents** review completed tasks incrementally as they finish
 - **Team lead** (you) coordinates through a shared task list and direct messaging
@@ -60,7 +60,7 @@ make install
 claude
 
 # In Claude Code:
-/bob:work-teams "Add rate limiting to API"
+/bob:work "Add rate limiting to API"
 ```
 
 The workflow will:
@@ -104,7 +104,7 @@ Type to message selected teammate
 ### Example Session
 
 ```
-You: /bob:work-teams "Add user authentication"
+You: /bob:work "Add user authentication"
 
 [INIT]
 ✓ Experimental flag verified
@@ -195,34 +195,6 @@ Teammates communicate through messages:
 
 [coder-1 → reviewer-1]: "Fixed the nil check, can you re-review?"
 ```
-
-## Comparison with bob:work
-
-| Aspect | bob:work | bob:work-teams |
-|--------|----------|---------------|
-| **Execution** | Sequential | Concurrent |
-| **Agents** | None (you do the work) | 2 coders, 2 reviewers (teammates) |
-| **Review timing** | After all code complete | Incremental as code completes |
-| **Feedback loops** | Long (batch) | Short (real-time) |
-| **Communication** | File-based | Direct messaging + task list |
-| **Display** | Hidden in terminal | Split panes (tmux) or cycling |
-| **Experimental flag** | Not required | **Required** |
-
-## When to Use
-
-### Use bob:work-teams When:
-
-✅ **Complex features** - Multiple files, components, layers
-✅ **Large implementations** - 10+ tasks, hours of work
-✅ **Quality-critical** - Need thorough incremental review
-✅ **Parallel-friendly** - Independent modules or components
-
-### Use bob:work When:
-
-✅ Simple, small tasks (single file, quick fixes)
-✅ Exploratory work (requirements unclear)
-✅ Learning new codebase
-✅ Want simpler workflow
 
 ## Troubleshooting
 
@@ -331,7 +303,7 @@ Request specific review focus:
 ## Resources
 
 - **Design doc**: `docs/team-work-design.md`
-- **Skill definition**: `skills/work-teams/SKILL.md`
+- **Skill definition**: `skills/work/SKILL.md`
 - **Agent definitions**:
   - `agents/team-coder/SKILL.md`
   - `agents/team-reviewer/SKILL.md`
@@ -342,7 +314,7 @@ Request specific review focus:
 **Issues or questions?**
 - Check the troubleshooting section above
 - Read `docs/team-work-design.md` for detailed architecture
-- Ask Claude: "How does bob:work-teams work?"
+- Ask Claude: "How does bob:work work?"
 
 ---
 

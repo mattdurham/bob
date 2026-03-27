@@ -6,7 +6,7 @@
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (bob:work, bob:work-teams, bob:explore, bob:explore-teams)
+- **Workflow Skills** - User-invocable workflows (bob:work, bob:explore)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
@@ -15,12 +15,9 @@ Bob gives Claude access to:
 
 Invoke these workflows with slash commands:
 
-1. **`/bob:work`** - Simple direct workflow — no agents, no ceremony (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE)
-2. **`/bob:work-teams`** - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
-4. **`/bob:explore`** - Read-only codebase exploration
-5. **`/bob:explore-teams`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
-6. **`/bob:design`** - Create or apply spec-driven module structure (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
-7. **`/bob:audit`** - Verify spec invariants and optionally analyze Go structural health (call graphs, complexity, coupling) (read-only)
+1. **`/bob:work`** - Team-based development workflow with concurrent agents (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
+2. **`/bob:explore`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
+3. **`/bob:audit`** - Verify spec invariants and optionally analyze Go structural health (call graphs, complexity, coupling) (read-only)
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
@@ -29,7 +26,7 @@ See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 **Skills are orchestration layers:**
 
 ```
-Skill (/bob:work-teams)
+Skill (/bob:work)
   ↓
 Creates worktree & .bob directory
   ↓
@@ -67,7 +64,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/bob:work`, `/bob:work-teams`, `/bob:explore`, `/bob:explore-teams`, etc.
+After installation, skills are available via slash commands: `/bob:work`, `/bob:explore`, etc.
 
 **Individual component installation:**
 ```bash
@@ -109,7 +106,7 @@ All workflows store artifacts in `.bob/` directory within the worktree:
 
 ```
 .bob/
-  state/             # Workflow progress (created by /bob:work, /bob:work-teams, etc.)
+  state/             # Workflow progress (created by /bob:work, etc.)
     brainstorm.md    # Research and approach decisions
     plan.md          # Detailed implementation plan
     test-results.md  # Test execution results
@@ -185,8 +182,8 @@ the code. Bob detects and enforces this pattern automatically.
 - EXECUTE: workflow-coder passes actual invariants from SPECS.md to implementer as hard constraints
 - REVIEW: review-consolidator verifies code satisfies stated invariants in SPECS.md (primary) and checks that spec docs were updated (secondary)
 
-**Creating a spec-driven module:** Use `/bob:design`
-- New module: scaffold all docs and stub files
+**Creating a spec-driven module:**
+- New module: create SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, and stub files manually
 - Existing module: generate docs from analysis, add NOTE headers to .go files
 
 **NOTES.md rules:**
@@ -231,7 +228,7 @@ Each module carries a single `CLAUDE.md` file containing numbered invariants.
 - EXECUTE: pass actual invariants from CLAUDE.md to implementer as hard constraints
 - REVIEW: verify code satisfies stated invariants in CLAUDE.md (primary) and check that docs were updated (secondary)
 
-**Creating a simple spec module:** Use `/bob:design`
+**Creating a simple spec module:** Create a CLAUDE.md with numbered invariants manually.
 
 ### Maintaining Spec Mode Variants
 
@@ -245,8 +242,7 @@ logic, phase structure, tool usage, etc.). Only spec-related sections differ bet
 
 Files with simple variants:
 - `agents/`: workflow-brainstormer, planner, workflow-implementer, workflow-coder, tester, review-consolidator
-- `skills/`: brainstorming, explore, explore-teams, work, work-teams, writing-plans
-- `skills/design-simple/` — complete alternative to `skills/design/` for simple mode
+- `skills/`: brainstorming, explore, work, writing-plans
 
 ## Best Practices
 
@@ -271,9 +267,9 @@ Files with simple variants:
 ## Example Session
 
 ```
-You: /bob:work-teams "Add rate limiting to API"
+You: /bob:work "Add rate limiting to API"
 
-Claude: I'll orchestrate the work-teams workflow...
+Claude: I'll orchestrate the work workflow...
 
 [INIT Phase]
 Verifying experimental agent teams flag...

@@ -19,20 +19,18 @@ category: utility
 
 ## Available Workflows
 
-- `/bob:work` - Simple direct workflow — no agents, no ceremony (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMMIT → COMPLETE)
-- `/bob:work-teams` - Team-based development workflow with concurrent agents (INIT → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
-- `/bob:explore` - Read-only codebase exploration
-- `/bob:design` - Create or apply spec-driven module structure
+- `/bob:work` - Team-based development workflow with concurrent agents (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
+- `/bob:explore` - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
 
 ## Internal Skills
 
-- `bob:internal:brainstorming` - Interactive ideation (used by work-teams)
-- `bob:internal:writing-plans` - Implementation planning (used by work-teams)
+- `bob:internal:brainstorming` - Interactive ideation (used by work)
+- `bob:internal:writing-plans` - Implementation planning (used by work)
 
 ## Installed Components
 
 **Skills:** {{SKILL_COUNT}} workflow skills installed
-- work, work-teams, explore, design, bob:version
+- work, explore, bob:version
 - Internal: brainstorming, writing-plans
 
 **Subagents:** {{AGENT_COUNT}} specialized subagents installed

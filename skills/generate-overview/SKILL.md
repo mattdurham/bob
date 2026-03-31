@@ -118,6 +118,12 @@ INTERACTIVE FEATURES (include in every report):
 
 ### Report Templates by Target Type
 
+**IMPORTANT — Source links everywhere:** Every file path, function name, type name, line
+number reference, and declaration in the report MUST be a clickable `vscode://file/` link
+(see the **Source Links** section below for format and styling). When a template says
+"file:line link" or "linked" or "with line number", it means a `vscode://file/` source link.
+Do not render any file:line reference as plain text.
+
 ---
 
 #### FUNCTION Report

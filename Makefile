@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python
 
 all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
@@ -24,6 +24,7 @@ help:
 	@echo "  make install-lsp              - Install Go LSP plugin"
 	@echo "  make install-plugins          - Install Claude plugins (grafana-engineering@grafana-ai-kit)"
 	@echo "  make install-guidance PATH=/path - Copy AGENTS.md & CLAUDE.md to repo"
+	@echo "  make install-no-python        - Add no-Python preference to ~/.claude/CLAUDE.md"
 	@echo "  make install-statusline       - Install statusline script and configure Claude Code"
 	@echo "  make install-worktree         - Install create-worktree script to ~/.local/bin"
 	@echo "  make install-personality [PERSONALITY=...] - Install Bob personality"
@@ -284,6 +285,27 @@ install-personality:
 	done
 	@echo ""
 	@echo "🔄 Restart Claude Code for personality changes to take effect"
+
+# Add no-Python language preference to ~/.claude/CLAUDE.md
+install-no-python:
+	@echo "🐍 Adding no-Python preference to ~/.claude/CLAUDE.md..."
+	@CLAUDE_MD="$$HOME/.claude/CLAUDE.md"; \
+	if [ ! -f "config/user-claude-no-python.md" ]; then \
+		echo "❌ Error: config/user-claude-no-python.md not found"; \
+		exit 1; \
+	fi; \
+	if [ -f "$$CLAUDE_MD" ] && grep -q "Do not write Python code" "$$CLAUDE_MD" 2>/dev/null; then \
+		echo "✅ No-Python preference already present in $$CLAUDE_MD"; \
+	else \
+		echo "" >> "$$CLAUDE_MD"; \
+		cat config/user-claude-no-python.md >> "$$CLAUDE_MD"; \
+		echo "✅ Added no-Python preference to $$CLAUDE_MD"; \
+	fi
+	@echo ""
+	@echo "Preference added:"
+	@echo "  - Do not write Python; prefer Go or CLI scripts"
+	@echo ""
+	@echo "🔄 Restart Claude for changes to take effect"
 
 # Install guidance files to another repo
 install-guidance:

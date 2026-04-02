@@ -84,6 +84,8 @@ Teammates must not commit either.
 ```
 Team Lead (You)
   ↓
+  ├── Teammate: team-brainstormer  ← researches codebase, stays alive for Q&A
+  ├── Teammate: team-planner       ← writes plan from brainstorm, stays alive for Q&A
   ├── Teammate: coder-1 (team-coder agent)
   ├── Teammate: coder-2 (team-coder agent)
   ├── Teammate: reviewer-1 (team-reviewer agent)
@@ -94,6 +96,10 @@ Coordination:
   - Direct messaging between teammates
   - Team lead monitors and steers
 ```
+
+**Knowledge team** (team-brainstormer, team-planner) spawns at BRAINSTORM and stays alive through REVIEW. Coders and reviewers can message them directly for context and clarifications.
+
+**Execution team** (coder-1, coder-2, reviewer-1, reviewer-2) spawns at SPAWN EXECUTION TEAM after the plan is ready.
 
 **Your role as team lead:**
 - Create and manage the team
@@ -123,7 +129,7 @@ Coordination:
 - ✅ Message teammates directly
 - ✅ Read files to make routing decisions
 - ✅ Run `cd` to switch working directory (after WORKTREE phase)
-- ✅ Invoke skills (`/bob:internal:brainstorming`, `/bob:internal:writing-plans`, `/bob:code-review`)
+- ✅ Invoke skills (`/bob:code-review`)
 - ✅ Display brief status updates to the user between phases
 - ✅ Clean up team when workflow complete
 
@@ -270,27 +276,27 @@ Task(subagent_type: "Bash",
 
 ---
 
-## Phase 3: BRAINSTORM
+## Phase 3: BRAINSTORM + SPAWN KNOWLEDGE TEAM
 
-**Goal:** Gather information and explore approaches
+**Goal:** Create the team, spawn knowledge agents, research the codebase, create the implementation plan
+
+The knowledge team (brainstormer, planner) is created here and stays alive through the entire workflow. Coders and reviewers can message them at any time for context and clarification.
 
 **Actions:**
 
-**Step 1: Use brainstorming skill for ideation**
+**Step 1: Create the agent team**
+
 ```
-Invoke: /bob:internal:brainstorming
-Topic: [The feature/task to implement]
+"I need to create an agent team for this development workflow.
+
+Working directory: [worktree-path]
+
+Please create the team now — I'll add teammates next."
 ```
 
-The brainstorming skill will help:
-- Generate ideas and approaches
-- Consider multiple perspectives
-- Identify potential issues early
-- Think through edge cases
+**Step 2: Write brainstorm prompt**
 
-**Step 2: Research existing patterns and document findings**
-
-Write the brainstorm prompt to `.bob/state/brainstorm-prompt.md`:
+Write the task context to `.bob/state/brainstorm-prompt.md`:
 ```
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
@@ -298,55 +304,94 @@ CLAUDE.md modules: [List any directories in scope that contain CLAUDE.md — cod
   read and update CLAUDE.md when changes affect numbered invariants.]
 ```
 
-Then spawn the workflow-brainstormer agent:
+**Step 3: Create brainstorm and plan tasks in the task list**
+
+Create two tasks — plan is blocked by brainstorm:
+
 ```
-Task(subagent_type: "workflow-brainstormer",
-     description: "Research patterns and write brainstorm",
-     run_in_background: true,
-     prompt: "Task is described in .bob/state/brainstorm-prompt.md.
-             Research the codebase, consider multiple approaches, and write
-             findings to .bob/state/brainstorm.md following the brainstormer protocol.")
+TaskCreate(
+  subject: "Brainstorm: [feature description]",
+  description: "Research the codebase and document findings in .bob/state/brainstorm.md.
+               Task context is in .bob/state/brainstorm-prompt.md.",
+  activeForm: "Researching codebase patterns",
+  metadata: { task_type: "brainstorm" }
+)
 ```
 
-**Output:** `.bob/state/brainstorm.md` (written by workflow-brainstormer)
+```
+TaskCreate(
+  subject: "Plan: [feature description]",
+  description: "Read .bob/state/brainstorm.md and write a detailed TDD-first
+               implementation plan to .bob/state/plan.md.",
+  activeForm: "Creating implementation plan",
+  metadata: { task_type: "plan" }
+)
+```
 
-**Navigator (after brainstorming):** Attempt `mcp__navigator__consult` asking what patterns or approaches exist for the task scope. Incorporate any relevant findings into your understanding before PLAN. Then call `mcp__navigator__remember` to record the chosen approach and key design decisions. If navigator tools are unavailable, skip and continue.
+Then block the plan task on the brainstorm task:
+```
+TaskUpdate(taskId: "<plan-task-id>", addBlockedBy: ["<brainstorm-task-id>"])
+```
+
+**Step 4: Spawn knowledge teammates**
+
+Spawn team-brainstormer:
+```
+"Spawn a teammate named 'team-brainstormer'.
+
+Teammate prompt:
+'You are team-brainstormer. Claim the brainstorm task from the task list
+(metadata.task_type: brainstorm), research the codebase following your SKILL.md protocol,
+write findings to .bob/state/brainstorm.md, mark the task complete, then stay alive
+to answer questions from coders and reviewers about your research and approach decisions.
+
+Working directory: [worktree-path]'"
+```
+
+Spawn team-planner:
+```
+"Spawn a teammate named 'team-planner'.
+
+Teammate prompt:
+'You are team-planner. Wait for the plan task to unblock (it is blocked by the brainstorm task).
+Once unblocked, claim it, read .bob/state/brainstorm.md, create a detailed TDD-first plan
+in .bob/state/plan.md following your SKILL.md protocol, mark the task complete, then stay alive
+to answer questions from coders and reviewers about plan intent and acceptance criteria.
+
+Working directory: [worktree-path]'"
+```
+
+**Step 5: Monitor until plan task is complete**
+
+Watch the task list until both brainstorm and plan tasks are marked `completed`:
+
+```
+TaskList()
+```
+
+**Output:**
+- `.bob/state/brainstorm.md` (written by team-brainstormer)
+- `.bob/state/plan.md` (written by team-planner)
+
+**On loop-back (REVIEW → BRAINSTORM):** The knowledge team is still alive. Message team-brainstormer with the review issues and ask it to update brainstorm.md with a new approach. Then message team-planner to update plan.md.
 
 ---
 
-## Phase 4: PLAN
+## Phase 4: PLAN → TASK LIST
 
-**Goal:** Create detailed implementation plan AS A TASK LIST
-
-This is the key difference: instead of just writing `plan.md`, we create a task list that enables concurrent teammate execution.
+**Goal:** Convert plan.md into the implementation task list
 
 **Actions:**
 
-**Step 1: Spawn planner to create plan.md**
+**Step 1: Read plan.md**
 
-Use the writing-plans skill to spawn a planner subagent:
-```
-Invoke: /bob:internal:writing-plans
-```
-
-The skill will:
-1. Spawn workflow-planner subagent in background
-2. Subagent reads design from `.bob/state/brainstorm.md`
-3. Subagent creates concrete, bite-sized implementation plan
-4. Subagent writes plan to `.bob/state/plan.md`
-
-**Navigator (before writing the plan):** Attempt `mcp__navigator__consult` for prior implementations and known pitfalls in the target packages. After writing the plan, call `mcp__navigator__remember` to record key planning decisions. If navigator tools are unavailable, skip and continue.
-
-**Step 2: Read plan.md**
-
-After planner completes, read the plan:
 ```
 Read(file_path: ".bob/state/plan.md")
 ```
 
-**Step 3: Convert plan to task list**
+**Step 2: Convert plan to task list**
 
-Analyze the plan and create tasks using TaskCreate. Break the plan into:
+Analyze the plan and create tasks using TaskCreate. Break into:
 
 1. **Setup tasks**: File creation, scaffolding
 2. **Implementation tasks**: Individual features/functions
@@ -357,7 +402,7 @@ Analyze the plan and create tasks using TaskCreate. Break the plan into:
 **Task structure guidelines:**
 - One task per logical unit (function, test file, component)
 - Include clear acceptance criteria in description
-- Set up dependencies with `addBlockedBy` (tests depend on implementation, integration depends on components)
+- Set up dependencies with `addBlockedBy`
 - Mark test tasks with metadata: `task_type: "test"`
 - Mark implementation tasks with metadata: `task_type: "implementation"`
 - Mark quality tasks with metadata: `task_type: "quality"`
@@ -393,39 +438,21 @@ TaskUpdate(taskId: "<test-task-id>", addBlockedBy: ["<implementation-task-id>"])
 ```
 
 **Output:**
-- `.bob/state/plan.md` (written by planner)
 - Task list (created by team lead using TaskCreate)
 
 ---
 
-## Phase 5: SPAWN TEAM
+## Phase 5: SPAWN EXECUTION TEAM
 
-**Goal:** Create agent team and spawn teammates
+**Goal:** Add coder and reviewer teammates to the existing team
 
-This phase is unique to the agent teams workflow. You create the team and spawn coder + reviewer teammates.
+The knowledge team is already running. Now spawn the execution team.
 
 **Navigator (before coding):** Attempt `mcp__navigator__recall` to pull proven patterns for the packages in scope. After completing all tasks, call `mcp__navigator__remember` to record implementation decisions and any non-obvious choices. If navigator tools are unavailable, skip and continue.
 
 **Actions:**
 
-**Step 1: Create the agent team**
-
-Tell Claude to create an agent team:
-```
-"I need to create an agent team for this development task.
-
-Team structure:
-- 2 coder teammates (team-coder agents)
-- 2 reviewer teammates (team-reviewer agents)
-
-Working directory: [worktree-path]
-
-All teammates should use the Sonnet model for balanced quality and speed.
-
-Please create this team now."
-```
-
-**Step 2: Spawn coder teammates**
+**Step 1: Spawn coder teammates**
 
 Spawn 2 coder teammates with clear prompts:
 
@@ -444,6 +471,10 @@ Your job:
 5. Use TDD: write tests first if it is an implementation task
 6. Mark task completed when done
 7. Repeat until no more tasks available
+
+KNOWLEDGE TEAM: You have teammates who can answer questions:
+- team-brainstormer: Ask about approach rationale and codebase patterns
+- team-planner: Ask for clarification on any plan step or acceptance criteria
 
 Quality standards:
 - Keep functions small (complexity < 40)
@@ -500,6 +531,10 @@ Your job:
      AND create a new fix task with TaskCreate describing what to fix
 6. Repeat until all completed tasks are reviewed
 
+KNOWLEDGE TEAM: You have teammates who can answer questions:
+- team-brainstormer: Ask why an approach was chosen or what alternatives were considered
+- team-planner: Ask whether an implementation matches the plan intent
+
 Review criteria:
 - Does implementation match task description?
 - Are tests present and passing?
@@ -523,22 +558,17 @@ Working directory: [worktree-path]'
 [Same prompt as reviewer-1, with name changed to reviewer-2]"
 ```
 
-**Step 4: Verify team creation**
+**Step 3: Verify team**
 
-Check that all teammates are spawned:
+Check that all teammates are active:
 ```
 "Show me the current team members and their status."
 ```
 
-You should see:
-- coder-1 (active)
-- coder-2 (active)
-- reviewer-1 (active)
-- reviewer-2 (active)
+You should see: team-brainstormer, team-planner, coder-1, coder-2, reviewer-1, reviewer-2.
 
 **Output:**
-- Agent team created
-- 4 teammates spawned and ready
+- Full team active and ready
 - Team lead can monitor via TaskList
 
 ---
@@ -734,9 +764,11 @@ Even though incremental reviews happened during EXECUTE, this phase does a final
 
 **Step 1: Shut down teammates**
 
-Before reviewing, gracefully shut down all teammates:
+Gracefully shut down all teammates:
 
 ```
+"Ask team-brainstormer teammate to shut down"
+"Ask team-planner teammate to shut down"
 "Ask coder-1 teammate to shut down"
 "Ask coder-2 teammate to shut down"
 "Ask reviewer-1 teammate to shut down"

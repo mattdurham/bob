@@ -1,32 +1,34 @@
 // shipmate is a stdio MCP server that acts as an enriching OTLP proxy.
-// It receives OTEL spans from Claude Code, forwards them to a downstream
-// OTLP endpoint, and lets agents emit synthetic spans via the shipmate_record
-// MCP tool.
+// It receives OTEL spans from Claude Code via gRPC, forwards them to a
+// downstream OTLP HTTP endpoint, and lets agents emit synthetic spans via
+// the shipmate_record MCP tool.
 //
 // Configuration (env vars):
 //
 //	SHIPMATE_OTLP_LISTEN_ADDR   gRPC listen address (default :4317)
-//	SHIPMATE_UPSTREAM_ENDPOINT  Required. Upstream OTLP endpoint, e.g. localhost:14317
+//	SHIPMATE_UPSTREAM_ENDPOINT  Required. Upstream OTLP HTTP endpoint, e.g. http://localhost:4318
 //	SHIPMATE_UPSTREAM_HEADERS   Optional. Comma-separated Key=Value auth headers.
 package main
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/mattdurham/bob/internal/shipmate/proxy"
 	"github.com/mattdurham/bob/internal/shipmate/recorder"
 	"github.com/mattdurham/bob/internal/shipmate/server"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	collectortrace "go.opentelemetry.io/proto/otlp/collector/trace/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
+	"google.golang.org/protobuf/proto"
 )
 
 func main() {
@@ -43,37 +45,25 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	// Parse headers once at startup; they are injected per-call in grpcForwarder.Export.
 	upstreamHeaders := parseHeaders(headersRaw)
 
-	// Build dial options for upstream gRPC connection.
-	dialOpts := []grpc.DialOption{
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	}
-
-	// Dial the upstream once; share the connection between the raw forwarder
-	// and the OTEL SDK exporter to avoid opening two connections.
-	conn, err := grpc.NewClient(upstreamEndpoint, dialOpts...)
-	if err != nil {
-		log.Fatalf("shipmate: dial upstream: %v", err)
-	}
-	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Printf("shipmate: close upstream conn: %v", err)
-		}
-	}()
-
-	// Build the forwarder and proxy (gRPC OTLP receiver).
-	fwd := newGRPCForwarder(conn, upstreamHeaders)
+	// Build proxy forwarder (gRPC receive → HTTP forward).
+	fwd := newHTTPForwarder(upstreamEndpoint, upstreamHeaders)
 	prx := proxy.New(fwd)
 
-	// Build the OTEL SDK exporter for synthetic spans, reusing the same conn.
-	exp, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
+	// Build OTLP HTTP exporter for synthetic spans.
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(upstreamEndpoint),
+		otlptracehttp.WithHeaders(upstreamHeaders),
+	}
+	if !strings.HasPrefix(upstreamEndpoint, "https://") {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+	exp, err := otlptracehttp.New(ctx, opts...)
 	if err != nil {
 		log.Fatalf("shipmate: create exporter: %v", err)
 	}
-	// Build the recorder (synthetic spans).
-	// The TracerProvider owns the exporter's lifetime; shutting down the provider is sufficient.
+
 	rec, err := recorder.New(exp)
 	if err != nil {
 		log.Fatalf("shipmate: create recorder: %v", err)
@@ -84,8 +74,7 @@ func main() {
 		}
 	}()
 
-	// Start gRPC proxy listener in a goroutine; it blocks until ctx is done.
-	// If Listen fails (e.g. port in use), cancel the context to shut down the whole process.
+	// Start gRPC proxy listener; cancel context on failure.
 	go func() {
 		if err := prx.Listen(ctx, listenAddr); err != nil {
 			log.Printf("shipmate: proxy stopped: %v", err)
@@ -94,7 +83,6 @@ func main() {
 	}()
 	log.Printf("shipmate: OTLP receiver listening on %s", listenAddr)
 
-	// Build and run the MCP server on stdio (blocks until stdin closes).
 	toolServer := server.New(rec, prx)
 	srv := mcp.NewServer(&mcp.Implementation{
 		Name:    "shipmate",
@@ -108,32 +96,50 @@ func main() {
 	}
 }
 
-// grpcForwarder implements proxy.Forwarder using the generated gRPC client.
-// It performs transparent forwarding: the raw proto request is sent to the
-// upstream as-is, without any conversion through the OTEL SDK.
-// Headers are injected explicitly per-call so injection is visible and
-// independent of the shared connection's interceptor chain.
-type grpcForwarder struct {
-	client  collectortrace.TraceServiceClient
-	headers metadata.MD
+// httpForwarder implements proxy.Forwarder by POSTing the proto-encoded
+// request to the upstream's /v1/traces endpoint over HTTP.
+type httpForwarder struct {
+	endpoint string
+	headers  map[string]string
+	client   *http.Client
 }
 
-func newGRPCForwarder(conn *grpc.ClientConn, headers metadata.MD) *grpcForwarder {
-	return &grpcForwarder{client: collectortrace.NewTraceServiceClient(conn), headers: headers}
-}
-
-func (f *grpcForwarder) Export(ctx context.Context, req *collectortrace.ExportTraceServiceRequest) (*collectortrace.ExportTraceServiceResponse, error) {
-	outCtx := ctx
-	if len(f.headers) > 0 {
-		outCtx = metadata.NewOutgoingContext(ctx, f.headers)
+func newHTTPForwarder(endpoint string, headers map[string]string) *httpForwarder {
+	return &httpForwarder{
+		endpoint: strings.TrimRight(endpoint, "/"),
+		headers:  headers,
+		client:   &http.Client{Timeout: 10 * time.Second},
 	}
-	return f.client.Export(outCtx, req)
 }
 
-// parseHeaders parses "Key=Value,Key2=Value2" into gRPC metadata.
-// Keys are lowercased per gRPC convention. Malformed pairs are silently skipped.
-func parseHeaders(raw string) metadata.MD {
-	md := metadata.MD{}
+func (f *httpForwarder) Export(ctx context.Context, req *collectortrace.ExportTraceServiceRequest) (*collectortrace.ExportTraceServiceResponse, error) {
+	body, err := proto.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, f.endpoint+"/v1/traces", bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("new request: %w", err)
+	}
+	httpReq.Header.Set("Content-Type", "application/x-protobuf")
+	for k, v := range f.headers {
+		httpReq.Header.Set(k, v)
+	}
+	resp, err := f.client.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode/100 != 2 {
+		return nil, fmt.Errorf("upstream returned %d", resp.StatusCode)
+	}
+	return &collectortrace.ExportTraceServiceResponse{}, nil
+}
+
+// parseHeaders parses "Key=Value,Key2=Value2" into a string map.
+// Malformed pairs are silently skipped.
+func parseHeaders(raw string) map[string]string {
+	headers := map[string]string{}
 	for _, pair := range strings.Split(raw, ",") {
 		pair = strings.TrimSpace(pair)
 		if pair == "" {
@@ -143,9 +149,7 @@ func parseHeaders(raw string) metadata.MD {
 		if len(parts) != 2 {
 			continue
 		}
-		key := strings.ToLower(strings.TrimSpace(parts[0]))
-		val := strings.TrimSpace(parts[1])
-		md[key] = []string{val}
+		headers[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 	}
-	return md
+	return headers
 }

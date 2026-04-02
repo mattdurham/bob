@@ -35,6 +35,9 @@ func TestRecordCreatesSpan(t *testing.T) {
 	if err := rec.Record(context.Background(), args); err != nil {
 		t.Fatalf("Record: %v", err)
 	}
+	if err := rec.ForceFlush(context.Background()); err != nil {
+		t.Fatalf("ForceFlush: %v", err)
+	}
 
 	spans := exp.GetSpans()
 	if len(spans) != 1 {
@@ -75,6 +78,9 @@ func TestRecordStampsSessionID(t *testing.T) {
 	if err := rec.Record(context.Background(), args); err != nil {
 		t.Fatalf("Record: %v", err)
 	}
+	if err := rec.ForceFlush(context.Background()); err != nil {
+		t.Fatalf("ForceFlush: %v", err)
+	}
 
 	spans := exp.GetSpans()
 	if len(spans) != 1 {
@@ -97,6 +103,9 @@ func TestRecordNoSessionID(t *testing.T) {
 	}
 	if err := rec.Record(context.Background(), args); err != nil {
 		t.Fatalf("Record: %v", err)
+	}
+	if err := rec.ForceFlush(context.Background()); err != nil {
+		t.Fatalf("ForceFlush: %v", err)
 	}
 
 	spans := exp.GetSpans()
@@ -124,6 +133,9 @@ func TestRecordCustomAttributes(t *testing.T) {
 	}
 	if err := rec.Record(context.Background(), args); err != nil {
 		t.Fatalf("Record: %v", err)
+	}
+	if err := rec.ForceFlush(context.Background()); err != nil {
+		t.Fatalf("ForceFlush: %v", err)
 	}
 
 	spans := exp.GetSpans()

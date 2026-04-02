@@ -2,8 +2,6 @@ package main
 
 import (
 	"testing"
-
-	"google.golang.org/grpc/metadata"
 )
 
 func TestParseHeaders(t *testing.T) {
@@ -14,38 +12,34 @@ func TestParseHeaders(t *testing.T) {
 		wantVals []string
 	}{
 		{"empty string", "", nil, nil},
-		{"trailing commas", "Authorization=Bearer abc,,", []string{"authorization"}, []string{"Bearer abc"}},
+		{"trailing commas", "Authorization=Bearer abc,,", []string{"Authorization"}, []string{"Bearer abc"}},
 		{"missing equals", "BadEntry", nil, nil},
-		{"valid pair", "Authorization=Bearer abc", []string{"authorization"}, []string{"Bearer abc"}},
-		{"multiple pairs", "X-Key=val1,Y-Key=val2", []string{"x-key", "y-key"}, []string{"val1", "val2"}},
-		{"value with equals sign", "Authorization=Bearer a=b", []string{"authorization"}, []string{"Bearer a=b"}},
+		{"valid pair", "Authorization=Bearer abc", []string{"Authorization"}, []string{"Bearer abc"}},
+		{"multiple pairs", "X-Key=val1,Y-Key=val2", []string{"X-Key", "Y-Key"}, []string{"val1", "val2"}},
+		{"value with equals sign", "Authorization=Bearer a=b", []string{"Authorization"}, []string{"Bearer a=b"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			md := parseHeaders(tt.input)
+			got := parseHeaders(tt.input)
 			for i, key := range tt.wantKeys {
-				vals, ok := md[key]
+				val, ok := got[key]
 				if !ok {
-					t.Errorf("key %q not found in metadata", key)
+					t.Errorf("key %q not found in headers", key)
 					continue
 				}
-				if vals[0] != tt.wantVals[i] {
-					t.Errorf("key %q: got %q, want %q", key, vals[0], tt.wantVals[i])
+				if val != tt.wantVals[i] {
+					t.Errorf("key %q: got %q, want %q", key, val, tt.wantVals[i])
 				}
 			}
-			// No extra keys for empty/bad inputs
-			if len(tt.wantKeys) == 0 && len(md) != 0 {
-				t.Errorf("expected empty metadata, got %v", md)
+			if len(tt.wantKeys) == 0 && len(got) != 0 {
+				t.Errorf("expected empty headers, got %v", got)
 			}
 		})
 	}
 }
 
-// Ensure parseHeaders returns a non-nil metadata.MD even for empty input.
-func TestParseHeadersReturnsNonNilForEmpty(t *testing.T) {
-	md := parseHeaders("")
-	if md == nil {
-		t.Error("expected non-nil metadata.MD for empty input")
+func TestParseHeadersNonNil(t *testing.T) {
+	if parseHeaders("") == nil {
+		t.Error("expected non-nil map for empty input")
 	}
-	_ = metadata.MD(md) // compile-time type check
 }

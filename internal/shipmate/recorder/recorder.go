@@ -36,14 +36,16 @@ type Recorder struct {
 
 // New creates a Recorder that exports spans via the given SpanExporter.
 // It sets service.name="shipmate" on the TracerProvider resource and uses
-// sdktrace.WithSyncer for synchronous (fire-and-forget) export.
+// sdktrace.WithBatcher for non-blocking, buffered export. Spans are queued
+// in memory and exported in background batches. shipmate_record returns
+// immediately regardless of upstream availability.
 func New(exp sdktrace.SpanExporter) (*Recorder, error) {
 	res := resource.NewWithAttributes(
 		semconv.SchemaURL,
 		semconv.ServiceName("shipmate"),
 	)
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSyncer(exp),
+		sdktrace.WithBatcher(exp),
 		sdktrace.WithResource(res),
 	)
 	return &Recorder{
@@ -53,7 +55,7 @@ func New(exp sdktrace.SpanExporter) (*Recorder, error) {
 }
 
 // Record creates and immediately ends a synthetic span with the given args.
-// The span is exported synchronously before Record returns.
+// Export is non-blocking — spans are queued and flushed in background batches.
 // session.id is omitted entirely when args.SessionID is empty.
 func (r *Recorder) Record(ctx context.Context, args RecordArgs) error {
 	attrs := []attribute.KeyValue{
@@ -73,6 +75,11 @@ func (r *Recorder) Record(ctx context.Context, args RecordArgs) error {
 	)
 	span.End()
 	return nil
+}
+
+// ForceFlush immediately exports all queued spans. Useful in tests.
+func (r *Recorder) ForceFlush(ctx context.Context) error {
+	return r.tp.ForceFlush(ctx)
 }
 
 // Shutdown flushes and closes the underlying TracerProvider.

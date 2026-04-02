@@ -796,6 +796,8 @@ install-shipmate:
 	install -m 0755 shipmate ~/.local/bin/shipmate
 	@rm -f shipmate
 	@echo "shipmate binary installed to ~/.local/bin/shipmate"
+	@echo "Registering shipmate in ~/.claude/settings.json..."
+	@python3 scripts/install-shipmate-mcp.py
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

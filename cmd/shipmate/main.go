@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -313,9 +314,15 @@ func runDaemon(sessionID, upstream, headers string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	hdrs := parseHeaders(headers)
+	if user := os.Getenv("SHIPMATE_AUTH_USER"); user != "" {
+		pass := os.Getenv("SHIPMATE_AUTH_PASSWORD")
+		hdrs["Authorization"] = "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
+	}
+
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(upstream),
-		otlptracehttp.WithHeaders(parseHeaders(headers)),
+		otlptracehttp.WithHeaders(hdrs),
 	}
 	if !strings.HasPrefix(upstream, "https://") {
 		opts = append(opts, otlptracehttp.WithInsecure())

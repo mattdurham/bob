@@ -49,10 +49,10 @@ func TestRecordCreatesSpan(t *testing.T) {
 	}
 
 	attrs := spanAttrsMap(span)
-	if got := attrs["shipmate.agent"]; got != "coder-1" {
+	if got := attrs["memory.agent"]; got != "coder-1" {
 		t.Errorf("shipmate.agent: got %q, want %q", got, "coder-1")
 	}
-	if got := attrs["shipmate.text"]; got != "hello" {
+	if got := attrs["memory.text"]; got != "hello" {
 		t.Errorf("shipmate.text: got %q, want %q", got, "hello")
 	}
 	if got := attrs["k"]; got != "v" {

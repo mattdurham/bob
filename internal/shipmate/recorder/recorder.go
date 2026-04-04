@@ -59,8 +59,8 @@ func New(exp sdktrace.SpanExporter) (*Recorder, error) {
 // session.id is omitted entirely when args.SessionID is empty.
 func (r *Recorder) Record(ctx context.Context, args RecordArgs) error {
 	attrs := []attribute.KeyValue{
-		attribute.String("shipmate.agent", args.Agent),
-		attribute.String("shipmate.text", args.Text),
+		attribute.String("memory.agent", args.Agent),
+		attribute.String("memory.text", args.Text),
 	}
 	if args.SessionID != "" {
 		attrs = append(attrs, attribute.String("session.id", args.SessionID))

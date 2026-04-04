@@ -2,10 +2,12 @@
 //
 // Subcommands:
 //
-//	shipmate start  --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>]
+//	shipmate start  --upstream <url> [--session-id <id>] [--headers K=V,...] [--log-dir <dir>]
 //	shipmate record [--session-id <id>]   # reads hook stdin JSON
 //	shipmate memory --session-id <id> <text>
-//	shipmate stop   --session-id <id>
+//	shipmate stop   [--session-id <id>]   # reads hook stdin JSON when --session-id omitted
+//
+// start and stop read session_id from hook stdin JSON when --session-id is not provided.
 //
 // Internal (not user-facing):
 //
@@ -14,6 +16,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -50,6 +53,8 @@ func main() {
 		runMemory(os.Args[2:])
 	case "stop":
 		runStop(os.Args[2:])
+	case "configure":
+		runConfigure(os.Args[2:])
 	default:
 		usage()
 		os.Exit(1)
@@ -60,10 +65,124 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `shipmate — hook-based OTEL annotation daemon for Claude Code
 
 Usage:
-  shipmate start   --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>]
-  shipmate record  [--session-id <id>]
-  shipmate memory  --session-id <id> <text>
-  shipmate stop    --session-id <id>`)
+  shipmate start      --upstream <url> [--session-id <id>] [--headers K=V,...] [--log-dir <dir>]
+  shipmate record     [--session-id <id>]
+  shipmate memory     --session-id <id> <text>
+  shipmate stop       [--session-id <id>]
+  shipmate configure  --upstream <url> [--headers K=V,...] [--settings <path>]
+
+start and stop read session_id from hook stdin JSON when --session-id is not provided.
+configure registers shipmate hooks in ~/.claude/settings.json.`)
+}
+
+// runConfigure registers shipmate hooks in ~/.claude/settings.json.
+func runConfigure(args []string) {
+	fs := flag.NewFlagSet("configure", flag.ExitOnError)
+	upstream := fs.String("upstream", "http://localhost:4318", "Upstream OTLP HTTP endpoint")
+	headers := fs.String("headers", "", "Optional comma-separated Key=Value headers for upstream")
+	settingsPath := fs.String("settings", "", "Path to settings.json (default ~/.claude/settings.json)")
+	fs.Parse(args) //nolint:errcheck
+
+	if *settingsPath == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("shipmate configure: get home dir: %v", err)
+		}
+		*settingsPath = filepath.Join(home, ".claude", "settings.json")
+	}
+
+	self, err := os.Executable()
+	if err != nil {
+		log.Fatalf("shipmate configure: resolve executable: %v", err)
+	}
+
+	// Read existing settings or start fresh.
+	var settings map[string]any
+	data, err := os.ReadFile(*settingsPath)
+	if err != nil && !os.IsNotExist(err) {
+		log.Fatalf("shipmate configure: read %s: %v", *settingsPath, err)
+	}
+	if len(data) > 0 {
+		if err := json.Unmarshal(data, &settings); err != nil {
+			log.Fatalf("shipmate configure: parse %s: %v", *settingsPath, err)
+		}
+	}
+	if settings == nil {
+		settings = map[string]any{}
+	}
+
+	// Remove old MCP server entry if present.
+	if mcpServers, ok := settings["mcpServers"].(map[string]any); ok {
+		if _, has := mcpServers["shipmate"]; has {
+			delete(mcpServers, "shipmate")
+			fmt.Println("  removed old mcpServers.shipmate entry")
+		}
+	}
+
+	// Remove old OTEL proxy env vars.
+	oldEnvKeys := []string{
+		"OTEL_TRACES_EXPORTER",
+		"OTEL_EXPORTER_OTLP_ENDPOINT",
+		"OTEL_EXPORTER_OTLP_PROTOCOL",
+	}
+	if env, ok := settings["env"].(map[string]any); ok {
+		for _, key := range oldEnvKeys {
+			if _, has := env[key]; has {
+				delete(env, key)
+				fmt.Printf("  removed env.%s (was for old gRPC proxy)\n", key)
+			}
+		}
+	}
+
+	// Ensure telemetry env vars are set.
+	env, _ := settings["env"].(map[string]any)
+	if env == nil {
+		env = map[string]any{}
+	}
+	if _, ok := env["CLAUDE_CODE_ENABLE_TELEMETRY"]; !ok {
+		env["CLAUDE_CODE_ENABLE_TELEMETRY"] = "1"
+	}
+	if _, ok := env["CLAUDE_CODE_ENHANCED_TELEMETRY_BETA"]; !ok {
+		env["CLAUDE_CODE_ENHANCED_TELEMETRY_BETA"] = "1"
+	}
+	settings["env"] = env
+
+	// Build hook commands.
+	startCmd := self + " start --upstream " + *upstream
+	if *headers != "" {
+		startCmd += " --headers " + *headers
+	}
+	stopCmd := self + " stop"
+	recordCmd := self + " record"
+
+	hook := func(cmd string) map[string]any {
+		return map[string]any{"hooks": []any{map[string]any{"type": "command", "command": cmd}}}
+	}
+
+	hooks, _ := settings["hooks"].(map[string]any)
+	if hooks == nil {
+		hooks = map[string]any{}
+	}
+	hooks["SessionStart"] = []any{hook(startCmd)}
+	hooks["Stop"] = []any{hook(stopCmd)}
+	for _, event := range []string{"PostToolUse", "SubagentStart", "SubagentStop", "TaskCreated", "TaskCompleted"} {
+		hooks[event] = []any{hook(recordCmd)}
+	}
+	settings["hooks"] = hooks
+
+	out, err := json.MarshalIndent(settings, "", "  ")
+	if err != nil {
+		log.Fatalf("shipmate configure: marshal settings: %v", err)
+	}
+	out = append(out, '\n')
+
+	if err := os.WriteFile(*settingsPath, out, 0o644); err != nil {
+		log.Fatalf("shipmate configure: write %s: %v", *settingsPath, err)
+	}
+
+	fmt.Printf("  shipmate hooks registered in %s\n", *settingsPath)
+	fmt.Printf("  upstream endpoint: %s\n", *upstream)
+	fmt.Println("  restart Claude Code to activate")
 }
 
 // sockPath returns the Unix socket path for a given session ID.
@@ -101,7 +220,7 @@ func parseHeaders(raw string) map[string]string {
 // or (when --daemon is set) runs the server loop directly.
 func runStart(args []string) {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
-	sessionID := fs.String("session-id", "", "Session ID (required)")
+	sessionID := fs.String("session-id", "", "Session ID (default: read from hook stdin JSON)")
 	upstream := fs.String("upstream", "", "Upstream OTLP HTTP endpoint, e.g. http://localhost:4318 (required)")
 	headers := fs.String("headers", "", "Optional comma-separated Key=Value headers")
 	logDir := fs.String("log-dir", "", "Directory for daemon log file (default ~/.local/share/shipmate)")
@@ -114,8 +233,16 @@ func runStart(args []string) {
 		return
 	}
 
+	// When --session-id is omitted, read it from hook stdin JSON.
 	if *sessionID == "" {
-		log.Fatal("shipmate start: --session-id is required")
+		cmd, err := hook.ParseHookInput(os.Stdin)
+		if err != nil {
+			log.Fatalf("shipmate start: parse stdin for session_id: %v", err)
+		}
+		*sessionID = cmd.SessionID
+	}
+	if *sessionID == "" {
+		log.Fatal("shipmate start: --session-id is required (or provide hook JSON on stdin)")
 	}
 	if *upstream == "" {
 		log.Fatal("shipmate start: --upstream is required")
@@ -283,9 +410,18 @@ func runMemory(args []string) {
 // runStop sends a stop command to the daemon.
 func runStop(args []string) {
 	fs := flag.NewFlagSet("stop", flag.ExitOnError)
-	sessionID := fs.String("session-id", os.Getenv("SHIPMATE_SESSION_ID"), "Session ID")
+	sessionID := fs.String("session-id", os.Getenv("SHIPMATE_SESSION_ID"), "Session ID (default: read from hook stdin JSON)")
 	fs.Parse(args) //nolint:errcheck
 
+	// When --session-id is omitted, read it from hook stdin JSON.
+	if *sessionID == "" {
+		cmd, err := hook.ParseHookInput(os.Stdin)
+		if err != nil {
+			log.Printf("shipmate stop: parse stdin for session_id: %v (nothing to stop)", err)
+			os.Exit(0)
+		}
+		*sessionID = cmd.SessionID
+	}
 	if *sessionID == "" {
 		log.Printf("shipmate stop: no session ID — nothing to stop")
 		os.Exit(0)

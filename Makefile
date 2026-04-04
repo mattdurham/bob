@@ -802,7 +802,9 @@ install-shipmate:
 	@rm -f shipmate
 	@echo "shipmate binary installed to ~/.local/bin/shipmate"
 	@echo "Registering shipmate in ~/.claude/settings.json..."
-	@python3 scripts/install-shipmate.py
+	@~/.local/bin/shipmate configure \
+		--upstream "$${SHIPMATE_UPSTREAM_ENDPOINT:-http://localhost:4318}" \
+		$(if $(SHIPMATE_UPSTREAM_HEADERS),--headers "$(SHIPMATE_UPSTREAM_HEADERS)")
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

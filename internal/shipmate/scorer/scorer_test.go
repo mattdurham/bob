@@ -140,7 +140,7 @@ func TestScore_EnrichesSpansWithClaudeOutput(t *testing.T) {
 	found := false
 	for _, s := range upstream.spans {
 		for _, kv := range s.Attributes() {
-			if string(kv.Key) == "shipmate.score" {
+			if string(kv.Key) == "memory.score" {
 				found = true
 				if kv.Value.AsString() != "high" {
 					t.Errorf("shipmate.score: got %q, want %q", kv.Value.AsString(), "high")
@@ -344,7 +344,7 @@ func TestScore_MultipleScoresMatchedByName(t *testing.T) {
 	scoresByName := map[string]string{}
 	for _, s := range upstream.spans {
 		for _, kv := range s.Attributes() {
-			if string(kv.Key) == "shipmate.score" {
+			if string(kv.Key) == "memory.score" {
 				scoresByName[s.Name()] = kv.Value.AsString()
 			}
 		}

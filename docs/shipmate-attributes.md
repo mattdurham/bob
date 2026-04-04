@@ -71,8 +71,8 @@ Set when Claude calls `shipmate memory "text"` via the Bash tool.
 
 | Attribute | Source | Description |
 |-----------|--------|-------------|
-| `shipmate.text` | memory command | Free-text annotation Claude added to the trace |
-| `shipmate.source` | memory command | Always `"memory"` — identifies annotation spans |
+| `memory.text` | memory command | Free-text annotation Claude added to the trace |
+| `memory.source` | memory command | Always `"memory"` — identifies annotation spans |
 
 ## Quality Scoring
 

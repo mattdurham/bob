@@ -134,8 +134,8 @@ func TestServe_MemoryCommandCreatesSpan(t *testing.T) {
 		t.Errorf("span name: got %q, want %q", spans[0].Name, "memory")
 	}
 	attrs := spanAttrsMap(spans[0])
-	if attrs["shipmate.text"] != "an important observation" {
-		t.Errorf("shipmate.text: got %q, want %q", attrs["shipmate.text"], "an important observation")
+	if attrs["memory.text"] != "an important observation" {
+		t.Errorf("shipmate.text: got %q, want %q", attrs["memory.text"], "an important observation")
 	}
 }
 

@@ -169,10 +169,10 @@ func enrichSpans(spans []sdktrace.ReadOnlySpan, scores []scoreEntry) []sdktrace.
 			continue
 		}
 		extra := []attribute.KeyValue{
-			attribute.String("shipmate.score", se.Score),
+			attribute.String("memory.score", se.Score),
 		}
 		if se.Reason != "" {
-			extra = append(extra, attribute.String("shipmate.score.reason", se.Reason))
+			extra = append(extra, attribute.String("memory.score.reason", se.Reason))
 		}
 		stubs[i].Attributes = append(stub.Attributes, extra...)
 	}

@@ -91,9 +91,34 @@ func (b *BufferingExporter) Shutdown(ctx context.Context) error {
 // Errors from the claude subprocess (non-zero exit, timeout, bad JSON) are
 // logged and do not prevent spans from being forwarded. Score always returns nil.
 func (b *BufferingExporter) Score(ctx context.Context) error {
+	return b.score(ctx, false)
+}
+
+// ScoreBatch scores and ships all buffered spans except the most recent one,
+// which is left in the buffer. Used by the periodic ticker so that an
+// in-progress operation is not prematurely evaluated.
+//
+// If there is only one span buffered, nothing is flushed.
+func (b *BufferingExporter) ScoreBatch(ctx context.Context) error {
+	return b.score(ctx, true)
+}
+
+// score implements Score and ScoreBatch. When keepLast is true, the most
+// recently buffered span is retained for the next call.
+func (b *BufferingExporter) score(ctx context.Context, keepLast bool) error {
 	b.mu.Lock()
-	spans := b.spans
-	b.spans = nil
+	if keepLast && len(b.spans) <= 1 {
+		b.mu.Unlock()
+		return nil
+	}
+	var spans []sdktrace.ReadOnlySpan
+	if keepLast {
+		spans = b.spans[:len(b.spans)-1]
+		b.spans = b.spans[len(b.spans)-1:]
+	} else {
+		spans = b.spans
+		b.spans = nil
+	}
 	b.mu.Unlock()
 
 	if len(spans) == 0 {

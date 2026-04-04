@@ -17,11 +17,16 @@ import (
 	"github.com/mattdurham/bob/internal/shipmate/recorder"
 )
 
+// batchInterval is how often Serve runs a partial score+flush of buffered spans.
+// Package-level var so tests can override it.
+var batchInterval = 5 * time.Minute
+
 // Scorer is an optional interface that can be implemented by the span exporter
-// to score buffered spans at session end (e.g. scorer.BufferingExporter).
-// If the recorder's exporter implements Scorer, Serve calls Score() before flush.
+// to score buffered spans (e.g. scorer.BufferingExporter).
+// Score flushes everything; ScoreBatch flushes all but the most recent span.
 type Scorer interface {
 	Score(ctx context.Context) error
+	ScoreBatch(ctx context.Context) error
 }
 
 // Serve listens on a Unix socket at sockPath, dispatching commands to rec.
@@ -50,6 +55,30 @@ func Serve(ctx context.Context, sockPath string, rec *recorder.Recorder, sc Scor
 		}
 		_ = ln.Close()
 	}()
+
+	// Periodic batch scorer: every batchInterval, score and ship all buffered
+	// spans except the most recent one (which may still be part of an in-progress
+	// operation). Runs independently of the accept loop.
+	if sc != nil {
+		go func() {
+			ticker := time.NewTicker(batchInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					batchCtx, cancel := context.WithTimeout(context.Background(), 35*time.Second)
+					if err := sc.ScoreBatch(batchCtx); err != nil {
+						log.Printf("shipmate: daemon: periodic score: %v", err)
+					}
+					cancel()
+				case <-stopCh:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	var wg sync.WaitGroup
 	for {

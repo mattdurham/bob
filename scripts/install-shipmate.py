@@ -26,7 +26,9 @@ SHIPMATE_BIN = os.path.expanduser("~/.local/bin/shipmate")
 SETTINGS_PATH = os.path.expanduser("~/.claude/settings.json")
 
 upstream = os.environ.get("SHIPMATE_UPSTREAM_ENDPOINT", "http://localhost:4318")
-headers = os.environ.get("SHIPMATE_UPSTREAM_HEADERS", "")
+headers  = os.environ.get("SHIPMATE_UPSTREAM_HEADERS", "")
+user     = os.environ.get("SHIPMATE_UPSTREAM_USER", "")
+token    = os.environ.get("SHIPMATE_UPSTREAM_TOKEN", "")
 
 if not os.path.exists(SETTINGS_PATH):
     print(f"  settings.json not found at {SETTINGS_PATH}, creating minimal file")
@@ -69,6 +71,16 @@ start_cmd = (
 if headers:
     start_cmd += f" --headers {shlex.quote(headers)}"
 
+# SHIPMATE_UPSTREAM_USER/TOKEN bake the env vars into the hook environment
+# so the daemon child process can read them to build the Basic auth header.
+env_prefix = ""
+if user:
+    env_prefix += f"SHIPMATE_UPSTREAM_USER={shlex.quote(user)} "
+if token:
+    env_prefix += f"SHIPMATE_UPSTREAM_TOKEN={shlex.quote(token)} "
+if env_prefix:
+    start_cmd = env_prefix + start_cmd
+
 # Stop: extract session_id from stdin JSON and send stop.
 stop_cmd = (
     f"jq -r '.session_id' | xargs -I{{}} "
@@ -91,4 +103,6 @@ with open(SETTINGS_PATH, "w") as f:
 
 print(f"  shipmate hooks registered in {SETTINGS_PATH}")
 print(f"  upstream endpoint: {upstream}")
+if user:
+    print(f"  auth: Basic ({user}:***)")
 print("  restart Claude Code to activate")

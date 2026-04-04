@@ -14,6 +14,7 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"log"
@@ -174,6 +175,22 @@ func runStart(args []string) {
 	os.Exit(0)
 }
 
+// buildHeaders merges explicit headers with Basic auth from env vars.
+// SHIPMATE_UPSTREAM_USER + SHIPMATE_UPSTREAM_TOKEN → "Authorization: Basic <base64(user:token)>"
+// Explicit --headers take precedence over the constructed Basic auth header.
+func buildHeaders(raw string) map[string]string {
+	h := parseHeaders(raw)
+	user := os.Getenv("SHIPMATE_UPSTREAM_USER")
+	token := os.Getenv("SHIPMATE_UPSTREAM_TOKEN")
+	if user != "" && token != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(user + ":" + token))
+		if _, exists := h["Authorization"]; !exists {
+			h["Authorization"] = "Basic " + encoded
+		}
+	}
+	return h
+}
+
 // runDaemon is the long-running server loop executed in the daemon child process.
 func runDaemon(sessionID, upstream, headers string) {
 	if sessionID == "" {
@@ -188,7 +205,7 @@ func runDaemon(sessionID, upstream, headers string) {
 
 	opts := []otlptracehttp.Option{
 		otlptracehttp.WithEndpoint(upstream),
-		otlptracehttp.WithHeaders(parseHeaders(headers)),
+		otlptracehttp.WithHeaders(buildHeaders(headers)),
 	}
 	if !strings.HasPrefix(upstream, "https://") {
 		opts = append(opts, otlptracehttp.WithInsecure())

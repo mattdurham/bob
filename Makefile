@@ -5,6 +5,8 @@ SPEC ?= full
 
 .PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python install-shipmate
 
+.DEFAULT_GOAL := help
+
 all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
 	@echo "✅ Full system installation complete!"

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -41,5 +42,16 @@ func TestParseHeaders(t *testing.T) {
 func TestParseHeadersNonNil(t *testing.T) {
 	if parseHeaders("") == nil {
 		t.Error("expected non-nil map for empty input")
+	}
+}
+
+func TestSockPath(t *testing.T) {
+	sessionID := "abc123"
+	got, err := sockPath(sessionID)
+	if err != nil {
+		t.Fatalf("sockPath(%q) unexpected error: %v", sessionID, err)
+	}
+	if !strings.Contains(got, sessionID+".sock") {
+		t.Errorf("sockPath(%q) = %q, want it to contain %q", sessionID, got, sessionID+".sock")
 	}
 }

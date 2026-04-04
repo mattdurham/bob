@@ -37,7 +37,7 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
 	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
-	@echo "  make install-shipmate         - Build + install shipmate OTLP proxy MCP server to ~/.local/bin"
+	@echo "  make install-shipmate         - Build + install shipmate hook daemon to ~/.local/bin"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -797,7 +797,7 @@ install-shipmate:
 	@rm -f shipmate
 	@echo "shipmate binary installed to ~/.local/bin/shipmate"
 	@echo "Registering shipmate in ~/.claude/settings.json..."
-	@python3 scripts/install-shipmate-mcp.py
+	@python3 scripts/install-shipmate.py
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

@@ -5,8 +5,6 @@ SPEC ?= full
 
 .PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python install-shipmate
 
-.DEFAULT_GOAL := help
-
 all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
 	@echo "✅ Full system installation complete!"
@@ -165,12 +163,7 @@ install-agents:
 	@echo "  commit-agent                  - Git operations & PR creation"
 	@echo "  monitor-agent                 - CI/CD & PR monitoring"
 	@echo ""
-	@echo "Workers - Teams (Knowledge):"
-	@echo "  team-brainstormer             - Researches codebase, stays alive for Q&A"
-	@echo "  team-planner                  - Creates implementation plan, stays alive for Q&A"
-	@echo "  team-spec-oracle              - Spec invariant authority + doc updates (full spec mode)"
-	@echo ""
-	@echo "Workers - Teams (Execution):"
+	@echo "Workers - Teams:"
 	@echo "  team-coder                    - Concurrent coder teammate"
 	@echo "  team-reviewer                 - Concurrent reviewer teammate"
 	@echo "  team-analyst                  - Concurrent analyst teammate (exploration)"
@@ -804,9 +797,7 @@ install-shipmate:
 	@rm -f shipmate
 	@echo "shipmate binary installed to ~/.local/bin/shipmate"
 	@echo "Registering shipmate in ~/.claude/settings.json..."
-	@~/.local/bin/shipmate configure \
-		--upstream "$${SHIPMATE_UPSTREAM_ENDPOINT:-http://localhost:4318}" \
-		$(if $(SHIPMATE_UPSTREAM_HEADERS),--headers "$(SHIPMATE_UPSTREAM_HEADERS)")
+	@python3 scripts/install-shipmate.py
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

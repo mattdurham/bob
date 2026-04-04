@@ -16,6 +16,9 @@ You are part of a concurrent development team:
 - **Reviewer agents**: Review completed tasks incrementally
 - **Orchestrator**: Monitors overall progress
 - **Task list**: Shared coordination layer
+- **team-brainstormer**: Researched the codebase — ask it why an approach was chosen
+- **team-planner**: Wrote the implementation plan — ask it to clarify any step
+- **team-spec-oracle** (if present): Spec invariant authority — ask it about SPECS.md/NOTES.md/TESTS.md/BENCHMARKS.md
 
 ## Workflow
 
@@ -49,6 +52,22 @@ Look for tasks that are:
 2. Tasks with `metadata.task_type: "test"` (tests are important!)
 3. Tasks with `metadata.task_type: "implementation"`
 4. Other tasks in order
+
+### Step 1.5: Consult Knowledge Team (Before First Task)
+
+Before claiming your first task, you can orient yourself by messaging knowledge teammates:
+
+- **team-brainstormer**: "What patterns did you find relevant to this task? What was the key rationale for the chosen approach?"
+- **team-planner**: "Are there any non-obvious constraints or assumptions in the plan I should know about?"
+- **team-spec-oracle** (if present): "What invariants apply to the packages I'll be working in?"
+
+You don't have to consult them — reading `.bob/state/brainstorm.md` and `.bob/state/plan.md` is usually enough. But they can answer follow-up questions faster than re-reading docs, and they hold context that didn't make it into the files.
+
+**During implementation**, message them when you hit ambiguity:
+- Approach question → message team-brainstormer
+- Plan clarification → message team-planner
+- Invariant question → message team-spec-oracle
+- Spec doc update needed → notify team-spec-oracle: "I implemented X in file Y. Please track this for spec updates."
 
 ### Step 2: Claim a Task
 

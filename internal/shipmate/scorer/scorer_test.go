@@ -124,7 +124,7 @@ func TestScore_EnrichesSpansWithClaudeOutput(t *testing.T) {
 
 	// Inject a stub that returns a score for "Bash".
 	origExec := execScorer
-	execScorer = stubExecSuccess([]scoreEntry{{Name: "Bash", Score: "high", Reason: "efficient tool use"}})
+	execScorer = stubExecSuccess([]scoreEntry{{Name: "Bash", Score: 0.9, Comment: "efficient tool use"}})
 	defer func() { execScorer = origExec }()
 
 	if err := buf.Score(context.Background()); err != nil {
@@ -142,8 +142,8 @@ func TestScore_EnrichesSpansWithClaudeOutput(t *testing.T) {
 		for _, kv := range s.Attributes() {
 			if string(kv.Key) == "memory.score" {
 				found = true
-				if kv.Value.AsString() != "high" {
-					t.Errorf("shipmate.score: got %q, want %q", kv.Value.AsString(), "high")
+				if kv.Value.AsFloat64() != 0.9 {
+					t.Errorf("memory.score: got %v, want 0.9", kv.Value.AsFloat64())
 				}
 			}
 		}
@@ -332,8 +332,8 @@ func TestScore_MultipleScoresMatchedByName(t *testing.T) {
 
 	origExec := execScorer
 	execScorer = stubExecSuccess([]scoreEntry{
-		{Name: "Bash", Score: "high", Reason: "fast"},
-		{Name: "Read", Score: "low", Reason: "slow"},
+		{Name: "Bash", Score: 0.9, Comment: "fast"},
+		{Name: "Read", Score: -0.5, Comment: "slow"},
 	})
 	defer func() { execScorer = origExec }()
 
@@ -341,20 +341,20 @@ func TestScore_MultipleScoresMatchedByName(t *testing.T) {
 		t.Fatalf("Score: %v", err)
 	}
 
-	scoresByName := map[string]string{}
+	scoresByName := map[string]float64{}
 	for _, s := range upstream.spans {
 		for _, kv := range s.Attributes() {
 			if string(kv.Key) == "memory.score" {
-				scoresByName[s.Name()] = kv.Value.AsString()
+				scoresByName[s.Name()] = kv.Value.AsFloat64()
 			}
 		}
 	}
 
-	if scoresByName["Bash"] != "high" {
-		t.Errorf("Bash score: got %q, want %q", scoresByName["Bash"], "high")
+	if scoresByName["Bash"] != 0.9 {
+		t.Errorf("Bash score: got %v, want 0.9", scoresByName["Bash"])
 	}
-	if scoresByName["Read"] != "low" {
-		t.Errorf("Read score: got %q, want %q", scoresByName["Read"], "low")
+	if scoresByName["Read"] != -0.5 {
+		t.Errorf("Read score: got %v, want -0.5", scoresByName["Read"])
 	}
 	// Write had no matching score entry — it should still be exported (unenriched).
 	found := false

@@ -80,9 +80,9 @@ Set by the scorer on session stop after calling `claude -p` for LLM-as-judge eva
 
 | Attribute | Source | Description |
 |-----------|--------|-------------|
-| `score` | Scorer | Quality score 0.0–1.0 |
-| `score.comments` | Scorer | LLM commentary on quality |
-| `score.span_ref` | Scorer | Span ID of the original span being scored |
+| `memory.score` | Scorer | Float -1.0 (incorrect) → 0.0 (neutral) → 1.0 (helpful) |
+| `memory.score.comment` | Scorer | One-sentence LLM explanation in context of the full session |
+
 
 ## Service Identity
 

@@ -35,9 +35,9 @@ var execScorer = exec.CommandContext
 
 // scoreEntry is the JSON element returned by `claude -p` for each span.
 type scoreEntry struct {
-	Name   string `json:"name"`
-	Score  string `json:"score"`
-	Reason string `json:"reason"`
+	Name    string  `json:"name"`
+	Score   float64 `json:"score"`  // -1.0 (incorrect) to 1.0 (helpful), 0 = neutral
+	Comment string  `json:"comment"`
 }
 
 // BufferingExporter implements sdktrace.SpanExporter.
@@ -159,22 +159,46 @@ func (b *BufferingExporter) callClaude(ctx context.Context, spans []sdktrace.Rea
 }
 
 // buildPrompt constructs the text prompt sent to `claude -p`.
+// All spans are provided as full context so the LLM can judge each span
+// relative to the whole session. The user's original prompt (prompt.text
+// attribute) is surfaced separately so the LLM can evaluate helpfulness
+// against the original intent.
 func buildPrompt(spans []sdktrace.ReadOnlySpan) string {
 	var sb strings.Builder
-	sb.WriteString("You are reviewing a session trace for a Claude Code agent. " +
-		"Below is a list of spans (tool calls and events) recorded during the session. " +
-		"For each span, respond with a JSON array of objects with fields: " +
-		"\"name\" (matching the span name), \"score\" (\"high\", \"medium\", or \"low\"), " +
-		"and \"reason\" (a brief explanation). " +
-		"Return ONLY the JSON array, no other text.\n\nSpans:\n")
 
+	// Extract user prompt from any span that carries it.
+	userPrompt := ""
+	for _, s := range spans {
+		for _, kv := range s.Attributes() {
+			if string(kv.Key) == "prompt.text" && kv.Value.AsString() != "" {
+				userPrompt = kv.Value.AsString()
+			}
+		}
+	}
+
+	sb.WriteString("You are evaluating individual spans from a Claude Code agent session.\n\n")
+	if userPrompt != "" {
+		fmt.Fprintf(&sb, "The user's original request was:\n%s\n\n", userPrompt)
+	}
+	sb.WriteString("Below is the FULL session trace (all spans) for context, followed by the list of spans to score.\n\n")
+	sb.WriteString("=== FULL SESSION TRACE ===\n")
 	for i, s := range spans {
-		fmt.Fprintf(&sb, "%d. name=%q", i+1, s.Name())
+		fmt.Fprintf(&sb, "%d. [%s]", i+1, s.Name())
 		for _, kv := range s.Attributes() {
 			fmt.Fprintf(&sb, " %s=%q", kv.Key, kv.Value.AsString())
 		}
 		sb.WriteByte('\n')
 	}
+
+	sb.WriteString("\n=== SCORE EACH SPAN ===\n")
+	sb.WriteString("For each span above, using the full session context, return a JSON array of objects with:\n")
+	sb.WriteString("  \"name\": the span name (string)\n")
+	sb.WriteString("  \"score\": float from -1.0 to 1.0 where:\n")
+	sb.WriteString("    1.0  = highly helpful, correct, moved the session forward\n")
+	sb.WriteString("    0.0  = neutral, routine, neither helpful nor harmful\n")
+	sb.WriteString("   -1.0  = incorrect, counterproductive, or harmful to the session goal\n")
+	sb.WriteString("  \"comment\": one sentence explaining the score in context of the full session\n")
+	sb.WriteString("\nReturn ONLY the JSON array, no markdown, no other text.\n")
 	return sb.String()
 }
 
@@ -194,10 +218,10 @@ func enrichSpans(spans []sdktrace.ReadOnlySpan, scores []scoreEntry) []sdktrace.
 			continue
 		}
 		extra := []attribute.KeyValue{
-			attribute.String("memory.score", se.Score),
+			attribute.Float64("memory.score", se.Score),
 		}
-		if se.Reason != "" {
-			extra = append(extra, attribute.String("memory.score.reason", se.Reason))
+		if se.Comment != "" {
+			extra = append(extra, attribute.String("memory.score.comment", se.Comment))
 		}
 		stubs[i].Attributes = append(stub.Attributes, extra...)
 	}

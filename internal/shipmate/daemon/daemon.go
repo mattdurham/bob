@@ -22,6 +22,7 @@ import (
 // If the recorder's exporter implements Scorer, Serve calls Score() before flush.
 type Scorer interface {
 	Score(ctx context.Context) error
+	Peek(ctx context.Context)
 }
 
 // Serve listens on a Unix socket at sockPath, dispatching commands to rec.
@@ -50,6 +51,26 @@ func Serve(ctx context.Context, sockPath string, rec *recorder.Recorder, sc Scor
 		}
 		_ = ln.Close()
 	}()
+
+	// Periodic flush goroutine: export a snapshot every 5 minutes without clearing the buffer.
+	if sc != nil {
+		go func() {
+			ticker := time.NewTicker(5 * time.Minute)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					peekCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+					sc.Peek(peekCtx)
+					cancel()
+				case <-stopCh:
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 
 	var wg sync.WaitGroup
 	for {

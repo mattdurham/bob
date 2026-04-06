@@ -61,6 +61,24 @@ func (b *BufferingExporter) ExportSpans(_ context.Context, spans []sdktrace.Read
 	return nil
 }
 
+// Peek exports a snapshot of the current buffer to the upstream without clearing it.
+// Spans may appear twice in the upstream: once from Peek and once (scored) from Score/Shutdown.
+// Non-fatal: errors are logged and do not affect the buffer.
+func (b *BufferingExporter) Peek(ctx context.Context) {
+	b.mu.Lock()
+	snapshot := make([]sdktrace.ReadOnlySpan, len(b.spans))
+	copy(snapshot, b.spans)
+	b.mu.Unlock()
+
+	if len(snapshot) == 0 {
+		return
+	}
+	log.Printf("shipmate: scorer: periodic flush: exporting %d spans", len(snapshot))
+	if err := b.upstream.ExportSpans(ctx, snapshot); err != nil {
+		log.Printf("shipmate: scorer: periodic flush: %v", err)
+	}
+}
+
 // Shutdown forwards any buffered spans to the upstream and then shuts it down.
 // It does not call Score(). Call Score() explicitly before Shutdown if scoring
 // is desired.

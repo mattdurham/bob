@@ -10,20 +10,40 @@ import (
 	"time"
 
 	"github.com/mattdurham/bob/internal/shipmate/hook"
-	"github.com/mattdurham/bob/internal/shipmate/recorder"
+	"github.com/mattdurham/bob/internal/shipmate/transcript"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 )
 
-func newTestRecorder(t *testing.T) (*recorder.Recorder, *tracetest.InMemoryExporter) {
+// noopExporter is a SpanExporter that discards all spans.
+type noopExporter struct{}
+
+func (n *noopExporter) ExportSpans(_ context.Context, _ []sdktrace.ReadOnlySpan) error {
+	return nil
+}
+func (n *noopExporter) Shutdown(_ context.Context) error { return nil }
+
+// newNoopTurnExporter creates a TurnExporter backed by a no-op exporter for tests.
+func newNoopTurnExporter(t *testing.T) *transcript.TurnExporter {
 	t.Helper()
-	exp := tracetest.NewInMemoryExporter()
-	rec, err := recorder.New(exp)
-	if err != nil {
-		t.Fatalf("recorder.New: %v", err)
+	dir := t.TempDir()
+	path := filepath.Join(dir, "transcript.jsonl")
+	// Create empty transcript file.
+	if err := os.WriteFile(path, nil, 0o644); err != nil {
+		t.Fatalf("write empty transcript: %v", err)
 	}
-	t.Cleanup(func() { rec.Shutdown(context.Background()) }) //nolint:errcheck
-	return rec, exp
+	return transcript.NewTurnExporter(path, "test-session", &noopExporter{})
+}
+
+// shortSockPath creates a short temporary socket path within os.TempDir() to
+// avoid the 104-byte Unix socket path limit on macOS.
+func shortSockPath(t *testing.T, name string) string {
+	t.Helper()
+	dir, err := os.MkdirTemp("", "sm-")
+	if err != nil {
+		t.Fatalf("MkdirTemp: %v", err)
+	}
+	t.Cleanup(func() { os.RemoveAll(dir) })
+	return filepath.Join(dir, name)
 }
 
 // sendCmd connects to sockPath and sends cmd as NDJSON.
@@ -39,7 +59,7 @@ func sendCmd(t *testing.T, sockPath string, cmd hook.Command) {
 	}
 }
 
-// waitSocket polls until the socket file exists or a 2-second deadline passes.
+// waitSocket polls until the socket file appears or a 2-second deadline passes.
 func waitSocket(t *testing.T, sockPath string) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -52,105 +72,18 @@ func waitSocket(t *testing.T, sockPath string) {
 	t.Fatalf("socket %s did not appear within 2s", sockPath)
 }
 
-// pollSpans calls rec.ForceFlush in a loop until exp has at least want spans
-// or a 2-second deadline passes. This replaces time.Sleep synchronization.
-func pollSpans(t *testing.T, rec *recorder.Recorder, exp *tracetest.InMemoryExporter, want int) {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		if err := rec.ForceFlush(context.Background()); err == nil {
-			if len(exp.GetSpans()) >= want {
-				return
-			}
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	// Final flush attempt; let the caller assert on the count.
-	rec.ForceFlush(context.Background()) //nolint:errcheck
-}
-
-func TestServe_RecordCommandCreatesSpan(t *testing.T) {
-	rec, exp := newTestRecorder(t)
-	sockPath := filepath.Join(t.TempDir(), "test.sock")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { Serve(ctx, sockPath, rec, nil) }() //nolint:errcheck
-	waitSocket(t, sockPath)
-
-	sendCmd(t, sockPath, hook.Command{
-		Type:      "record",
-		SessionID: "ses-d1",
-		HookEvent: "Bash",
-		Attrs:     map[string]string{"tool.command": "ls"},
-	})
-
-	// Poll until the span is visible or a 2-second deadline passes.
-	pollSpans(t, rec, exp, 1)
-	cancel()
-
-	spans := exp.GetSpans()
-	if len(spans) != 1 {
-		t.Fatalf("expected 1 span, got %d", len(spans))
-	}
-	if spans[0].Name != "Bash" {
-		t.Errorf("span name: got %q, want %q", spans[0].Name, "Bash")
-	}
-	attrs := spanAttrsMap(spans[0])
-	if attrs["session.id"] != "ses-d1" {
-		t.Errorf("session.id: got %q, want %q", attrs["session.id"], "ses-d1")
-	}
-	if attrs["tool.command"] != "ls" {
-		t.Errorf("tool.command: got %q, want %q", attrs["tool.command"], "ls")
-	}
-}
-
-func TestServe_MemoryCommandCreatesSpan(t *testing.T) {
-	rec, exp := newTestRecorder(t)
-	sockPath := filepath.Join(t.TempDir(), "test.sock")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { Serve(ctx, sockPath, rec, nil) }() //nolint:errcheck
-	waitSocket(t, sockPath)
-
-	sendCmd(t, sockPath, hook.Command{
-		Type:      "memory",
-		SessionID: "ses-d2",
-		Text:      "an important observation",
-	})
-
-	// Poll until the span is visible or a 2-second deadline passes.
-	pollSpans(t, rec, exp, 1)
-	cancel()
-
-	spans := exp.GetSpans()
-	if len(spans) != 1 {
-		t.Fatalf("expected 1 span, got %d", len(spans))
-	}
-	if spans[0].Name != "memory" {
-		t.Errorf("span name: got %q, want %q", spans[0].Name, "memory")
-	}
-	attrs := spanAttrsMap(spans[0])
-	if attrs["memory.text"] != "an important observation" {
-		t.Errorf("shipmate.text: got %q, want %q", attrs["memory.text"], "an important observation")
-	}
-}
-
 func TestServe_StopCommandCausesReturn(t *testing.T) {
-	rec, _ := newTestRecorder(t)
-	sockPath := filepath.Join(t.TempDir(), "test.sock")
+	te := newNoopTurnExporter(t)
+	sockPath := shortSockPath(t, "t.sock")
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	errCh := make(chan error, 1)
-	go func() { errCh <- Serve(ctx, sockPath, rec, nil) }()
+	go func() { errCh <- Serve(ctx, sockPath, te) }()
 	waitSocket(t, sockPath)
 
-	sendCmd(t, sockPath, hook.Command{Type: "stop", SessionID: "ses-d3"})
+	sendCmd(t, sockPath, hook.Command{Type: "stop", SessionID: "ses-d1"})
 
 	select {
 	case err := <-errCh:
@@ -158,44 +91,14 @@ func TestServe_StopCommandCausesReturn(t *testing.T) {
 			t.Errorf("Serve returned non-nil error on stop: %v", err)
 		}
 	case <-time.After(3 * time.Second):
-		t.Fatal("Serve did not return within 3s after stop command")
-	}
-}
-
-func TestServe_ConcurrentRecords(t *testing.T) {
-	rec, exp := newTestRecorder(t)
-	sockPath := filepath.Join(t.TempDir(), "test.sock")
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go func() { Serve(ctx, sockPath, rec, nil) }() //nolint:errcheck
-	waitSocket(t, sockPath)
-
-	const n = 5
-	for i := 0; i < n; i++ {
-		sendCmd(t, sockPath, hook.Command{
-			Type:      "record",
-			SessionID: "ses-conc",
-			HookEvent: "Write",
-		})
-	}
-
-	// Poll until all expected spans are visible or a 2-second deadline passes.
-	pollSpans(t, rec, exp, n)
-	cancel()
-
-	spans := exp.GetSpans()
-	if len(spans) != n {
-		t.Errorf("expected %d spans, got %d", n, len(spans))
+		t.Fatal("Serve did not return within 3s after stop")
 	}
 }
 
 func TestServe_StaleSocketRemovedOnStart(t *testing.T) {
-	rec, _ := newTestRecorder(t)
-	sockPath := filepath.Join(t.TempDir(), "stale.sock")
+	te := newNoopTurnExporter(t)
+	sockPath := shortSockPath(t, "stale.sock")
 
-	// Place a stale file at the socket path to simulate a crashed daemon.
 	if err := os.WriteFile(sockPath, []byte("stale"), 0o600); err != nil {
 		t.Fatalf("create stale file: %v", err)
 	}
@@ -206,23 +109,32 @@ func TestServe_StaleSocketRemovedOnStart(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
-		Serve(ctx, sockPath, rec, nil) //nolint:errcheck
+		Serve(ctx, sockPath, te) //nolint:errcheck
 	}()
 
-	// waitSocket succeeding means the stale file was removed and the socket bound.
 	waitSocket(t, sockPath)
 	cancel()
-	// Wait for Serve to fully exit before TempDir cleanup removes the directory.
 	<-done
 }
 
-func spanAttrsMap(span tracetest.SpanStub) map[string]string {
-	m := make(map[string]string, len(span.Attributes))
-	for _, kv := range span.Attributes {
-		m[string(kv.Key)] = kv.Value.AsString()
-	}
-	return m
-}
+func TestServe_CtxCancelCausesReturn(t *testing.T) {
+	te := newNoopTurnExporter(t)
+	sockPath := shortSockPath(t, "t.sock")
 
-// Compile-time check: InMemoryExporter satisfies SpanExporter.
-var _ sdktrace.SpanExporter = (*tracetest.InMemoryExporter)(nil)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	errCh := make(chan error, 1)
+	go func() { errCh <- Serve(ctx, sockPath, te) }()
+	waitSocket(t, sockPath)
+
+	cancel()
+
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Errorf("Serve returned non-nil error on ctx cancel: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("Serve did not return within 3s after ctx cancel")
+	}
+}

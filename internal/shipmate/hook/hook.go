@@ -10,11 +10,11 @@ import (
 // Command is the NDJSON message sent over the Unix socket to the daemon.
 // It is defined here so that both client and daemon import it without a cycle.
 type Command struct {
-	Type      string            `json:"type"` // "record" | "memory" | "stop"
+	Type      string            `json:"type"` // "stop" — only meaningful command; others are logged and discarded
 	SessionID string            `json:"session_id"`
 	HookEvent string            `json:"hook_event"` // hook_event_name from hook stdin
 	Attrs     map[string]string `json:"attrs"`
-	Text      string            `json:"text"` // for "memory" commands
+	Text      string            `json:"text"` // reserved; not used by any current command
 }
 
 // hookInput is the JSON structure Claude Code writes to hook stdin.

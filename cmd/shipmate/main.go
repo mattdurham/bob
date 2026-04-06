@@ -2,22 +2,22 @@
 //
 // Subcommands:
 //
-//	shipmate start  --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>]
-//	shipmate record [--session-id <id>]   # reads hook stdin JSON
-//	shipmate memory --session-id <id> <text>
+//	shipmate start  --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>] [--transcript-path <path>]
 //	shipmate stop   --session-id <id>
 //
 // Internal (not user-facing):
 //
-//	shipmate start --daemon --session-id <id> --upstream <url> [--headers K=V,...]
+//	shipmate start --daemon --session-id <id> --upstream <url> [--headers K=V,...] [--transcript-path <path>]
 package main
 
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -25,11 +25,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/mattdurham/bob/internal/shipmate/client"
 	"github.com/mattdurham/bob/internal/shipmate/daemon"
 	"github.com/mattdurham/bob/internal/shipmate/hook"
-	"github.com/mattdurham/bob/internal/shipmate/recorder"
-	"github.com/mattdurham/bob/internal/shipmate/scorer"
+	"github.com/mattdurham/bob/internal/shipmate/transcript"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -42,14 +40,9 @@ func main() {
 		usage()
 		os.Exit(1)
 	}
-
 	switch os.Args[1] {
 	case "start":
 		runStart(os.Args[2:])
-	case "record":
-		runRecord(os.Args[2:])
-	case "memory":
-		runMemory(os.Args[2:])
 	case "stop":
 		runStop(os.Args[2:])
 	default:
@@ -62,10 +55,8 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `shipmate — hook-based OTEL annotation daemon for Claude Code
 
 Usage:
-  shipmate start   --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>]
-  shipmate record  [--session-id <id>]
-  shipmate memory  --session-id <id> <text>
-  shipmate stop    --session-id <id>`)
+  shipmate start  --session-id <id> --upstream <url> [--headers K=V,...] [--log-dir <dir>] [--transcript-path <path>]
+  shipmate stop   --session-id <id>`)
 }
 
 // sockPath returns the Unix socket path for a given session ID.
@@ -104,25 +95,31 @@ func parseHeaders(raw string) map[string]string {
 func runStart(args []string) {
 	fs := flag.NewFlagSet("start", flag.ExitOnError)
 	sessionID := fs.String("session-id", "", "Session ID (required)")
-	upstream := fs.String("upstream", "", "Upstream OTLP HTTP endpoint, e.g. http://localhost:4318 (required)")
+	upstream := fs.String("upstream", "", "Upstream OTLP gRPC endpoint, e.g. http://localhost:4317 (required)")
 	headers := fs.String("headers", "", "Optional comma-separated Key=Value headers")
 	logDir := fs.String("log-dir", "", "Directory for daemon log file (default ~/.local/share/shipmate)")
+	transcriptPath := fs.String("transcript-path", "", "Path to Claude Code JSONL transcript")
 	isDaemon := fs.Bool("daemon", false, "Internal flag: already running as daemon child")
 	fs.Parse(args) //nolint:errcheck
 
 	if *isDaemon {
 		// We are the daemon child — run the server loop.
-		runDaemon(*sessionID, *upstream, *headers)
+		runDaemon(*sessionID, *upstream, *headers, *transcriptPath)
 		return
 	}
 
-	// When --session-id is omitted, read it from hook stdin JSON.
-	if *sessionID == "" {
+	// When --session-id or --transcript-path is omitted, read from hook stdin JSON.
+	if *sessionID == "" || *transcriptPath == "" {
 		cmd, err := hook.ParseHookInput(os.Stdin)
 		if err != nil {
-			log.Fatalf("shipmate start: parse stdin for session_id: %v", err)
+			log.Fatalf("shipmate start: parse stdin: %v", err)
 		}
-		*sessionID = cmd.SessionID
+		if *sessionID == "" {
+			*sessionID = cmd.SessionID
+		}
+		if *transcriptPath == "" {
+			*transcriptPath = cmd.Attrs["transcript_path"]
+		}
 	}
 	if *sessionID == "" {
 		log.Fatal("shipmate start: --session-id is required (or provide hook JSON on stdin)")
@@ -162,6 +159,9 @@ func runStart(args []string) {
 	if *logDir != "" {
 		daemonArgs = append(daemonArgs, "--log-dir", *logDir)
 	}
+	if *transcriptPath != "" {
+		daemonArgs = append(daemonArgs, "--transcript-path", *transcriptPath)
+	}
 
 	self, err := os.Executable()
 	if err != nil {
@@ -177,7 +177,6 @@ func runStart(args []string) {
 		log.Fatalf("shipmate start: exec daemon: %v", err)
 	}
 	// Parent exits immediately; child continues as daemon.
-	// Close logFile explicitly — os.Exit bypasses defer, and the child has its own copy.
 	if err := logFile.Close(); err != nil {
 		log.Printf("shipmate start: close log: %v", err)
 	}
@@ -201,7 +200,7 @@ func buildHeaders(raw string) map[string]string {
 }
 
 // runDaemon is the long-running server loop executed in the daemon child process.
-func runDaemon(sessionID, upstream, headers string) {
+func runDaemon(sessionID, upstream, headers, transcriptPath string) {
 	if sessionID == "" {
 		log.Fatal("shipmate daemon: --session-id is required")
 	}
@@ -242,17 +241,12 @@ func runDaemon(sessionID, upstream, headers string) {
 		opts = append(opts, otlptracegrpc.WithInsecure()) //nolint:staticcheck
 	}
 
-	httpExp, err := otlptracegrpc.New(ctx, opts...)
+	grpcExp, err := otlptracegrpc.New(ctx, opts...)
 	if err != nil {
 		log.Fatalf("shipmate daemon: create exporter: %v", err)
 	}
 
-	bufExp := scorer.NewBufferingExporter(httpExp)
-
-	rec, err := recorder.New(bufExp)
-	if err != nil {
-		log.Fatalf("shipmate daemon: create recorder: %v", err)
-	}
+	te := transcript.NewTurnExporter(transcriptPath, sessionID, grpcExp)
 
 	sp, err := sockPath(sessionID)
 	if err != nil {
@@ -262,69 +256,9 @@ func runDaemon(sessionID, upstream, headers string) {
 		log.Fatalf("shipmate daemon: mkdir %s: %v", filepath.Dir(sp), err)
 	}
 
-	log.Printf("shipmate daemon: session=%s socket=%s", sessionID, sp)
-	if err := daemon.Serve(ctx, sp, rec, bufExp); err != nil {
+	log.Printf("shipmate daemon: session=%s transcript=%s socket=%s", sessionID, transcriptPath, sp)
+	if err := daemon.Serve(ctx, sp, te); err != nil {
 		log.Fatalf("shipmate daemon: serve: %v", err)
-	}
-}
-
-// runRecord reads hook stdin JSON, parses it, and sends a record command to the daemon.
-func runRecord(args []string) {
-	fs := flag.NewFlagSet("record", flag.ExitOnError)
-	sessionIDOverride := fs.String("session-id", "", "Override session ID (default: from stdin JSON)")
-	fs.Parse(args) //nolint:errcheck
-
-	cmd, err := hook.ParseHookInput(os.Stdin)
-	if err != nil {
-		log.Printf("shipmate record: parse stdin: %v (trace lost)", err)
-		os.Exit(0)
-	}
-	if *sessionIDOverride != "" {
-		cmd.SessionID = *sessionIDOverride
-	}
-	if cmd.SessionID == "" {
-		log.Printf("shipmate record: no session_id in stdin (trace lost)")
-		os.Exit(0)
-	}
-
-	sp, err := sockPath(cmd.SessionID)
-	if err != nil {
-		log.Printf("shipmate record: %v (trace lost)", err)
-		os.Exit(0)
-	}
-	if err := client.Send(sp, cmd); err != nil {
-		log.Printf("shipmate record: send: %v", err)
-	}
-}
-
-// runMemory sends a free-text memory annotation to the daemon.
-func runMemory(args []string) {
-	fs := flag.NewFlagSet("memory", flag.ExitOnError)
-	sessionID := fs.String("session-id", os.Getenv("SHIPMATE_SESSION_ID"), "Session ID")
-	fs.Parse(args) //nolint:errcheck
-
-	text := strings.Join(fs.Args(), " ")
-	if text == "" {
-		log.Printf("shipmate memory: text argument is required")
-		os.Exit(0)
-	}
-	if *sessionID == "" {
-		log.Printf("shipmate memory: --session-id or SHIPMATE_SESSION_ID is required")
-		os.Exit(0)
-	}
-
-	cmd := hook.Command{
-		Type:      "memory",
-		SessionID: *sessionID,
-		Text:      text,
-	}
-	sp, err := sockPath(*sessionID)
-	if err != nil {
-		log.Printf("shipmate memory: %v", err)
-		os.Exit(0)
-	}
-	if err := client.Send(sp, cmd); err != nil {
-		log.Printf("shipmate memory: send: %v", err)
 	}
 }
 
@@ -348,7 +282,14 @@ func runStop(args []string) {
 		log.Printf("shipmate stop: %v", err)
 		os.Exit(0)
 	}
-	if err := client.Send(sp, cmd); err != nil {
+
+	conn, err := net.Dial("unix", sp)
+	if err != nil {
+		log.Printf("shipmate stop: dial %s: %v", sp, err)
+		os.Exit(0)
+	}
+	defer conn.Close()
+	if err := json.NewEncoder(conn).Encode(cmd); err != nil {
 		log.Printf("shipmate stop: send: %v", err)
 	}
 }

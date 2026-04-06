@@ -116,8 +116,16 @@ func runStart(args []string) {
 		return
 	}
 
+	// When --session-id is omitted, read it from hook stdin JSON.
 	if *sessionID == "" {
-		log.Fatal("shipmate start: --session-id is required")
+		cmd, err := hook.ParseHookInput(os.Stdin)
+		if err != nil {
+			log.Fatalf("shipmate start: parse stdin for session_id: %v", err)
+		}
+		*sessionID = cmd.SessionID
+	}
+	if *sessionID == "" {
+		log.Fatal("shipmate start: --session-id is required (or provide hook JSON on stdin)")
 	}
 	if *upstream == "" {
 		log.Fatal("shipmate start: --upstream is required")

@@ -116,6 +116,9 @@ func Parse(path string) ([]Turn, error) {
 			log.Printf("shipmate: transcript: skip malformed line: %v", err)
 			continue
 		}
+		if entry.Type != "user" && entry.Type != "assistant" {
+			continue
+		}
 		ts, err := time.Parse(time.RFC3339, entry.Timestamp)
 		if err != nil {
 			log.Printf("shipmate: transcript: skip bad timestamp %q: %v", entry.Timestamp, err)

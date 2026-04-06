@@ -35,9 +35,9 @@ var execScorer = exec.CommandContext
 
 // scoreEntry is the JSON element returned by `claude -p` for each span.
 type scoreEntry struct {
-	Name   string `json:"name"`
-	Score  string `json:"score"`
-	Reason string `json:"reason"`
+	Name   string  `json:"name"`
+	Score  float64 `json:"score"`
+	Reason string  `json:"reason"`
 }
 
 // BufferingExporter implements sdktrace.SpanExporter.
@@ -133,7 +133,7 @@ func (b *BufferingExporter) callClaude(ctx context.Context, spans []sdktrace.Rea
 	}
 	log.Printf("shipmate: scorer: scored %d spans", len(entries))
 	for _, e := range entries {
-		log.Printf("shipmate: scorer: span=%q score=%s reason=%s", e.Name, e.Score, e.Reason)
+		log.Printf("shipmate: scorer: span=%q score=%.2f reason=%s", e.Name, e.Score, e.Reason)
 	}
 	return entries
 }
@@ -144,8 +144,17 @@ func buildPrompt(spans []sdktrace.ReadOnlySpan) string {
 	sb.WriteString("You are reviewing a session trace for a Claude Code agent. " +
 		"Below is a list of spans (tool calls and events) recorded during the session. " +
 		"For each span, respond with a JSON array of objects with fields: " +
-		"\"name\" (matching the span name), \"score\" (\"high\", \"medium\", or \"low\"), " +
-		"and \"reason\" (a brief explanation). " +
+		"\"name\" (matching the span name), " +
+		"\"score\" (a float from -1.0 to 1.0, exclusive — never use exactly 1.0 or -1.0), " +
+		"and \"reason\" (a brief explanation).\n\n" +
+		"Scoring guidance:\n" +
+		"  0.9: near-perfect — correct tool, precise targeting, minimal blast radius\n" +
+		"  0.7: good — works well with minor inefficiencies\n" +
+		"  0.4: acceptable — correct outcome but notable issues (wrong tool, fragile approach)\n" +
+		"  0.0: neutral — no clear signal either way\n" +
+		" -0.4: poor — unnecessary risk, wrong tool, or misleading approach\n" +
+		" -0.7: bad — likely to cause problems or significantly wasteful\n" +
+		" -0.9: very bad — dangerous, destructive, or fundamentally wrong approach\n\n" +
 		"Return ONLY the JSON array, no other text.\n\nSpans:\n")
 
 	for i, s := range spans {
@@ -174,7 +183,7 @@ func enrichSpans(spans []sdktrace.ReadOnlySpan, scores []scoreEntry) []sdktrace.
 			continue
 		}
 		extra := []attribute.KeyValue{
-			attribute.String("memory.score", se.Score),
+			attribute.Float64("memory.score", se.Score),
 		}
 		if se.Reason != "" {
 			extra = append(extra, attribute.String("memory.score.reason", se.Reason))

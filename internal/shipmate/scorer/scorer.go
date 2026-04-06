@@ -145,7 +145,7 @@ func buildPrompt(spans []sdktrace.ReadOnlySpan) string {
 		"Below is a list of spans (tool calls and events) recorded during the session. " +
 		"For each span, respond with a JSON array of objects with fields: " +
 		"\"name\" (matching the span name), " +
-		"\"score\" (a float from -1.0 to 1.0, exclusive — never use exactly 1.0 or -1.0), " +
+		"\"score\" (a float from -1.0 to 1.0, exclusive — never use exactly 1.0 or -1.0, up to 3 decimal places), " +
 		"and \"reason\" (a brief explanation).\n\n" +
 		"Scoring guidance:\n" +
 		"  0.9: near-perfect — correct tool, precise targeting, minimal blast radius\n" +

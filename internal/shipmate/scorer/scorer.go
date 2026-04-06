@@ -125,10 +125,15 @@ func (b *BufferingExporter) callClaude(ctx context.Context, spans []sdktrace.Rea
 		return nil
 	}
 
+	cleaned := stripMarkdownFences(string(out))
 	var entries []scoreEntry
-	if err := json.Unmarshal(out, &entries); err != nil {
+	if err := json.Unmarshal([]byte(cleaned), &entries); err != nil {
 		log.Printf("shipmate: scorer: parse claude response: %v (output: %s)", err, truncate(string(out), 200))
 		return nil
+	}
+	log.Printf("shipmate: scorer: scored %d spans", len(entries))
+	for _, e := range entries {
+		log.Printf("shipmate: scorer: span=%q score=%s reason=%s", e.Name, e.Score, e.Reason)
 	}
 	return entries
 }
@@ -177,6 +182,18 @@ func enrichSpans(spans []sdktrace.ReadOnlySpan, scores []scoreEntry) []sdktrace.
 		stubs[i].Attributes = append(stub.Attributes, extra...)
 	}
 	return stubs.Snapshots()
+}
+
+// stripMarkdownFences removes ```json / ``` wrappers that claude sometimes adds.
+func stripMarkdownFences(s string) string {
+	s = strings.TrimSpace(s)
+	if after, ok := strings.CutPrefix(s, "```json"); ok {
+		s = after
+	} else if after, ok := strings.CutPrefix(s, "```"); ok {
+		s = after
+	}
+	s, _ = strings.CutSuffix(strings.TrimSpace(s), "```")
+	return strings.TrimSpace(s)
 }
 
 // truncate shortens s to at most n bytes for safe log output.

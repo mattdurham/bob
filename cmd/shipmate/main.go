@@ -30,7 +30,8 @@ import (
 	"github.com/mattdurham/bob/internal/shipmate/hook"
 	"github.com/mattdurham/bob/internal/shipmate/recorder"
 	"github.com/mattdurham/bob/internal/shipmate/scorer"
-	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"google.golang.org/grpc/credentials"
 )
 
 // execCommand is a package-level var so tests can stub out exec.Command.
@@ -203,15 +204,37 @@ func runDaemon(sessionID, upstream, headers string) {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	opts := []otlptracehttp.Option{
-		otlptracehttp.WithEndpoint(upstream),
-		otlptracehttp.WithHeaders(buildHeaders(headers)),
+	// Strip scheme, path, and add default port — gRPC expects host:port only.
+	endpoint := upstream
+	useTLS := true
+	if after, ok := strings.CutPrefix(endpoint, "https://"); ok {
+		endpoint = after
+	} else if after, ok := strings.CutPrefix(endpoint, "http://"); ok {
+		endpoint = after
+		useTLS = false
 	}
-	if !strings.HasPrefix(upstream, "https://") {
-		opts = append(opts, otlptracehttp.WithInsecure())
+	if i := strings.IndexByte(endpoint, '/'); i >= 0 {
+		endpoint = endpoint[:i]
+	}
+	if !strings.Contains(endpoint, ":") {
+		if useTLS {
+			endpoint += ":443"
+		} else {
+			endpoint += ":80"
+		}
 	}
 
-	httpExp, err := otlptracehttp.New(ctx, opts...)
+	opts := []otlptracegrpc.Option{
+		otlptracegrpc.WithEndpoint(endpoint),
+		otlptracegrpc.WithHeaders(buildHeaders(headers)),
+	}
+	if useTLS {
+		opts = append(opts, otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")))
+	} else {
+		opts = append(opts, otlptracegrpc.WithInsecure()) //nolint:staticcheck
+	}
+
+	httpExp, err := otlptracegrpc.New(ctx, opts...)
 	if err != nil {
 		log.Fatalf("shipmate daemon: create exporter: %v", err)
 	}

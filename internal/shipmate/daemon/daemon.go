@@ -123,6 +123,7 @@ func handleConn(ctx context.Context, conn net.Conn, rec *recorder.Recorder, stop
 }
 
 func dispatchRecord(ctx context.Context, rec *recorder.Recorder, cmd hook.Command) {
+	log.Printf("shipmate: record event=%q session=%s attrs=%v", cmd.HookEvent, cmd.SessionID, cmd.Attrs)
 	args := recorder.RecordArgs{
 		Name:       cmd.HookEvent,
 		Agent:      "hook",
@@ -136,6 +137,7 @@ func dispatchRecord(ctx context.Context, rec *recorder.Recorder, cmd hook.Comman
 }
 
 func dispatchMemory(ctx context.Context, rec *recorder.Recorder, cmd hook.Command) {
+	log.Printf("shipmate: memory session=%s text=%q", cmd.SessionID, cmd.Text)
 	args := recorder.RecordArgs{
 		Name:      "memory",
 		Agent:     "hook",

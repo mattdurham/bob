@@ -7,22 +7,56 @@ package daemon
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"strconv"
+	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/mattdurham/bob/internal/shipmate/hook"
 	"github.com/mattdurham/bob/internal/shipmate/transcript"
 )
 
+// pidPath returns the PID file path for a given socket path.
+func pidPath(sockPath string) string {
+	return strings.TrimSuffix(sockPath, ".sock") + ".pid"
+}
+
+// killExisting reads the PID file at pidPath and sends SIGTERM to the process.
+// Errors are logged but not fatal — a missing or stale PID file is normal.
+func killExisting(pp string) {
+	data, err := os.ReadFile(pp)
+	if err != nil {
+		return // no PID file; nothing to kill
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		return
+	}
+	proc, err := os.FindProcess(pid)
+	if err != nil {
+		return
+	}
+	if err := proc.Signal(syscall.SIGTERM); err == nil {
+		log.Printf("shipmate: daemon: killed previous daemon pid=%d", pid)
+	}
+}
+
 // Serve listens on a Unix socket at sockPath. On each 5-minute tick it calls
 // te.ExportNew to forward any new unscored turns to the upstream. When a "stop"
 // command arrives (or ctx is cancelled), Serve calls te.ExportAndScore for the
 // final scored export, then shuts down te and removes the socket file.
 func Serve(ctx context.Context, sockPath string, te *transcript.TurnExporter) error {
+	pp := pidPath(sockPath)
+	killExisting(pp)
 	os.Remove(sockPath) //nolint:errcheck
+	if err := os.WriteFile(pp, []byte(fmt.Sprintf("%d\n", os.Getpid())), 0o644); err != nil {
+		log.Printf("shipmate: daemon: write pid file: %v", err)
+	}
 
 	ln, err := net.Listen("unix", sockPath)
 	if err != nil {
@@ -91,6 +125,7 @@ func Serve(ctx context.Context, sockPath string, te *transcript.TurnExporter) er
 	}
 
 	os.Remove(sockPath) //nolint:errcheck
+	os.Remove(pp)       //nolint:errcheck
 	return nil
 }
 

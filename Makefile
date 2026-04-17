@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python install-engram
 
 all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
@@ -37,6 +37,7 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
 	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
+	@echo "  make install-engram           - Install engram persistent memory binary + Claude Code plugin"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -783,6 +784,29 @@ install-navigator:
 			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
 		fi; \
 	fi
+
+install-engram:
+	@echo "🧠 Installing engram persistent memory..."
+	@if ! command -v go >/dev/null 2>&1; then \
+		echo "❌ Error: go not found"; \
+		echo "   Please install Go: https://go.dev/dl/"; \
+		exit 1; \
+	fi
+	go install github.com/Gentleman-Programming/engram/cmd/engram@latest
+	@echo "✅ engram binary installed"
+	@echo ""
+	@echo "   Registering engram Claude Code plugin..."
+	@if claude plugin list 2>/dev/null | grep -q "engram"; then \
+		echo "   ⏭️  engram plugin already installed"; \
+	else \
+		claude plugin marketplace add Gentleman-Programming/engram && \
+		claude plugin install engram && \
+		echo "   ✅ engram plugin installed"; \
+	fi
+	@echo ""
+	@echo "   Engram data: ~/.engram/engram.db"
+	@echo "   TUI:         engram tui"
+	@echo "   Restart Claude Code to activate"
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

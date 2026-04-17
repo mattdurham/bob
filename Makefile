@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python install-shipmate
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean first-mate install-first-mate install-navigator install-no-python
 
 all: install install-statusline install-worktree install-first-mate allow enable-agent-teams hooks
 	@echo ""
@@ -37,7 +37,6 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-first-mate       - Build + install first-mate CLI to ~/.local/bin"
 	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
-	@echo "  make install-shipmate         - Build + install shipmate hook daemon to ~/.local/bin"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -58,7 +57,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview; do \
+	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -71,7 +70,7 @@ install-skills:
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
 	done; \
-	@SKILLS_DIR="$$HOME/.claude/skills"; \
+	SKILLS_DIR="$$HOME/.claude/skills"; \
 	echo "   Generating bob:version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
 	GIT_SHORT=$$(git rev-parse --short HEAD); \
@@ -98,7 +97,7 @@ install-skills:
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
 	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
-	@SKILLS_DIR="$$HOME/.claude/skills"; \
+	SKILLS_DIR="$$HOME/.claude/skills"; \
 	if command -v codex >/dev/null 2>&1; then \
 		echo "   Installing talk-to-codex skill (codex CLI detected)..."; \
 		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
@@ -784,20 +783,6 @@ install-navigator:
 			echo "  export PATH=\"\$$HOME/.local/bin:\$$PATH\""; \
 		fi; \
 	fi
-
-install-shipmate:
-	@echo "Building and installing shipmate..."
-	@if ! command -v go >/dev/null 2>&1; then \
-		echo "Error: go not found"; \
-		exit 1; \
-	fi
-	@mkdir -p "$$HOME/.local/bin"
-	go build -o shipmate ./cmd/shipmate/
-	install -m 0755 shipmate ~/.local/bin/shipmate
-	@rm -f shipmate
-	@echo "shipmate binary installed to ~/.local/bin/shipmate"
-	@echo "Registering shipmate in ~/.claude/settings.json..."
-	@python3 scripts/install-shipmate.py
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

@@ -57,7 +57,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs; do \
+	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \

@@ -1034,70 +1034,17 @@ The code-review skill handles the complete cycle:
 
 **If adversarial mode is ON** (detected in INIT):
 
-Get the changed files and run 3 independent reviewers concurrently against them:
-
-```bash
-# Get the list of changed files (run this yourself as team lead)
-git diff --name-only $(git merge-base HEAD main)..HEAD
+Invoke the adversarial review skill in DIFF mode (reviews only changed files):
+```
+Invoke: /bob:adversarial-review DIFF
 ```
 
-Spawn 3 independent `review-consolidator` agents in parallel, each reviewing the changed files
-without any knowledge of the others:
+`/bob:adversarial-review` spawns 8 specialist agents against the changed files, consolidates
+findings into `.bob/state/review.md`, and includes a routing recommendation.
 
-```
-Task(subagent_type: "review-consolidator",
-     description: "Adversarial reviewer A",
-     run_in_background: true,
-     prompt: "You are adversarial reviewer A. Review ONLY the following changed files:
-             [list of changed files from git diff]
-
-             Read each file and review it thoroughly across all domains:
-             security, bugs, error handling, quality, performance, Go idioms,
-             architecture, and documentation.
-
-             Write your complete findings to .bob/state/review-a.md.
-             Include severity (CRITICAL/HIGH/MEDIUM/LOW), file:line, WHAT, WHY for each issue.
-             Do NOT hold back — your job is to find every possible problem.
-
-             Working directory: [worktree-path]")
-
-Task(subagent_type: "review-consolidator",
-     description: "Adversarial reviewer B",
-     run_in_background: true,
-     prompt: "You are adversarial reviewer B. [same prompt as A, output to .bob/state/review-b.md]")
-
-Task(subagent_type: "review-consolidator",
-     description: "Adversarial reviewer C",
-     run_in_background: true,
-     prompt: "You are adversarial reviewer C. [same prompt as A, output to .bob/state/review-c.md]")
-```
-
-Wait for all 3 to complete, then spawn a synthesis agent:
-
-```
-Task(subagent_type: "review-consolidator",
-     description: "Synthesize adversarial review findings",
-     run_in_background: true,
-     prompt: "Read the three independent review reports:
-             - .bob/state/review-a.md
-             - .bob/state/review-b.md
-             - .bob/state/review-c.md
-
-             Synthesize them into .bob/state/review.md:
-             1. Issues found by ALL 3 reviewers (highest confidence — must fix)
-             2. Issues found by 2 reviewers (high confidence — should fix)
-             3. Issues found by only 1 reviewer (lower confidence — review carefully, still report)
-
-             Deduplicate issues that refer to the same location. For each issue include
-             the consensus severity (take the highest), file:line, WHAT, WHY.
-             Include a routing recommendation: BRAINSTORM / EXECUTE / COMMIT.
-
-             Working directory: [worktree-path]")
-```
-
-Read `.bob/state/review.md` and route:
-- BRAINSTORM: CRITICAL/HIGH issues → loop back to BRAINSTORM
-- EXECUTE: MEDIUM/LOW issues → spawn fix tasks, loop back to EXECUTE, re-run tests, re-review
+Read `.bob/state/review.md` and route per the recommendation:
+- BRAINSTORM: CRITICAL issues → loop back to BRAINSTORM
+- EXECUTE: HIGH/MEDIUM issues → spawn fix tasks, loop back to EXECUTE, re-run tests, re-review
 - COMMIT: clean → proceed to commit
 
 For the commit/PR/CI monitor steps after adversarial review, spawn a `commit-agent` directly:
@@ -1109,7 +1056,8 @@ Task(subagent_type: "commit-agent",
              Working directory: [worktree-path]")
 ```
 
-After code-review (or adversarial review + commit) completes, proceed to COMPLETE.
+After adversarial review + commit completes, proceed to COMPLETE.
+
 
 ---
 

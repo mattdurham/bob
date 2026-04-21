@@ -328,7 +328,30 @@ All navigator calls are optional. If the tool is unavailable (server not running
    Then restart Claude Code and hoist the sails again!"
    ```
 
-3. Move to WORKTREE phase
+3. **Detect adversarial code review mode:**
+
+   Spawn a Bash agent to check whether adversarial review is requested:
+   ```
+   Task(subagent_type: "Bash",
+        description: "Detect adversarial review mode",
+        run_in_background: true,
+        prompt: "Check if adversarial code review is enabled. Search for the string
+                'adversarial code review' (case-insensitive) in:
+                  - Any CLAUDE.md file in the current directory or parents (up to repo root)
+                  - .claude/settings.json
+                  - .bob/config
+
+                Also check whether the task description passed to /bob:work contains
+                the word 'adversarial'.
+
+                Output exactly one line:
+                  ADVERSARIAL=true   (if any source requests adversarial review)
+                  ADVERSARIAL=false  (otherwise)")
+   ```
+
+   Read the output and remember the mode for Phase 8.
+
+4. Move to WORKTREE phase
 
 ---
 
@@ -993,7 +1016,9 @@ Then gracefully shut down all teammates:
 
 Wait for each teammate to confirm shutdown.
 
-**Step 2: Invoke code-review**
+**Step 2: Invoke code review (standard or adversarial)**
+
+**If adversarial mode is OFF** (detected in INIT):
 
 Invoke the code-review skill:
 ```
@@ -1007,7 +1032,84 @@ The code-review skill handles the complete cycle:
 4. Creates commit and pushes PR (commit-agent)
 5. Monitors CI (monitor-agent)
 
-After code-review completes, proceed to COMPLETE.
+**If adversarial mode is ON** (detected in INIT):
+
+Get the changed files and run 3 independent reviewers concurrently against them:
+
+```bash
+# Get the list of changed files (run this yourself as team lead)
+git diff --name-only $(git merge-base HEAD main)..HEAD
+```
+
+Spawn 3 independent `review-consolidator` agents in parallel, each reviewing the changed files
+without any knowledge of the others:
+
+```
+Task(subagent_type: "review-consolidator",
+     description: "Adversarial reviewer A",
+     run_in_background: true,
+     prompt: "You are adversarial reviewer A. Review ONLY the following changed files:
+             [list of changed files from git diff]
+
+             Read each file and review it thoroughly across all domains:
+             security, bugs, error handling, quality, performance, Go idioms,
+             architecture, and documentation.
+
+             Write your complete findings to .bob/state/review-a.md.
+             Include severity (CRITICAL/HIGH/MEDIUM/LOW), file:line, WHAT, WHY for each issue.
+             Do NOT hold back — your job is to find every possible problem.
+
+             Working directory: [worktree-path]")
+
+Task(subagent_type: "review-consolidator",
+     description: "Adversarial reviewer B",
+     run_in_background: true,
+     prompt: "You are adversarial reviewer B. [same prompt as A, output to .bob/state/review-b.md]")
+
+Task(subagent_type: "review-consolidator",
+     description: "Adversarial reviewer C",
+     run_in_background: true,
+     prompt: "You are adversarial reviewer C. [same prompt as A, output to .bob/state/review-c.md]")
+```
+
+Wait for all 3 to complete, then spawn a synthesis agent:
+
+```
+Task(subagent_type: "review-consolidator",
+     description: "Synthesize adversarial review findings",
+     run_in_background: true,
+     prompt: "Read the three independent review reports:
+             - .bob/state/review-a.md
+             - .bob/state/review-b.md
+             - .bob/state/review-c.md
+
+             Synthesize them into .bob/state/review.md:
+             1. Issues found by ALL 3 reviewers (highest confidence — must fix)
+             2. Issues found by 2 reviewers (high confidence — should fix)
+             3. Issues found by only 1 reviewer (lower confidence — review carefully, still report)
+
+             Deduplicate issues that refer to the same location. For each issue include
+             the consensus severity (take the highest), file:line, WHAT, WHY.
+             Include a routing recommendation: BRAINSTORM / EXECUTE / COMMIT.
+
+             Working directory: [worktree-path]")
+```
+
+Read `.bob/state/review.md` and route:
+- BRAINSTORM: CRITICAL/HIGH issues → loop back to BRAINSTORM
+- EXECUTE: MEDIUM/LOW issues → spawn fix tasks, loop back to EXECUTE, re-run tests, re-review
+- COMMIT: clean → proceed to commit
+
+For the commit/PR/CI monitor steps after adversarial review, spawn a `commit-agent` directly:
+```
+Task(subagent_type: "commit-agent",
+     description: "Commit changes and open PR",
+     run_in_background: true,
+     prompt: "Create a commit of all staged changes and open a pull request.
+             Working directory: [worktree-path]")
+```
+
+After code-review (or adversarial review + commit) completes, proceed to COMPLETE.
 
 ---
 

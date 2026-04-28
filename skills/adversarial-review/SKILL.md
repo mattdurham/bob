@@ -23,6 +23,8 @@ Default assumption: **every file contains at least one issue.** The job of each 
 
 **Scope:** If invoked with `DIFF` or `diff` argument, review only the changed files. Otherwise review the entire codebase.
 
+**Test generation:** If invoked with `TEST` or `test` argument, a Phase 5 runs after consolidation — a test-writer agent creates failing unit tests for every CRITICAL and HIGH finding where a test is feasible. Off by default. Combinable with DIFF: `/bob:adversarial-review DIFF TEST`.
+
 ---
 
 ## Workflow
@@ -46,6 +48,9 @@ WAIT (all 8 must complete)
     │
     ▼
 CONSOLIDATE → .bob/state/review.md
+    │
+    ▼ (only if TEST argument passed)
+WRITE TESTS → failing unit tests for CRITICAL/HIGH findings
 ```
 
 ---
@@ -54,7 +59,13 @@ CONSOLIDATE → .bob/state/review.md
 
 **Actions (run these yourself, do not delegate):**
 
-1. Determine scope — check if `DIFF` was passed or if called from `/bob:work` adversarial mode:
+1. Detect arguments — check what was passed:
+   - `DIFF` or `diff` → scope to changed files only
+   - `TEST` or `test` → enable test generation phase (Phase 5) after consolidation
+   - Both can be combined: `DIFF TEST`
+   - Remember these flags in memory for use in Phase 4 (routing) and Phase 5.
+
+2. Determine scope — check if `DIFF` was passed or if called from `/bob:work` adversarial mode:
    ```bash
    # If DIFF mode: get changed files
    git diff --name-only $(git merge-base HEAD main)..HEAD
@@ -65,12 +76,12 @@ CONSOLIDATE → .bob/state/review.md
    git log --oneline -5
    ```
 
-2. Create the review directory:
+3. Create the review directory:
    ```bash
    mkdir -p .bob/review
    ```
 
-3. Write `.bob/review/scope.md` containing:
+4. Write `.bob/review/scope.md` containing:
    - Full list of files in scope (changed files or all .go files)
    - All spec/doc file locations found
    - Git log summary (last 5 commits)
@@ -663,3 +674,77 @@ Note any of the 8 domains where no issues were found.
 ```
 
 5. **Also output the report inline** so the user can read it immediately.
+
+---
+
+## Phase 5: WRITE TESTS (only if TEST argument was passed)
+
+**Goal:** For every CRITICAL and HIGH finding in `.bob/state/review.md`, write a failing unit test that would catch the bug — if a test is feasible for that finding type.
+
+**Skip Phase 5 entirely if the TEST argument was NOT passed.**
+
+**Actions:**
+
+Spawn a single `workflow-implementer` agent with this prompt:
+
+```
+Agent(
+  subagent_type: "workflow-implementer",
+  description: "Write failing unit tests for CRITICAL/HIGH review findings",
+  run_in_background: true,
+  prompt: """
+    Read /[repo-root]/.bob/state/review.md. Extract every CRITICAL and HIGH finding.
+
+    For each finding, decide if a unit test is feasible:
+
+    FEASIBLE (write a test):
+    - Logic errors, off-by-ones, incorrect algorithms (bug-finder findings)
+    - Integer overflow / nil deref / panic paths (memory-panic-hunter findings)
+    - Race conditions on specific functions (concurrency-hawk findings)
+    - Wrong return values, incorrect behavior (any agent)
+    - Error paths not being returned (swallowed errors)
+
+    NOT FEASIBLE (skip, note why):
+    - Comment accuracy issues (comment-assassin) — no behavior to test
+    - Architecture / abstraction issues (architecture-introspector) — structural, not behavioral
+    - Spec doc drift (spec-vigilante) — documentation, not code behavior
+    - Magic numbers / naming issues (code-quality-auditor) — style, not correctness
+    - Issues in files that have no clear unit-testable entry point
+
+    For each feasible finding:
+    1. Read the file:line cited in the finding to understand the code
+    2. Identify the function or method that contains the bug
+    3. Find or create the appropriate `_test.go` file for that package
+    4. Write a table-driven or single test that:
+       - Is named `TestBug_<ShortDescription>` (e.g. TestBug_IntegerOverflowInSizeCalc)
+       - Has a comment citing the finding: `// Regression for: [agent] finding — [one-line description]`
+       - Sets up input that triggers the bug as described in the finding
+       - Asserts the CORRECT behavior (the test should FAIL against the current buggy code)
+       - Is a valid, compilable Go test (correct imports, correct test signature)
+    5. Do NOT fix the bug — only write the test. The test must fail on the current code.
+
+    After writing all tests:
+    - Run `go build ./...` to confirm tests at least compile
+    - Write a summary to .bob/review/test-writer.md:
+      - For each finding: TESTED or SKIPPED and why
+      - List of new test functions and their files
+
+    Working directory: [repo root]
+  """
+)
+```
+
+Wait for the agent to complete, then read `.bob/review/test-writer.md` and append a **Test Coverage** section to `.bob/state/review.md`:
+
+```markdown
+---
+
+## Test Coverage (generated)
+
+| Finding | File | Test | Status |
+|---------|------|------|--------|
+| [agent] description | file:line | TestBug_Xxx | WRITTEN |
+| [agent] description | file:line | — | SKIPPED: comment-only issue |
+```
+
+Output this table inline so the user can see which findings now have regression tests.

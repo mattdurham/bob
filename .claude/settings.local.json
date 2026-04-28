@@ -1,3 +1,9 @@
 {
-  "spinnerTipsEnabled": false
+  "spinnerTipsEnabled": false,
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf /Users/mdurham/.claude/skills/cleanup-teams /Users/mdurham/.claude/skills/design /Users/mdurham/.claude/skills/explore-teams /Users/mdurham/.claude/skills/work-agents /Users/mdurham/.claude/skills/work-teams)",
+      "Read(//Users/mdurham/.claude/skills/**)"
+    ]
+  }
 }

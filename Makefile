@@ -1,7 +1,9 @@
 # Belayin' Pin Bob - Captain of Your Agents
 # Makefile for installing Bob workflow skills and subagents
 
-SPEC ?= full
+SPEC       ?= full
+SKILLS_DIR ?= $(HOME)/.claude/skills
+PI_NAMES   ?= 0
 
 .PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-navigator install-no-python install-engram install-pi
 
@@ -53,26 +55,37 @@ help:
 	@echo "  make install-guidance PATH=/home/matt/myproject"
 	@echo "  make install-statusline"
 
-# Install workflow skills to Claude
+# Install workflow skills.
+# SKILLS_DIR overrides destination (default: ~/.claude/skills).
+# Set PI_NAMES=1 to rewrite skill names: colons → hyphens, dir matches name field.
 install-skills:
 	@echo "📚 Installing Bob workflow skills..."
-	@SKILLS_DIR="$$HOME/.claude/skills"; \
-	mkdir -p "$$SKILLS_DIR"; \
+	@mkdir -p "$(SKILLS_DIR)"; \
 	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review; do \
 		if [ -d "skills/$$skill" ]; then \
-			echo "   Installing $$skill skill..."; \
-			mkdir -p "$$SKILLS_DIR/$$skill"; \
 			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
-				cp "skills/$$skill/SKILL.simple.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+				SRC="skills/$$skill/SKILL.simple.md"; \
 			else \
-				cp "skills/$$skill/SKILL.md" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+				SRC="skills/$$skill/SKILL.md"; \
+			fi; \
+			if [ "$(PI_NAMES)" = "1" ]; then \
+				RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//'); \
+				DEST=$$(echo "$$RAW" | tr ':' '-'); \
+			else \
+				DEST="$$skill"; \
+			fi; \
+			echo "   Installing $$DEST..."; \
+			mkdir -p "$(SKILLS_DIR)/$$DEST"; \
+			if [ "$(PI_NAMES)" = "1" ]; then \
+				sed "s/^name: .*/name: $$DEST/" "$$SRC" > "$(SKILLS_DIR)/$$DEST/SKILL.md"; \
+			else \
+				cp "$$SRC" "$(SKILLS_DIR)/$$DEST/SKILL.md"; \
 			fi; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
 	done; \
-	SKILLS_DIR="$$HOME/.claude/skills"; \
-	echo "   Generating bob:version skill..."; \
+	echo "   Generating bob-version skill..."; \
 	GIT_HASH=$$(git rev-parse HEAD); \
 	GIT_SHORT=$$(git rev-parse --short HEAD); \
 	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
@@ -87,7 +100,7 @@ install-skills:
 	else \
 		HOOKS_STATUS="**Hooks:** ✗ Not installed\n- Run \`make hooks\` to install pre-commit quality checks"; \
 	fi; \
-	mkdir -p "$$SKILLS_DIR/bob-version"; \
+	mkdir -p "$(SKILLS_DIR)/bob-version"; \
 	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
 	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
 	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
@@ -97,16 +110,15 @@ install-skills:
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
 	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
-	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"
-	SKILLS_DIR="$$HOME/.claude/skills"; \
+	    skills/bob-version/SKILL.md.template > "$(SKILLS_DIR)/bob-version/SKILL.md"; \
 	if command -v codex >/dev/null 2>&1; then \
 		echo "   Installing talk-to-codex skill (codex CLI detected)..."; \
-		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
-		cp "skills/talk-to-codex/SKILL.md" "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+		mkdir -p "$(SKILLS_DIR)/talk-to-codex"; \
+		cp "skills/talk-to-codex/SKILL.md" "$(SKILLS_DIR)/talk-to-codex/SKILL.md"; \
 	else \
 		echo "   ⏭️  Skipping talk-to-codex (codex CLI not installed)"; \
 	fi
-	@echo "✅ Skills installed to ~/.claude/skills/"
+	@echo "✅ Skills installed to $(SKILLS_DIR)/"
 	@echo ""
 	@echo "Available workflow commands:"
 	@echo "  /bob:work        - Team-based workflow (requires enable-agent-teams)"
@@ -815,47 +827,7 @@ install-pi:
 	echo "   ✓ Copied $$SRC_EXT → $$DST_EXT"
 	@echo ""
 	@echo "📚 Skills"
-	@SKILLS_DIR=".pi/skills"; \
-	mkdir -p "$$SKILLS_DIR"; \
-	SKILL_COUNT=0; \
-	for skill_dir in skills/*; do \
-		[ -d "$$skill_dir" ] || continue; \
-		skill=$$(basename "$$skill_dir"); \
-		if [ "$(SPEC)" = "simple" ] && [ -f "$$skill_dir/SKILL.simple.md" ]; then \
-			SRC="$$skill_dir/SKILL.simple.md"; \
-		elif [ -f "$$skill_dir/SKILL.md" ]; then \
-			SRC="$$skill_dir/SKILL.md"; \
-		elif [ -f "$$skill_dir/SKILL.md.template" ]; then \
-			GIT_HASH=$$(git rev-parse HEAD); \
-			GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
-			GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
-			GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
-			INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
-			BOB_REPO_PATH=$$(pwd); \
-			SKILL_COUNT_ALL=$$(find skills -name "SKILL.md" | wc -l); \
-			AGENT_COUNT_ALL=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
-			mkdir -p "$$SKILLS_DIR/$$skill"; \
-			sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
-			    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
-			    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
-			    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
-			    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
-			    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
-			    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT_ALL|g" \
-			    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT_ALL|g" \
-			    "$$skill_dir/SKILL.md.template" > "$$SKILLS_DIR/$$skill/SKILL.md"; \
-			echo "   Installing $$skill (from template)..."; \
-			SKILL_COUNT=$$((SKILL_COUNT + 1)); \
-			continue; \
-		else \
-			continue; \
-		fi; \
-		echo "   Installing $$skill..."; \
-		mkdir -p "$$SKILLS_DIR/$$skill"; \
-		cp "$$SRC" "$$SKILLS_DIR/$$skill/SKILL.md"; \
-		SKILL_COUNT=$$((SKILL_COUNT + 1)); \
-	done; \
-	echo "✅ $$SKILL_COUNT skills installed to $$SKILLS_DIR"
+	@$(MAKE) install-skills SKILLS_DIR=.pi/skills PI_NAMES=1 --no-print-directory
 	@echo ""
 	@echo "✅ Pi installation complete!"
 	@echo ""

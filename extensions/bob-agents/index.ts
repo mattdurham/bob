@@ -54,7 +54,7 @@ const teams = new TeamManager();
 const liveSessions = new Map<string, any>();
 
 const authStorage = AuthStorage.create();
-const modelRegistry = ModelRegistry.create(authStorage);
+const modelRegistry = new ModelRegistry(authStorage);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -353,26 +353,35 @@ async function spawnAgent(
     registry.appendLog(instanceName, "[bob-agents] spawnAgent: model resolved");
   }
 
-  const customTools = makeBoundTools(instanceName, teamCtx);
   const builtinToolNames = buildBuiltinTools(agentDef.tools);
 
   registry.appendLog(instanceName, "[bob-agents] spawnAgent: building resource loader...");
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " building loader model=" + (model ? (model as any).id ?? "set" : "none") + "\n");
 
-  // Use DefaultResourceLoader with all extensions/skills/themes disabled.
-  // This is the correct pattern (from tintinweb/pi-subagents) — our custom stub
-  // broke because createExtensionRuntime() stubs aren't wired up properly.
+  // Inject team-scoped tools via extensionFactories so they register via pi.registerTool()
+  // and are guaranteed active. This avoids the customTools activation bug and bob-agents
+  // conflict when the parent extension also loads in child sessions.
   const agentDir = getAgentDir();
+  const capturedTeamCtx = teamCtx;
+  const capturedInstanceName = instanceName;
+  const agentExtensionFactory = (childPi: import("@mariozechner/pi-coding-agent").ExtensionAPI) => {
+    const boundTools = makeBoundTools(capturedInstanceName, capturedTeamCtx);
+    for (const tool of boundTools) {
+      childPi.registerTool(tool);
+    }
+  };
+
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir,
-    noExtensions: agentDef.extensions === false,
+    noExtensions: true, // block all path-based extensions including bob-agents from settings.json
     noSkills: true,
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
     systemPromptOverride: () => systemPrompt,
     appendSystemPromptOverride: () => [],
+    extensionFactories: [agentExtensionFactory],
   });
   await loader.reload();
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " loader ready, calling createAgentSession\n");
@@ -383,24 +392,19 @@ async function spawnAgent(
     sessionManager: SessionManager.inMemory(),
     settingsManager: SettingsManager.create(cwd, agentDir),
     resourceLoader: loader,
-    customTools,
     tools: builtinToolNames as any,
     ...(model ? { model } : {}),
     modelRegistry,
   });
 
-  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " session created, filtering tools\n");
+  const { extensionsResult: extRes } = await Promise.resolve({ extensionsResult: loader.getExtensions() });
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " ext errors: " + JSON.stringify(extRes.errors) + "\n");
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " ext count: " + extRes.extensions.length + " tools: " + extRes.extensions.flatMap((e: any) => [...e.tools.keys()]).join(",") + "\n");
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " session created, active: " + session.getActiveToolNames().join(",") + "\n");
 
-  // Filter active tools: exclude our own subagent tool to prevent infinite nesting,
-  // then add all custom tools (mailbox, task board) explicitly.
-  const customToolNames = customTools.map((t) => t.name);
-  const activeTools = session.getActiveToolNames()
-    .filter((t) => t !== "subagent")
-    .concat(customToolNames.filter((t) => !session.getActiveToolNames().includes(t)));
-  session.setActiveToolsByName([...new Set(activeTools)]);
-
-  // Fire session_start for any extensions (none loaded, but required by SDK lifecycle)
+  // bindExtensions fires session_start so extension factories initialize properly
   await session.bindExtensions({});
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " after bindExtensions, active: " + session.getActiveToolNames().join(",") + "\n");
 
   registry.appendLog(instanceName, "[bob-agents] spawnAgent: session ready, prompting...");
 

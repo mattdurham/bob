@@ -846,10 +846,22 @@ install-pi:
 	done; \
 	echo "✅ $$SKILL_COUNT skills installed to $$SKILLS_DIR"
 	@echo ""
+	@echo "📝 Context files (installing to ~/.pi/agent/)"
+	@AGENT_DIR="$$HOME/.pi/agent"; \
+	for f in AGENTS.md CLAUDE.md; do \
+		if [ -f "$$f" ]; then \
+			cp "$$f" "$$AGENT_DIR/$$f"; \
+			echo "   ✓ Installed: $$AGENT_DIR/$$f"; \
+		else \
+			echo "   – Not found: $$f (skipped)"; \
+		fi; \
+	done
+	@echo ""
 	@echo "✅ Pi installation complete!"
 	@echo ""
 	@echo "Installed:"
 	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/ (user-global)"
+	@echo "  ✓ Context   → ~/.pi/agent/AGENTS.md + CLAUDE.md (user-global)"
 	@echo "  ✓ Skills    → ~/.pi/agent/skills/ (user-global)"
 	@echo ""
 	@echo "Available skill commands in pi:"

@@ -42,15 +42,12 @@ import {
 } from "@mariozechner/pi-coding-agent";
 import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
-import { AgentRegistry, TaskBoard } from "./agent-registry.js";
+import { TeamManager, ROOT_TEAM, type TeamContext } from "./agent-registry.js";
 import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
-import { MessageBus } from "./message-bus.js";
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
 
-const bus = new MessageBus();
-const registry = new AgentRegistry();
-const taskBoard = new TaskBoard();
+const teams = new TeamManager();
 
 // Tracks live AgentSession objects so we can abort on shutdown
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -82,7 +79,7 @@ function resolveModel(modelId: string) {
   }
 }
 
-function formatAgentStatus(all: ReturnType<typeof registry.getAll>): string {
+function formatAgentStatus(all: { name: string; role: string; status: string; spawnedAt: number; finishedAt?: number; model?: string; stdout: string; stdoutBytes: number; team: string }[]): string {
   if (all.length === 0) return "No agents have been spawned yet.";
   return all
     .map((a) => {
@@ -101,7 +98,8 @@ function formatAgentStatus(all: ReturnType<typeof registry.getAll>): string {
 
 // ─── Task board tool definitions (shared between orchestrator and agents) ─────
 
-function makeTaskTools() {
+function makeTaskTools(teamCtx: TeamContext) {
+  const { taskBoard } = teamCtx;
   const TaskCreate = defineTool({
     name: "TaskCreate",
     label: "Task Create",
@@ -230,7 +228,8 @@ function makeTaskTools() {
 
 // ─── Agent-bound tools (injected per spawned session) ─────────────────────────
 
-function makeBoundTools(agentName: string) {
+function makeBoundTools(agentName: string, teamCtx: TeamContext) {
+  const { bus, registry } = teamCtx;
   const AgentStatus = defineTool({
     name: "agent_status",
     label: "Agent Status",
@@ -238,8 +237,9 @@ function makeBoundTools(agentName: string) {
     parameters: Type.Object({}),
     async execute() {
       return {
-        content: [{ type: "text" as const, text: formatAgentStatus(registry.getAll()) }],
-        details: { agents: registry.getAll() },
+        const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
+        content: [{ type: "text" as const, text: formatAgentStatus(allAgents) }],
+        details: { agents: allAgents },
       };
     },
   });
@@ -298,7 +298,7 @@ function makeBoundTools(agentName: string) {
     },
   });
 
-  return [AgentStatus, MailboxReceive, MailboxSend, MailboxBroadcast, ...makeTaskTools()];
+  return [AgentStatus, MailboxReceive, MailboxSend, MailboxBroadcast, ...makeTaskTools(teamCtx)];
 }
 
 // ─── Core spawn logic ─────────────────────────────────────────────────────────
@@ -315,16 +315,19 @@ async function spawnAgent(
   instanceName: string,
   task: string,
   cwd: string,
+  teamName: string,
   signal?: AbortSignal,
   onUpdate?: (text: string) => void,
   parentModel?: import("@mariozechner/pi-ai").Model<any>,
 ): Promise<SpawnResult> {
+  const teamCtx = teams.get(teamName) ?? teams.root();
+  const { registry } = teamCtx;
   // Register (or update existing placeholder from parallel pre-reservation)
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent start " + instanceName + "\n");
   if (registry.isTaken(instanceName)) {
     registry.update(instanceName, { role: agentDef.name, task, model: agentDef.model, status: "spawning" });
   } else {
-    registry.register(instanceName, agentDef.name, task, agentDef.model);
+    registry.register(instanceName, agentDef.name, task, teamName, agentDef.model);
   }
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent registered\n");
 
@@ -332,10 +335,11 @@ async function spawnAgent(
   const identityBlock = [
     `\n\n---`,
     `Your agent name is: **${instanceName}**`,
+    `Your team: **${teamName}** | Team lead: **${teamCtx.lead}**`,
     `You are running inside a pi agent session. Use mailbox_receive to check for`,
-    `incoming messages, mailbox_send to reply, mailbox_broadcast to reach all active`,
-    `agents, and agent_status to see who else is running.`,
-    `TaskCreate / TaskList / TaskGet / TaskUpdate coordinate shared work.`,
+    `incoming messages, mailbox_send to reply (use "orchestrator" to reach the team lead),`,
+    `mailbox_broadcast to reach all active agents, and agent_status to see who else is running.`,
+    `TaskCreate / TaskList / TaskGet / TaskUpdate coordinate shared work within your team.`,
   ].join("\n");
 
   const systemPrompt = agentDef.systemPrompt + identityBlock;
@@ -349,7 +353,7 @@ async function spawnAgent(
     registry.appendLog(instanceName, "[bob-agents] spawnAgent: model resolved");
   }
 
-  const customTools = makeBoundTools(instanceName);
+  const customTools = makeBoundTools(instanceName, teamCtx);
   const builtinToolNames = buildBuiltinTools(agentDef.tools);
 
   registry.appendLog(instanceName, "[bob-agents] spawnAgent: building resource loader...");
@@ -463,6 +467,7 @@ export default function (pi: ExtensionAPI) {
       agent: Type.Optional(Type.String({ description: "Agent name for single mode" })),
       task: Type.Optional(Type.String({ description: "Task description for single mode" })),
       background: Type.Optional(Type.Boolean({ description: "Single mode only: spawn agent and return immediately without waiting for completion. Use agent_status or agent_wait to track progress." })),
+      team: Type.Optional(Type.String({ description: "Team name to spawn agent into. Agents share the team's isolated bus and task board. Defaults to root team." })),
       tasks: Type.Optional(
         Type.Array(
           Type.Object({
@@ -517,11 +522,12 @@ export default function (pi: ExtensionAPI) {
             isError: true,
           };
         }
-        const name = registry.generateName(params.agent);
+        const teamCtxPar = teams.get(params.team ?? ROOT_TEAM) ?? teams.root();
+        const name = teamCtxPar.registry.generateName(params.agent);
 
         // Background mode: fire-and-forget, return immediately
         if (params.background) {
-          const p = spawnAgent(def, name, params.task, ctx.cwd, signal, undefined, ctx.model ?? undefined);
+          const p = spawnAgent(def, name, params.task, ctx.cwd, params.team ?? ROOT_TEAM, signal, undefined, ctx.model ?? undefined);
           p.catch(() => {}); // errors are visible via agent_status
           return {
             content: [{ type: "text" as const, text: `Agent ${name} spawned in background. Use agent_status to monitor or agent_wait to block until done.` }],
@@ -531,7 +537,7 @@ export default function (pi: ExtensionAPI) {
 
         // Foreground mode (default): block until complete
         let accumulated = "";
-        const result = await spawnAgent(def, name, params.task, ctx.cwd, signal, (delta) => {
+        const result = await spawnAgent(def, name, params.task, ctx.cwd, params.team ?? ROOT_TEAM, signal, (delta) => {
           accumulated += delta;
           onUpdate?.({
             content: [{ type: "text" as const, text: `[${name}] ${accumulated.slice(-300)}` }],
@@ -573,16 +579,16 @@ export default function (pi: ExtensionAPI) {
         // name for two concurrent agents of the same role.
         const instanceNames: string[] = [];
         for (const t of params.tasks) {
-          const name = registry.generateName(t.agent);
+          const name = teamCtxPar.registry.generateName(t.agent);
           instanceNames.push(name);
           // Register as spawning so the name is reserved; spawnAgent will re-register properly.
-          registry.register(name, t.agent, t.task);
+          teamCtxPar.registry.register(name, t.agent, t.task, params.team ?? ROOT_TEAM);
         }
 
         // Emit initial parallel status
         const statusText = () => {
-          const active = registry.getActive();
-          const done = registry.getAll().filter((a) => instanceNames.includes(a.name) && (a.status === "done" || a.status === "error" || a.status === "aborted"));
+          const active = teamCtxPar.registry.getActive();
+          const done = teamCtxPar.registry.getAll().filter((a) => instanceNames.includes(a.name) && (a.status === "done" || a.status === "error" || a.status === "aborted"));
           return `Parallel: ${done.length}/${instanceNames.length} done — ${active.map((a) => a.name).join(", ") || "all finished"}`;
         };
 
@@ -591,13 +597,13 @@ export default function (pi: ExtensionAPI) {
             const def = findAgent(t.agent)!;
             const name = instanceNames[i];
             // Undo the placeholder so spawnAgent can register cleanly
-            registry.update(name, { status: "spawning" });
+            teamCtxPar.registry.update(name, { status: "spawning" });
             let acc = "";
-            return spawnAgent(def, name, t.task, ctx.cwd, signal, (delta) => {
+            return spawnAgent(def, name, t.task, ctx.cwd, params.team ?? ROOT_TEAM, signal, (delta) => {
               acc += delta;
               onUpdate?.({
                 content: [{ type: "text" as const, text: statusText() }],
-                details: { mode: "parallel", agents: registry.getAll().filter((a) => instanceNames.includes(a.name)) },
+                details: { mode: "parallel", agents: teamCtxPar.registry.getAll().filter((a) => instanceNames.includes(a.name)) },
               });
             }, ctx.model ?? undefined);
           }),
@@ -630,10 +636,11 @@ export default function (pi: ExtensionAPI) {
               isError: true,
             };
           }
-          const name = registry.generateName(step.agent);
+          const chainTeamCtx = teams.get(params.team ?? ROOT_TEAM) ?? teams.root();
+          const name = chainTeamCtx.registry.generateName(step.agent);
           const task = step.task.replace(/\{previous\}/g, previous);
           let acc = "";
-          const result = await spawnAgent(def, name, task, ctx.cwd, signal, (delta) => {
+          const result = await spawnAgent(def, name, task, ctx.cwd, params.team ?? ROOT_TEAM, signal, (delta) => {
             acc += delta;
             onUpdate?.({
               content: [{ type: "text" as const, text: `[chain step ${i + 1}/${params.chain!.length}: ${name}] ${acc.slice(-200)}` }],
@@ -683,13 +690,13 @@ export default function (pi: ExtensionAPI) {
 
       while (Date.now() < deadline) {
         if (signal?.aborted) break;
-        const all = params.agents.map((n) => registry.getEntry(n));
+        const all = params.agents.map((n) => teams.getAll().flatMap(t => t.registry.getAll()).find(a => a.name === n));
         if (all.every((a) => a && TERMINAL.has(a.status))) break;
         await new Promise((r) => setTimeout(r, 500));
       }
 
       const lines = params.agents.map((n) => {
-        const a = registry.getEntry(n);
+        const a = teams.getAll().flatMap(t => t.registry.getAll()).find(ag => ag.name === n);
         if (!a) return `${n}: not found`;
         const excerpt = (a.output || a.error || "").slice(0, 300);
         return `${a.status.padEnd(8)} ${n}${excerpt ? `: ${excerpt}` : ""}`;
@@ -697,7 +704,7 @@ export default function (pi: ExtensionAPI) {
 
       return {
         content: [{ type: "text" as const, text: lines.join("\n") }],
-        details: { agents: params.agents.map((n) => registry.getEntry(n)) },
+        details: { agents: params.agents.map((n) => teams.getAll().flatMap(t => t.registry.getAll()).find(a => a.name === n)) },
       };
     },
   });
@@ -711,8 +718,9 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({}),
     async execute() {
       return {
-        content: [{ type: "text" as const, text: formatAgentStatus(registry.getAll()) }],
-        details: { agents: registry.getAll() },
+        const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
+        content: [{ type: "text" as const, text: formatAgentStatus(allAgents) }],
+        details: { agents: allAgents },
       };
     },
   });
@@ -728,7 +736,7 @@ export default function (pi: ExtensionAPI) {
       tail: Type.Optional(Type.Number({ description: "Number of lines to tail (default: all buffered)" })),
     }),
     async execute(_id, params) {
-      const rec = registry.getEntry(params.agent);
+      const rec = teams.getAll().flatMap(t => t.registry.getAll()).find(a => a.name === params.agent);
       if (!rec) {
         return { content: [{ type: "text" as const, text: `Agent ${params.agent} not found.` }], details: {}, isError: true };
       }
@@ -758,7 +766,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_id, params) {
       const target = params.agent ?? "orchestrator";
-      const msgs = params.all ? bus.all(target) : bus.receive(target);
+      const msgs = params.all ? teams.root().bus.all(target) : teams.root().bus.receive(target);
       if (msgs.length === 0) {
         return {
           content: [{ type: "text" as const, text: `No ${params.all ? "" : "unread "}messages in mailbox "${target}".` }],
@@ -787,7 +795,7 @@ export default function (pi: ExtensionAPI) {
       content: Type.String({ description: "Message content" }),
     }),
     async execute(_id, params) {
-      const msg = bus.send("orchestrator", params.to, params.content);
+      const msg = teams.root().bus.send("orchestrator", params.to, params.content);
       return {
         content: [{ type: "text" as const, text: `Message sent to ${params.to} (id: ${msg.id})` }],
         details: { messageId: msg.id },
@@ -803,8 +811,8 @@ export default function (pi: ExtensionAPI) {
       content: Type.String({ description: "Message to broadcast" }),
     }),
     async execute(_id, params) {
-      const recipients = registry.activeNames();
-      bus.broadcast("orchestrator", params.content, recipients);
+      const recipients = teams.root().registry.activeNames();
+      teams.root().bus.broadcast("orchestrator", params.content, recipients);
       return {
         content: [{ type: "text" as const, text: `Broadcast sent to ${recipients.length} agents: ${recipients.join(", ")}` }],
         details: { recipients },
@@ -814,16 +822,88 @@ export default function (pi: ExtensionAPI) {
 
   // ── Task board tools (orchestrator side) ───────────────────────────────────
 
-  for (const tool of makeTaskTools()) {
+  for (const tool of makeTaskTools(teams.root())) {
     pi.registerTool(tool);
   }
+
+
+  // ── Team management tools ──────────────────────────────────────────────────
+
+  pi.registerTool({
+    name: "TeamCreate",
+    label: "Team Create",
+    description: "Create a named team with its own isolated message bus, task board, and agent registry. The caller becomes the team lead (use your agent name, or \"orchestrator\" for the main session).",
+    parameters: Type.Object({
+      name: Type.String({ description: "Unique team name" }),
+      lead: Type.Optional(Type.String({ description: 'Team lead agent name. Default: "orchestrator"' })),
+    }),
+    async execute(_id, params) {
+      try {
+        const team = teams.create(params.name, params.lead ?? "orchestrator");
+        return {
+          content: [{ type: "text" as const, text: `Team "${team.name}" created. Lead: ${team.lead}. Spawn agents with subagent(team: "${team.name}", ...)` }],
+          details: { team: { name: team.name, lead: team.lead } },
+        };
+      } catch (err) {
+        return { content: [{ type: "text" as const, text: String(err) }], details: {}, isError: true };
+      }
+    },
+  });
+
+  pi.registerTool({
+    name: "TeamStatus",
+    label: "Team Status",
+    description: "Show status of a team: lead, members, task board summary, and recent messages.",
+    parameters: Type.Object({
+      name: Type.String({ description: "Team name" }),
+    }),
+    async execute(_id, params) {
+      const team = teams.get(params.name);
+      if (!team) return { content: [{ type: "text" as const, text: `Team "${params.name}" not found.` }], details: {}, isError: true };
+      const members = team.registry.getAll();
+      const tasks = team.taskBoard.list();
+      const unread = team.bus.receive(team.lead);
+      const lines = [
+        `Team: ${team.name} | Lead: ${team.lead} | Members: ${members.length}`,
+        ...members.map((m) => {
+          const elapsed = m.finishedAt ? `${((m.finishedAt - m.spawnedAt) / 1000).toFixed(1)}s` : `${((Date.now() - m.spawnedAt) / 1000).toFixed(1)}s`;
+          const icon = { spawning: "⏳", running: "▶", done: "✓", error: "✗", aborted: "⊘" }[m.status] ?? "?";
+          return `  ${icon} ${m.name} [${m.role}] ${m.status} ${elapsed}`;
+        }),
+        `Tasks: ${tasks.length} total, ${tasks.filter(t => t.status === "todo").length} todo, ${tasks.filter(t => t.status === "in_progress").length} in_progress, ${tasks.filter(t => t.status === "done").length} done`,
+        unread.length > 0 ? `📬 ${unread.length} unread message(s) for team lead` : "",
+      ].filter(Boolean);
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+        details: { name: team.name, lead: team.lead, members, tasks },
+      };
+    },
+  });
+
+  pi.registerTool({
+    name: "TeamDisband",
+    label: "Team Disband",
+    description: "Disband a team. Does not abort running agents — call agent_wait first if needed.",
+    parameters: Type.Object({
+      name: Type.String({ description: "Team name to disband" }),
+    }),
+    async execute(_id, params) {
+      try {
+        const team = teams.disband(params.name);
+        if (!team) return { content: [{ type: "text" as const, text: `Team "${params.name}" not found.` }], details: {}, isError: true };
+        return { content: [{ type: "text" as const, text: `Team "${params.name}" disbanded.` }], details: {} };
+      } catch (err) {
+        return { content: [{ type: "text" as const, text: String(err) }], details: {}, isError: true };
+      }
+    },
+  });
 
   // ── /agents command ────────────────────────────────────────────────────────
 
   pi.registerCommand("agents", {
     description: "Show all spawned agents, their status, and recent mailbox activity",
     handler: async (_args, ctx) => {
-      const all = registry.getAll();
+      const all = teams.getAll().flatMap(t => t.registry.getAll());
       if (all.length === 0) {
         ctx.ui.notify("No agents spawned yet.", "info");
         return;
@@ -831,7 +911,7 @@ export default function (pi: ExtensionAPI) {
       ctx.ui.notify(formatAgentStatus(all), "info");
 
       // Show unread orchestrator messages
-      const unread = bus.receive("orchestrator");
+      const unread = teams.root().bus.receive("orchestrator");
       if (unread.length > 0) {
         ctx.ui.notify(`📬 ${unread.length} new message(s) in orchestrator mailbox`, "info");
       }
@@ -890,7 +970,7 @@ export default function (pi: ExtensionAPI) {
     // Do NOT reset shared singletons (bus, registry, taskBoard) — they are
     // process-lifetime objects shared across all sessions. Resetting them on
     // child session shutdown would wipe the parent orchestrator's state.
-    const aborts = Array.from(liveSessions.values()).map((s) => s.abort().catch(() => {}));
+    const aborts = Array.from(liveSessions.values()).map((s: any) => s.abort().catch(() => {}));
     await Promise.all(aborts);
     liveSessions.clear();
   });

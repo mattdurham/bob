@@ -792,17 +792,30 @@ install-engram:
 install-pi:
 	@echo "🐦 Installing Bob pi components..."
 	@echo ""
-	@echo "🔌 Extension (installing to ~/.pi/agent/extensions/)"
-	@SRC_EXT="pi/extensions/bob-agents"; \
-	DST_EXT="$$HOME/.pi/agent/extensions/bob-agents"; \
-	if [ ! -f "$$SRC_EXT/index.ts" ]; then \
-		echo "   ⚠️  Extension source missing from $$SRC_EXT"; \
-		echo "   Run this from the bob repo root."; \
+	@echo "🔌 Extensions (installing to ~/.pi/agent/extensions/)"
+	@if [ ! -d "pi/extensions" ]; then \
+		echo "   ⚠️  pi/extensions not found; run from bob repo root."; \
 		exit 1; \
 	fi; \
-	mkdir -p "$$DST_EXT"; \
-	cp "$$SRC_EXT"/*.ts "$$DST_EXT/"; \
-	echo "   ✓ Installed: $$DST_EXT"
+	EXT_DST="$$HOME/.pi/agent/extensions"; \
+	mkdir -p "$$EXT_DST"; \
+	EXT_COUNT=0; \
+	for f in pi/extensions/*.ts; do \
+		[ -f "$$f" ] || continue; \
+		name=$$(basename "$$f"); \
+		cp "$$f" "$$EXT_DST/$$name"; \
+		echo "   ✓ $$name"; \
+		EXT_COUNT=$$((EXT_COUNT + 1)); \
+	done; \
+	for d in pi/extensions/*/; do \
+		[ -f "$$d/index.ts" ] || continue; \
+		name=$$(basename "$$d"); \
+		mkdir -p "$$EXT_DST/$$name"; \
+		cp "$$d"*.ts "$$EXT_DST/$$name/"; \
+		echo "   ✓ $$name/"; \
+		EXT_COUNT=$$((EXT_COUNT + 1)); \
+	done; \
+	echo "   $$EXT_COUNT extension(s) installed to $$EXT_DST"
 	@echo ""
 	@echo "📚 Skills (installing to ~/.pi/agent/skills/)"
 	@SKILLS_DIR="$$HOME/.pi/agent/skills"; \

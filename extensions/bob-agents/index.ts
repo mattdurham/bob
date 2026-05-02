@@ -7,7 +7,8 @@
  *
  * Registered tools (available to the orchestrating LLM):
  *   subagent        — spawn agents (single / parallel / chain)
- *   agent_status    — list running and finished agents
+ *   agent_status    — list running and finished agents (with live stdout tail)
+ *   agent_output    — get full stdout buffer for a specific agent
  *   mailbox_read    — read the orchestrator's mailbox
  *   mailbox_send_as — send a message to an agent from the orchestrator
  *   mailbox_broadcast — broadcast a message to all active agents
@@ -87,7 +88,11 @@ function formatAgentStatus(all: ReturnType<typeof registry.getAll>): string {
         ? `${((a.finishedAt - a.spawnedAt) / 1000).toFixed(1)}s`
         : `${((Date.now() - a.spawnedAt) / 1000).toFixed(1)}s`;
       const statusIcon = { spawning: "⏳", running: "▶", done: "✓", error: "✗", aborted: "⊘" }[a.status] ?? "?";
-      return `${statusIcon} ${a.name} [${a.role}] ${a.status} ${elapsed}${a.model ? ` (${a.model})` : ""}`;
+      const tail = a.status === "running" && a.stdout
+        ? `\n    ${a.stdout.split("\n").slice(-3).join("\n    ").slice(0, 200)}`
+        : "";
+      const overflow = a.stdoutBytes > a.stdout.length ? ` [+${a.stdoutBytes - a.stdout.length}b truncated]` : "";
+      return `${statusIcon} ${a.name} [${a.role}] ${a.status} ${elapsed}${a.model ? ` (${a.model})` : ""}${overflow}${tail}`;
     })
     .join("\n");
 }
@@ -371,7 +376,9 @@ async function spawnAgent(
   // Stream text deltas for onUpdate
   const unsub = session.subscribe((event: { type: string; assistantMessageEvent?: { type: string; delta?: string } }) => {
     if (event.type === "message_update" && event.assistantMessageEvent?.type === "text_delta") {
-      onUpdate?.(event.assistantMessageEvent.delta ?? "");
+      const delta = event.assistantMessageEvent.delta ?? "";
+      registry.appendStdout(instanceName, delta);
+      onUpdate?.(delta);
     }
   });
 
@@ -663,6 +670,35 @@ export default function (pi: ExtensionAPI) {
       return {
         content: [{ type: "text" as const, text: formatAgentStatus(registry.getAll()) }],
         details: { agents: registry.getAll() },
+      };
+    },
+  });
+
+  // ── agent_output ──────────────────────────────────────────────────────────
+
+  pi.registerTool({
+    name: "agent_output",
+    label: "Agent Output",
+    description: "Get the live stdout buffer for a specific agent (last 8KB of streaming output).",
+    parameters: Type.Object({
+      agent: Type.String({ description: "Agent name" }),
+      tail: Type.Optional(Type.Number({ description: "Number of lines to tail (default: all buffered)" })),
+    }),
+    async execute(_id, params) {
+      const rec = registry.getEntry(params.agent);
+      if (!rec) {
+        return { content: [{ type: "text" as const, text: `Agent ${params.agent} not found.` }], details: {}, isError: true };
+      }
+      const lines = rec.stdout.split("\n");
+      const tail = params.tail ?? lines.length;
+      const output = lines.slice(-tail).join("\n");
+      const overflow = rec.stdoutBytes > rec.stdout.length
+        ? `[... +${rec.stdoutBytes - rec.stdout.length} bytes truncated ...]\n`
+        : "";
+      const status = `Agent: ${rec.name} [${rec.role}] ${rec.status} ${rec.finishedAt ? ((rec.finishedAt - rec.spawnedAt)/1000).toFixed(1) : ((Date.now()-rec.spawnedAt)/1000).toFixed(1)}s`;
+      return {
+        content: [{ type: "text" as const, text: `${status}\n${overflow}${output || "(no output yet)"}` }],
+        details: { name: rec.name, status: rec.status, stdoutBytes: rec.stdoutBytes, stdout: rec.stdout },
       };
     },
   });

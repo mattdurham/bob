@@ -9,6 +9,9 @@
 
 export type AgentStatus = "spawning" | "running" | "done" | "error" | "aborted";
 
+/** Rolling buffer size for live stdout capture (bytes). */
+const STDOUT_BUFFER = 8_000;
+
 export interface AgentRecord {
   name: string;
   role: string; // agent type from SKILL.md
@@ -18,7 +21,9 @@ export interface AgentRecord {
   spawnedAt: number;
   finishedAt?: number;
   error?: string;
-  output?: string; // final assistant text on completion
+  output?: string;   // final assistant text on completion
+  stdout: string;    // rolling buffer of streaming deltas (last STDOUT_BUFFER chars)
+  stdoutBytes: number; // total bytes received (for overflow indication)
 }
 
 export class AgentRegistry {
@@ -32,6 +37,8 @@ export class AgentRegistry {
       status: "spawning",
       model,
       spawnedAt: Date.now(),
+      stdout: "",
+      stdoutBytes: 0,
     });
   }
 
@@ -80,6 +87,17 @@ export class AgentRegistry {
     let i = 2;
     while (this.agents.has(`${base}-${i}`)) i++;
     return `${base}-${i}`;
+  }
+
+  /** Append streaming delta to the rolling stdout buffer. */
+  appendStdout(name: string, delta: string): void {
+    const rec = this.agents.get(name);
+    if (!rec) return;
+    rec.stdoutBytes += delta.length;
+    rec.stdout += delta;
+    if (rec.stdout.length > STDOUT_BUFFER) {
+      rec.stdout = rec.stdout.slice(rec.stdout.length - STDOUT_BUFFER);
+    }
   }
 
   isTaken(name: string): boolean {

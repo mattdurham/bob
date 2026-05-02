@@ -406,10 +406,11 @@ Working directory: [worktree-path]'"
 
 **Step 5: Monitor until plan task is complete**
 
-Watch the task list until both brainstorm and plan tasks are marked `completed`:
+Check progress with `TaskList()` and `agent_status`. **Never use `agent_wait`** — the orchestrator must remain responsive to answer questions at all times.
 
 ```
 TaskList()
+agent_status
 ```
 
 **Output:**
@@ -845,7 +846,7 @@ Gracefully shut down all teammates:
 "Ask reviewer-2 teammate to shut down"
 ```
 
-Wait for each teammate to confirm shutdown.
+Check `agent_status` until all teammates show `done`. **Do not use `agent_wait`** — poll with `agent_status` to stay responsive.
 
 **Step 2: Invoke code review (standard or adversarial)**
 

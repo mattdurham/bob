@@ -90,8 +90,8 @@ Teammates must not commit either.
 **CRITICAL: All subagents MUST run in background**
 
 - ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
-- ✅ **After spawning agents, STOP** - do not poll or check status
-- ✅ **Wait for agent completion notification** - you'll be notified automatically
+- ✅ **After spawning agents, check progress with `TaskList()` and `agent_status`**
+- ❌ **Never use `agent_wait`** — it blocks the orchestrator; the team lead must remain responsive to answer questions at all times
 - ❌ **Never use foreground execution** - it blocks the workflow
 
 **Example:**
@@ -572,10 +572,13 @@ Working directory: [worktree-path]'"
 
 **Step 6: Monitor until plan task is complete**
 
-Watch the task list until both brainstorm and plan tasks are marked `completed`:
+Check progress with `TaskList()` and `agent_status`. **Never use `agent_wait`** — the orchestrator must remain responsive to answer questions at any time.
+
+Poll periodically:
 
 ```
 TaskList()
+agent_status
 ```
 
 While monitoring:
@@ -1076,7 +1079,7 @@ Then gracefully shut down all teammates:
 "Ask reviewer-2 teammate to shut down"
 ```
 
-Wait for each teammate to confirm shutdown.
+Check `agent_status` until all teammates show `done`. **Do not use `agent_wait`** — poll with `agent_status` to stay responsive.
 
 **Step 2: Invoke code review (standard or adversarial)**
 

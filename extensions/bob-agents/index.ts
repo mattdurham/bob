@@ -39,11 +39,25 @@ import {
   defineTool,
   allTools as allBuiltInTools,
 } from "@mariozechner/pi-coding-agent";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI, type LoadExtensionsResult } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { AgentRegistry, TaskBoard } from "./agent-registry.js";
 import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
 import { MessageBus } from "./message-bus.js";
+
+// ─── Minimal ResourceLoader for child agent sessions ────────────────────────
+// Bypasses DefaultResourceLoader.reload() which loads all installed pi extensions
+// (pi-subagents, pi-intercom, pi-lens etc.) and can block indefinitely on startup.
+// Child agents only need customTools — no extensions required.
+function makeMinimalResourceLoader(): { getExtensions(): LoadExtensionsResult; reload(): Promise<void> } {
+  // Return empty extensions so createAgentSession skips DefaultResourceLoader.reload()
+  // which would load all installed pi packages (pi-subagents, pi-intercom etc.) and hang.
+  const result: LoadExtensionsResult = { extensions: [], errors: [], runtime: { flagValues: new Map() } as never };
+  return {
+    getExtensions: () => result,
+    reload: async () => {},
+  };
+}
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
 
@@ -357,6 +371,7 @@ async function spawnAgent(
   const { session } = await createAgentSession({
     cwd,
     sessionManager: SessionManager.inMemory(),
+    resourceLoader: makeMinimalResourceLoader(),
     customTools,
     ...(model ? { model } : {}),
     authStorage,

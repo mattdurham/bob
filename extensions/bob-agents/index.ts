@@ -37,6 +37,7 @@ import {
   SessionManager,
   createAgentSession,
   defineTool,
+  allTools as allBuiltInTools,
 } from "@mariozechner/pi-coding-agent";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
@@ -342,19 +343,32 @@ async function spawnAgent(
   }
 
   // Build tool sets
+  // Map string tool names to Tool objects for createAgentSession.
+  // Omitting options.tools (or passing undefined) lets customTools be activated automatically.
   const toolNames = buildBuiltinTools(agentDef.tools);
+  const builtinTools = toolNames
+    .map((n) => allBuiltInTools[n as keyof typeof allBuiltInTools])
+    .filter(Boolean);
   const customTools = makeBoundTools(instanceName);
 
-  // Create isolated in-process session
+  // Create isolated in-process session.
+  // Pass builtinTools as tools[] so SDK maps them correctly, AND customTools so
+  // mailbox/task tools are registered and activated alongside built-ins.
   const { session } = await createAgentSession({
     cwd,
     sessionManager: SessionManager.inMemory(),
-    tools: toolNames,
+
     customTools,
     ...(model ? { model } : {}),
     authStorage,
     modelRegistry,
   });
+
+  // Activate all custom tools explicitly — createAgentSession only activates built-ins
+  // in its initialActiveToolNames; custom tools end up in the registry but not the active list.
+  const currentActive = session.getActiveToolNames();
+  const customToolNames = customTools.map((t) => t.name);
+  session.setActiveToolsByName([...new Set([...currentActive, ...customToolNames])]);
 
   // Override system prompt via the agent state after creation
   // (simplest way without a full ResourceLoader per-agent)

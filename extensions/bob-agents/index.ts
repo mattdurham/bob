@@ -357,18 +357,12 @@ async function spawnAgent(
   const { session } = await createAgentSession({
     cwd,
     sessionManager: SessionManager.inMemory(),
-
     customTools,
     ...(model ? { model } : {}),
     authStorage,
     modelRegistry,
   });
 
-  // Activate all custom tools explicitly — createAgentSession only activates built-ins
-  // in its initialActiveToolNames; custom tools end up in the registry but not the active list.
-  const currentActive = session.getActiveToolNames();
-  const customToolNames = customTools.map((t) => t.name);
-  session.setActiveToolsByName([...new Set([...currentActive, ...customToolNames])]);
 
   // Override system prompt via the agent state after creation
   // (simplest way without a full ResourceLoader per-agent)

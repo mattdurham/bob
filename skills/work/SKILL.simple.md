@@ -62,6 +62,27 @@ The orchestrator MUST follow each step exactly as written.
 Each phase has specific prerequisites that MUST be satisfied before proceeding.
 </strict_enforcement>
 
+## Execution Rules
+
+- ✅ **ALWAYS use `background: true`** for ALL subagent calls
+- ✅ **Check progress with `TaskList()` and `agent_status`** after spawning
+- ❌ **Never use `agent_wait`** — blocks the orchestrator; must remain responsive at all times
+- ❌ **Never use foreground execution** — blocks the workflow
+- ❌ **Never use the `tasks: [...]` parallel mode** — blocks until ALL complete; spawn each agent individually with `background: true` instead
+
+**Correct:**
+
+```
+subagent(agent: "team-coder", task: "...", background: true)
+subagent(agent: "team-reviewer", task: "...", background: true)
+```
+
+**Wrong — blocks:**
+
+```
+subagent(tasks: [{agent: "team-coder", task: "..."}, {agent: "team-reviewer", task: "..."}])
+```
+
 ## Flow Control Rules
 
 **Loop-back paths (the ONLY exceptions to forward progression):**

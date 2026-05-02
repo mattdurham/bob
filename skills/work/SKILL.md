@@ -89,21 +89,26 @@ Teammates must not commit either.
 
 **CRITICAL: All subagents MUST run in background**
 
-- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
+- ✅ **ALWAYS use `background: true`** for ALL subagent calls — single, parallel, and chain modes
 - ✅ **After spawning agents, check progress with `TaskList()` and `agent_status`**
-- ❌ **Never use `agent_wait`** — it blocks the orchestrator; the team lead must remain responsive to answer questions at all times
-- ❌ **Never use foreground execution** - it blocks the workflow
+- ❌ **Never use `agent_wait`** — it blocks the orchestrator; the team lead must remain responsive at all times
+- ❌ **Never use foreground execution** — it blocks the workflow
+- ❌ **Never use the `tasks: [...]` parallel mode** — it blocks until ALL agents complete; spawn each agent individually with `background: true` instead
 
-**Example:**
+**Correct — spawn individually in background:**
 
 ```
-Task(subagent_type: "any-agent",
-     description: "Brief description",
-     run_in_background: true,  // ← REQUIRED
-     prompt: "Detailed instructions...")
+subagent(agent: "team-coder", task: "...", background: true)
+subagent(agent: "team-reviewer", task: "...", background: true)
 ```
 
-**Why?** Background execution allows the workflow to continue and enables true parallelism when spawning multiple agents.
+**Wrong — parallel mode blocks:**
+
+```
+subagent(tasks: [{agent: "team-coder", task: "..."}, {agent: "team-reviewer", task: "..."}])
+```
+
+**Why?** The orchestrator must remain responsive to user questions at all times. Any blocking call prevents the user from getting answers while agents work.
 
 ---
 

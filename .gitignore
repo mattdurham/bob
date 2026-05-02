@@ -40,3 +40,6 @@ Thumbs.db
 
 # Planning documents
 bots/
+
+# pi/ is source-only; skills are generated output not tracked
+pi/skills/

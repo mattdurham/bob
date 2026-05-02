@@ -22,7 +22,9 @@ EXECUTE and REVIEW phases run concurrently with teammate agents communicating di
 ## Prerequisites
 
 <experimental_feature>
-This workflow requires the experimental agent teams feature:
+**In pi:** Agent teams are always available via the built-in `subagent` tool. No flag needed — skip the check below and proceed directly.
+
+**In Claude Code:** This workflow requires the experimental agent teams feature:
 
 ```json
 // Add to ~/.claude/settings.json
@@ -34,11 +36,12 @@ This workflow requires the experimental agent teams feature:
 ```
 
 Or set environment variable:
+
 ```bash
 export CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1
 ```
 
-Without this flag, the workflow will fail.
+Without this flag (in Claude Code), the workflow will fail.
 </experimental_feature>
 
 ## Workflow Diagram
@@ -62,6 +65,7 @@ Each phase has specific prerequisites that MUST be satisfied before proceeding.
 ## Flow Control Rules
 
 **Loop-back paths (the ONLY exceptions to forward progression):**
+
 - **REVIEW → BRAINSTORM**: CRITICAL/HIGH issues found during review require re-brainstorming (code-review routes this internally)
 - **EXECUTE/REVIEW → EXECUTE**: Failed tasks or review issues create fix tasks
 - **TEST → EXECUTE**: Test failures require code fixes
@@ -91,6 +95,7 @@ Teammates must not commit either.
 - ❌ **Never use foreground execution** - it blocks the workflow
 
 **Example:**
+
 ```
 Task(subagent_type: "any-agent",
      description: "Brief description",
@@ -126,6 +131,7 @@ Coordination:
 **Execution team** (coder-1, coder-2, reviewer-1, reviewer-2) spawns at SPAWN EXECUTION TEAM after the plan is ready.
 
 **Your role as team lead:**
+
 - Create and manage the team
 - Spawn teammates with clear prompts
 - Create tasks in shared task list
@@ -134,6 +140,7 @@ Coordination:
 - Clean up team when done
 
 **Teammates' roles:**
+
 - Work autonomously on assigned tasks
 - Communicate with each other directly
 - Update task list as work progresses
@@ -146,6 +153,7 @@ Coordination:
 **The team lead coordinates. It never executes.**
 
 **Team Lead CAN:**
+
 - ✅ Create and manage the agent team
 - ✅ Spawn teammates with specific prompts
 - ✅ Create tasks using TaskCreate
@@ -158,6 +166,7 @@ Coordination:
 - ✅ Clean up team when workflow complete
 
 **Team Lead CANNOT:**
+
 - ❌ Write or edit any files (source code OR `.bob/` state files)
 - ❌ Run git commands (except `cd` into worktree)
 - ❌ Run tests, linters, or build commands
@@ -179,11 +188,13 @@ or routing recommendations (except review-consolidator which provides rule-based
 routing based on severity counts).
 
 Teammates MUST report:
+
 - WHAT failed/was found
 - WHY it failed (error messages, root cause, specific violations)
 - WHERE it failed (file:line, test name, check name)
 
 Teammates MUST NOT report:
+
 - Whether results are "acceptable" or "good enough"
 - What should be done next
 - Subjective judgments or opinions
@@ -192,6 +203,7 @@ The team lead reads teammate findings and makes ALL routing decisions.
 </subagent_principle>
 
 **Teammate responsibilities:**
+
 - ✅ Execute assigned tasks (implement code, review code, run tests)
 - ✅ Report findings objectively with severity levels
 - ✅ Write results to designated `.bob/state/*.md` files
@@ -202,12 +214,14 @@ The team lead reads teammate findings and makes ALL routing decisions.
 - ✅ Message team lead and other teammates as needed
 
 **Teammates CANNOT:**
+
 - ❌ Determine if results are "acceptable" or "good enough"
 - ❌ Make recommendations on next steps (except consolidator's rule-based routing)
 - ❌ Decide whether to proceed or loop back
 - ❌ Override team lead routing logic
 
 **Example - TEST phase:**
+
 - ❌ Bad: "All tests passed. You can proceed to REVIEW."
 - ❌ Bad: "Test failed in auth_test.go:42" (missing WHY)
 - ✅ Good: "Test results: 47 passed, 2 failed.
@@ -215,6 +229,7 @@ The team lead reads teammate findings and makes ALL routing decisions.
   - db_test.go:89 TestConnection: connection timeout after 5s. Error: 'no route to host'"
 
 **Example - REVIEW phase:**
+
 - ❌ Bad: "Found 3 issues but they're minor. Code is acceptable."
 - ❌ Bad: "Found 1 HIGH severity issue in auth.go:42" (missing WHY)
 - ✅ Good: "Found 3 issues:
@@ -235,23 +250,24 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 
 **Auto-routing rules:**
 
-| Situation | Action | Prompt user? |
-|-----------|--------|--------------|
-| Teammates complete tasks | Monitor and wait for all complete | No |
-| Tasks approved | Route to next phase immediately | No |
-| Review creates fix tasks | Teammates pick them up automatically | No — just log what happened |
-| Tests fail | Loop to EXECUTE with failure details | No — just log what failed and loop |
-| Review finds issues (any severity) | code-review handles fix loop internally | No — code-review routes automatically |
-| Review complete (clean) | code-review commits and proceeds to COMPLETE | No |
-| Loop-back occurs | Log why, continue automatically | No |
-| Teammate fails with error | Message teammate to debug/retry | Only if unresolvable |
-| COMPLETE phase (merge PR) | Confirm with user | **Yes — only prompt in entire workflow** |
+| Situation                          | Action                                       | Prompt user?                             |
+| ---------------------------------- | -------------------------------------------- | ---------------------------------------- |
+| Teammates complete tasks           | Monitor and wait for all complete            | No                                       |
+| Tasks approved                     | Route to next phase immediately              | No                                       |
+| Review creates fix tasks           | Teammates pick them up automatically         | No — just log what happened              |
+| Tests fail                         | Loop to EXECUTE with failure details         | No — just log what failed and loop       |
+| Review finds issues (any severity) | code-review handles fix loop internally      | No — code-review routes automatically    |
+| Review complete (clean)            | code-review commits and proceeds to COMPLETE | No                                       |
+| Loop-back occurs                   | Log why, continue automatically              | No                                       |
+| Teammate fails with error          | Message teammate to debug/retry              | Only if unresolvable                     |
+| COMPLETE phase (merge PR)          | Confirm with user                            | **Yes — only prompt in entire workflow** |
 
 **The ONLY user prompt in the standard workflow is the final merge confirmation at COMPLETE.**
 
 Everything else is automatic. The team lead logs brief status lines so the user can follow along, but never stops to ask. If something fails, it retries or loops back per the routing rules. If a loop-back is needed, it explains what happened and immediately continues.
 
 **Forbidden phrases (never output these):**
+
 - "Should I continue?"
 - "Do you want me to proceed?"
 - "Shall I move to the next phase?"
@@ -260,6 +276,7 @@ Everything else is automatic. The team lead logs brief status lines so the user 
 - Any question asking permission to do what the workflow already defines
 
 **Brief status updates between phases (DO output these):**
+
 ```
 ✓ BRAINSTORM complete → .bob/state/brainstorm.md
 Moving to PLAN phase...
@@ -294,6 +311,7 @@ code changes:
 ## Navigator: Treat as Senior Developer
 
 Navigator (`mcp__navigator__*` tools) is a persistent knowledge base that accumulates findings across sessions. If available, use it throughout this workflow:
+
 - **consult** before brainstorming, planning, and reviewing — ask what it knows about the task scope
 - **recall** before coding — pull proven patterns for the package
 - **remember** after each major phase — record decisions and findings for future sessions
@@ -307,7 +325,9 @@ All navigator calls are optional. If the tool is unavailable (server not running
 **Goal:** Initialize and understand requirements
 
 **Actions:**
+
 1. **Greet the user:**
+
    ```
    "Hey! Bob here, ready to coordinate the team.
 
@@ -317,8 +337,11 @@ All navigator calls are optional. If the tool is unavailable (server not running
    ```
 
 2. **Verify experimental flag is enabled:**
+
    ```
-   Check if CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is set
+   If running in pi (the `subagent` tool is available): agent teams are always enabled — skip this check.
+
+   If running in Claude Code: check if CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 is set.
    If not, STOP and say:
    "Agent teams are not enabled.
    Run this command to enable them:
@@ -331,6 +354,7 @@ All navigator calls are optional. If the tool is unavailable (server not running
 3. **Detect adversarial code review mode:**
 
    Spawn a Bash agent to check whether adversarial review is requested:
+
    ```
    Task(subagent_type: "Bash",
         description: "Detect adversarial review mode",
@@ -368,6 +392,7 @@ This ensures all work is isolated from the main branch.
 **Actions:**
 
 Spawn a Bash agent to check for existing worktree or create a new one:
+
 ```
 Task(subagent_type: "Bash",
      description: "Check for worktree or create one",
@@ -422,6 +447,7 @@ Task(subagent_type: "Bash",
 **On loop-back (REVIEW → BRAINSTORM):** Skip this phase — the worktree already exists and you're already in it.
 
 **Output:**
+
 - Isolated worktree in `../<repo>-worktrees/<feature>/`
 - `.bob/state/` directory created
 - Team lead working directory set to worktree
@@ -449,6 +475,7 @@ Please create the team now — I'll add teammates next."
 **Step 2: Write brainstorm prompt**
 
 Write the task context to `.bob/state/brainstorm-prompt.md`:
+
 ```
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
@@ -482,6 +509,7 @@ TaskCreate(
 ```
 
 Then block the plan task on the brainstorm task:
+
 ```
 TaskUpdate(taskId: "<plan-task-id>", addBlockedBy: ["<brainstorm-task-id>"])
 ```
@@ -489,6 +517,7 @@ TaskUpdate(taskId: "<plan-task-id>", addBlockedBy: ["<brainstorm-task-id>"])
 **Step 4: (Full spec mode only) Detect spec-driven modules**
 
 Scan for spec-driven modules that will be affected by this task:
+
 ```bash
 find . -name "SPECS.md" -o -name "NOTES.md" -o -name "TESTS.md" -o -name "BENCHMARKS.md" | head -20
 ```
@@ -498,6 +527,7 @@ Note which modules are spec-driven. The team-spec-oracle will scan them fully.
 **Step 5: Spawn knowledge teammates**
 
 Spawn team-brainstormer:
+
 ```
 "Spawn a teammate named 'team-brainstormer'.
 
@@ -511,6 +541,7 @@ Working directory: [worktree-path]'"
 ```
 
 Spawn team-planner:
+
 ```
 "Spawn a teammate named 'team-planner'.
 
@@ -524,6 +555,7 @@ Working directory: [worktree-path]'"
 ```
 
 **(Full spec mode only)** Spawn team-spec-oracle:
+
 ```
 "Spawn a teammate named 'team-spec-oracle'.
 
@@ -547,11 +579,13 @@ TaskList()
 ```
 
 While monitoring:
+
 - team-brainstormer claims and completes the brainstorm task
 - team-planner automatically unblocks and claims the plan task
 - team-spec-oracle scans spec files concurrently (no task needed)
 
 **Output:**
+
 - `.bob/state/brainstorm.md` (written by team-brainstormer)
 - `.bob/state/plan.md` (written by team-planner)
 - `.bob/state/spec-knowledge.md` (written by team-spec-oracle, full spec mode only)
@@ -583,6 +617,7 @@ Analyze the plan and create tasks using TaskCreate. Break into:
 5. **Quality tasks**: Formatting, linting, complexity checks
 
 **Task structure guidelines:**
+
 - One task per logical unit (function, test file, component)
 - Include clear acceptance criteria in description
 - Set up dependencies with `addBlockedBy` (tests depend on implementation, integration depends on components)
@@ -591,6 +626,7 @@ Analyze the plan and create tasks using TaskCreate. Break into:
 - Mark quality tasks with metadata: `task_type: "quality"`
 
 **Example task creation:**
+
 ```
 TaskCreate(
   subject: "Implement user authentication function",
@@ -616,11 +652,13 @@ TaskCreate(
 ```
 
 Create ALL tasks from the plan at once. Then set up dependencies:
+
 ```
 TaskUpdate(taskId: "<test-task-id>", addBlockedBy: ["<implementation-task-id>"])
 ```
 
 **Output:**
+
 - Task list (created by team lead using TaskCreate)
 
 **If looping from REVIEW:** Update plan to address review findings and create new fix tasks.
@@ -640,6 +678,7 @@ The knowledge team is already running. Now spawn the execution team.
 Spawn 2 coder teammates with clear prompts:
 
 **Coder 1:**
+
 ```
 "Spawn a teammate named 'coder-1' to implement tasks from the shared task list.
 
@@ -692,6 +731,7 @@ Working directory: [worktree-path]'
 ```
 
 **Coder 2:**
+
 ```
 "Spawn a teammate named 'coder-2' to implement tasks from the shared task list.
 
@@ -703,6 +743,7 @@ Working directory: [worktree-path]'
 Spawn 2 reviewer teammates:
 
 **Reviewer 1:**
+
 ```
 "Spawn a teammate named 'reviewer-1' to review completed tasks incrementally.
 
@@ -748,6 +789,7 @@ Working directory: [worktree-path]'
 ```
 
 **Reviewer 2:**
+
 ```
 "Spawn a teammate named 'reviewer-2' to review completed tasks incrementally.
 
@@ -757,6 +799,7 @@ Working directory: [worktree-path]'
 **Step 3: Verify team**
 
 Check that all teammates are active:
+
 ```
 "Show me the current team members and their status."
 ```
@@ -764,6 +807,7 @@ Check that all teammates are active:
 You should see: team-brainstormer, team-planner, team-spec-oracle (full spec mode), coder-1, coder-2, reviewer-1, reviewer-2.
 
 **Output:**
+
 - Full team active and ready
 - Team lead can monitor via TaskList
 
@@ -778,6 +822,7 @@ You should see: team-brainstormer, team-planner, team-spec-oracle (full spec mod
 EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks while reviewers review completed tasks in real-time.
 
 **Your role as team lead:**
+
 1. Monitor task list progress
 2. Message teammates as needed
 3. Handle issues or blockers
@@ -788,6 +833,7 @@ EXECUTE and REVIEW happen **concurrently**. Coders work on implementing tasks wh
 **Step 1: Broadcast kickoff message**
 
 Send a broadcast to all teammates:
+
 ```
 "Broadcast to all team members:
 
@@ -805,11 +851,13 @@ Let's get this done."
 **Step 2: Monitor progress**
 
 Periodically check the task list to see progress:
+
 ```
 TaskList()
 ```
 
 Track:
+
 - Tasks pending
 - Tasks in progress (claimed by coders)
 - Tasks completed (waiting for review)
@@ -819,12 +867,14 @@ Track:
 **Step 3: Handle teammate messages**
 
 As teammates work, they'll send messages:
+
 - **Coder completes task**: "Completed task 123: Implement auth function"
 - **Reviewer approves**: "Approved task 123: looks good, tests pass"
 - **Reviewer finds issues**: "Task 123 needs fixes: missing nil check, created fix task 456"
 - **Coder blocked**: "Can't proceed on task 789, needs clarification on..."
 
 Respond to messages as team lead:
+
 - Acknowledge completions
 - Provide clarifications when asked
 - Redirect work if needed
@@ -833,12 +883,14 @@ Respond to messages as team lead:
 **Step 4: Facilitate teammate collaboration**
 
 If issues arise, help teammates communicate:
+
 ```
 "Message coder-1: reviewer-1 found some issues with your implementation.
 Check fix task 456 for details and address them."
 ```
 
 Or:
+
 ```
 "Message reviewer-2: coder-2 has a question about the validation logic.
 Can you provide guidance on what level of validation is needed?"
@@ -849,15 +901,18 @@ Can you provide guidance on what level of validation is needed?"
 Monitor until one of these conditions:
 
 **A. All tasks complete and approved:**
+
 ```
 TaskList() shows:
 - 0 pending tasks
 - 0 in progress tasks
 - All completed tasks have metadata.reviewed: true, metadata.approved: true
 ```
+
 → **Proceed to TEST phase**
 
 **B. Teammates finish but some tasks unapproved:**
+
 ```
 TaskList() shows:
 - 0 pending tasks
@@ -866,12 +921,14 @@ TaskList() shows:
 ```
 
 Check severity of issues:
+
 - **HIGH/CRITICAL issues**: Loop to BRAINSTORM (need to re-think approach)
 - **MEDIUM/LOW issues**: Stay in EXECUTE, ensure fix tasks are claimed and worked
 
 **C. Teammates go idle:**
 
 If teammates finish their work but tasks remain:
+
 - Check for blockers (dependency issues)
 - Message teammates to claim remaining tasks
 - Create new tasks if scope changed
@@ -909,6 +966,7 @@ TaskList: 0 pending, 0 in progress, 8 complete + approved
 ```
 
 **Output:**
+
 - All tasks implemented and approved
 - Code changes ready for testing
 
@@ -921,6 +979,7 @@ TaskList: 0 pending, 0 in progress, 8 complete + approved
 **Actions:**
 
 Spawn workflow-tester agent (NOT a teammate, just a regular subagent):
+
 ```
 Task(subagent_type: "workflow-tester",
      description: "Run all tests and checks",
@@ -965,6 +1024,7 @@ Task(subagent_type: "workflow-tester",
 **Output:** `.bob/state/test-results.md`
 
 Checks:
+
 - All tests pass (new AND pre-existing — zero tolerance for regressions)
 - No race conditions
 - Good coverage (>80%)
@@ -975,9 +1035,10 @@ Checks:
 
 <routing_rule>
 After TEST completes, read `.bob/state/test-results.md` and route:
+
 - Tests pass → Proceed to REVIEW (final verification)
 - Tests fail → Message coders to create fix tasks, stay in EXECUTE
-</routing_rule>
+  </routing_rule>
 
 ---
 
@@ -994,6 +1055,7 @@ Even though incremental reviews happened during EXECUTE, this phase does a final
 **Step 1: Finalize spec docs and shut down teammates**
 
 **(Full spec mode only) Finalize spec updates first:**
+
 ```
 "Message team-spec-oracle: All implementation tasks are complete.
 Please finalize all spec doc updates now — write to SPECS.md, NOTES.md, TESTS.md,
@@ -1021,11 +1083,13 @@ Wait for each teammate to confirm shutdown.
 **If adversarial mode is OFF** (detected in INIT):
 
 Invoke the code-review skill:
+
 ```
 Invoke: /bob:code-review
 ```
 
 The code-review skill handles the complete cycle:
+
 1. Multi-domain code review (security, bugs, errors, quality, performance, Go idioms, architecture, docs)
 2. Spec-driven compliance check (SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
 3. FIX loop — fixes issues, re-runs tests until clean
@@ -1035,6 +1099,7 @@ The code-review skill handles the complete cycle:
 **If adversarial mode is ON** (detected in INIT):
 
 Invoke the adversarial review skill in DIFF mode (reviews only changed files):
+
 ```
 Invoke: /bob:adversarial-review DIFF
 ```
@@ -1043,11 +1108,13 @@ Invoke: /bob:adversarial-review DIFF
 findings into `.bob/state/review.md`, and includes a routing recommendation.
 
 Read `.bob/state/review.md` and route per the recommendation:
+
 - BRAINSTORM: CRITICAL issues → loop back to BRAINSTORM
 - EXECUTE: HIGH/MEDIUM issues → spawn fix tasks, loop back to EXECUTE, re-run tests, re-review
 - COMMIT: clean → proceed to commit
 
 For the commit/PR/CI monitor steps after adversarial review, spawn a `commit-agent` directly:
+
 ```
 Task(subagent_type: "commit-agent",
      description: "Commit changes and open PR",
@@ -1058,7 +1125,6 @@ Task(subagent_type: "commit-agent",
 
 After adversarial review + commit completes, proceed to COMPLETE.
 
-
 ---
 
 ## Phase 9: COMPLETE
@@ -1068,11 +1134,13 @@ After adversarial review + commit completes, proceed to COMPLETE.
 **Actions:**
 
 1. **Clean up the team:**
+
    ```
    "Clean up the agent team"
    ```
 
 2. **Confirm with user:**
+
    ```
    "All checks passing!
 
@@ -1082,11 +1150,13 @@ After adversarial review + commit completes, proceed to COMPLETE.
    ```
 
 3. If approved, merge PR:
+
    ```bash
    gh pr merge --squash
    ```
 
 4. **Celebrate!**
+
    ```
    "Done!
 
@@ -1101,12 +1171,14 @@ After adversarial review + commit completes, proceed to COMPLETE.
 ## State Management
 
 Workflow state is maintained through:
-- **.bob/state/*.md files** - Persistent artifacts between phases
+
+- **.bob/state/\*.md files** - Persistent artifacts between phases
 - **Git branch** - Feature branch tracks work
 - **Git worktree** - Isolated development environment
 - **Shared task list** - Work queue for concurrent teammates
 
 **Key files:**
+
 - `.bob/state/brainstorm.md` - Research and approach
 - `.bob/state/plan.md` - Implementation plan
 - `.bob/state/test-results.md` - Test execution results
@@ -1151,6 +1223,7 @@ REVIEW (final):
 ### Spawning Teammates
 
 **Good teammate prompts:**
+
 - Clear role definition
 - Specific tools they can use
 - Clear termination conditions
@@ -1158,6 +1231,7 @@ REVIEW (final):
 - Autonomy within boundaries
 
 **Bad teammate prompts:**
+
 - Vague responsibilities
 - No termination condition
 - Missing context
@@ -1166,6 +1240,7 @@ REVIEW (final):
 ### Monitoring Progress
 
 **As team lead, periodically:**
+
 - Check TaskList for stuck tasks
 - Read teammate messages
 - Identify blockers
@@ -1175,18 +1250,21 @@ REVIEW (final):
 ### Handling Issues
 
 **Teammate blocked:**
+
 ```
 Message teammate: "Can you describe what's blocking you?"
 Read response, provide guidance or create clarification task
 ```
 
 **Teammate idle but work remains:**
+
 ```
 Message teammate: "There are still pending tasks in the task list.
 Can you claim task [ID] and continue?"
 ```
 
 **Teammates conflicting:**
+
 ```
 Message both: "You're both working on overlapping areas.
 [Teammate 1]: focus on [X]
@@ -1196,12 +1274,14 @@ Message both: "You're both working on overlapping areas.
 ### Cleaning Up
 
 **Always clean up properly:**
+
 1. Shut down all teammates (message each to shut down)
 2. Wait for shutdown confirmations
 3. Clean up the team (run team cleanup)
 4. Verify resources released
 
 **Never:**
+
 - Let teammates clean up (only team lead should do this)
 - Leave team running after workflow ends
 - Abandon teammates without shutdown
@@ -1211,12 +1291,14 @@ Message both: "You're both working on overlapping areas.
 ## Best Practices
 
 **Orchestration (read-only coordinator):**
+
 - Let teammates do ALL the work — including writing `.bob/state/*.md` files
 - Read `.bob/state/*.md` files to make routing decisions
 - Use task list for work coordination
 - Stay lean — team lead context should remain small
 
 **Flow Control:**
+
 - Execute phases in exact order: INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE+REVIEW → TEST → REVIEW → COMPLETE
 - Drive forward relentlessly — only prompt at COMPLETE (merge confirmation)
 - TEST → EXECUTE is the ONLY outer loop-back; all REVIEW loop-backs are internal to `/bob:code-review`
@@ -1224,6 +1306,7 @@ Message both: "You're both working on overlapping areas.
 - Validate test passage via `.bob/state/test-results.md` before REVIEW
 
 **Quality:**
+
 - TDD throughout (tests first)
 - Incremental review during EXECUTE + final comprehensive review
 - Fix issues properly (re-brainstorm if CRITICAL/HIGH)
@@ -1234,6 +1317,7 @@ Message both: "You're both working on overlapping areas.
 ## Summary
 
 **Remember:**
+
 - You are the **team lead** — you create the team, spawn teammates, monitor progress, and make routing decisions
 - **Never write files** — all writes are done by teammates or subagents
 - **Never prompt the user** — except at COMPLETE to confirm merge
@@ -1243,6 +1327,7 @@ Message both: "You're both working on overlapping areas.
 - Log brief status lines between phases so the user can follow along
 
 **Strict Enforcement (XML tags mark critical rules):**
+
 - `<strict_enforcement>` - Phases MUST be executed in exact order, no skipping
 - `<critical_gate>` - Hard gates that cannot be bypassed
 - `<hard_gate>` - Specific blocking conditions
@@ -1250,7 +1335,8 @@ Message both: "You're both working on overlapping areas.
 - `<routing_rule>` - Automatic routing logic with no override
 
 **Experimental Feature Requirements:**
-- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set
+
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` must be set (Claude Code only — not required in pi)
 - tmux or iTerm2 for split panes (optional)
 - Agent teams API available
 

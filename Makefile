@@ -803,14 +803,16 @@ install-pi:
 	fi
 	@echo ""
 	@echo "🔌 Extension"
-	@EXT_DIR=".pi/extensions/bob-agents"; \
-	if [ -f "$$EXT_DIR/index.ts" ]; then \
-		echo "   ✓ Already present: $$EXT_DIR"; \
-	else \
-		echo "   ⚠️  Extension source missing from $$EXT_DIR"; \
+	@SRC_EXT="extensions/bob-agents"; \
+	DST_EXT="$$HOME/.pi/agent/extensions/bob-agents"; \
+	if [ ! -d "$$SRC_EXT" ]; then \
+		echo "   ⚠️  Extension source missing from $$SRC_EXT"; \
 		echo "   Run this from the bob repo root."; \
 		exit 1; \
-	fi
+	fi; \
+	mkdir -p "$$DST_EXT"; \
+	cp "$$SRC_EXT"/*.ts "$$DST_EXT/"; \
+	echo "   ✓ Copied $$SRC_EXT → $$DST_EXT"
 	@echo ""
 	@echo "📚 Skills"
 	@SKILLS_DIR=".pi/skills"; \
@@ -858,7 +860,7 @@ install-pi:
 	@echo "✅ Pi installation complete!"
 	@echo ""
 	@echo "Installed under .pi/ (project-local, auto-discovered by pi):"
-	@echo "  ✓ Extension → .pi/extensions/bob-agents/"
+	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
 	@echo "  ✓ Skills    → .pi/skills/"
 	@echo "  ✓ LSP       → https://github.com/apmantza/pi-lens"
 	@echo ""

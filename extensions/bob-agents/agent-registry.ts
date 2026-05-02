@@ -12,6 +12,9 @@ export type AgentStatus = "spawning" | "running" | "done" | "error" | "aborted";
 /** Rolling buffer size for live stdout capture (bytes). */
 const STDOUT_BUFFER = 8_000;
 
+/** Max lifecycle log entries per agent. */
+const LOG_RING = 50;
+
 export interface AgentRecord {
   name: string;
   role: string; // agent type from SKILL.md
@@ -24,6 +27,7 @@ export interface AgentRecord {
   output?: string;   // final assistant text on completion
   stdout: string;    // rolling buffer of streaming deltas (last STDOUT_BUFFER chars)
   stdoutBytes: number; // total bytes received (for overflow indication)
+  log: string[];     // ring buffer of lifecycle events (last LOG_RING entries)
 }
 
 export class AgentRegistry {
@@ -39,6 +43,7 @@ export class AgentRegistry {
       spawnedAt: Date.now(),
       stdout: "",
       stdoutBytes: 0,
+      log: [],
     });
   }
 
@@ -87,6 +92,14 @@ export class AgentRegistry {
     let i = 2;
     while (this.agents.has(`${base}-${i}`)) i++;
     return `${base}-${i}`;
+  }
+
+  /** Append a lifecycle event to the agent's log ring buffer. */
+  appendLog(name: string, msg: string): void {
+    const rec = this.agents.get(name);
+    if (!rec) return;
+    rec.log.push(`${new Date().toISOString()} ${msg}`);
+    if (rec.log.length > LOG_RING) rec.log.shift();
   }
 
   /** Append streaming delta to the rolling stdout buffer. */

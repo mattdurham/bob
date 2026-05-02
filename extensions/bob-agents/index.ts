@@ -330,6 +330,7 @@ async function spawnAgent(
   cwd: string,
   signal?: AbortSignal,
   onUpdate?: (text: string) => void,
+  parentModel?: import("@mariozechner/pi-ai").Model<any>,
 ): Promise<SpawnResult> {
   // Register (or update existing placeholder from parallel pre-reservation)
   if (registry.isTaken(instanceName)) {
@@ -352,8 +353,10 @@ async function spawnAgent(
 
   // Resolve model
   let model: Awaited<ReturnType<typeof resolveModel>> = undefined;
+  registry.appendLog(instanceName, "[bob-agents] spawnAgent: resolving model...");
   if (agentDef.model) {
     model = await resolveModel(agentDef.model);
+    registry.appendLog(instanceName, "[bob-agents] spawnAgent: model resolved");
   }
 
   // Build tool sets
@@ -364,6 +367,7 @@ async function spawnAgent(
     .map((n) => allBuiltInTools[n as keyof typeof allBuiltInTools])
     .filter(Boolean);
   const customTools = makeBoundTools(instanceName);
+  registry.appendLog(instanceName, "[bob-agents] spawnAgent: calling createAgentSession...");
 
   // Create isolated in-process session.
   // Pass builtinTools as tools[] so SDK maps them correctly, AND customTools so
@@ -381,6 +385,7 @@ async function spawnAgent(
 
   // Override system prompt via the agent state after creation
   // (simplest way without a full ResourceLoader per-agent)
+  registry.appendLog(instanceName, "[bob-agents] spawnAgent: session created, prompting...");
   session.agent.state.systemPrompt = systemPrompt;
 
   liveSessions.set(instanceName, session);
@@ -501,7 +506,7 @@ export default function (pi: ExtensionAPI) {
 
         // Background mode: fire-and-forget, return immediately
         if (params.background) {
-          const p = spawnAgent(def, name, params.task, ctx.cwd, signal);
+          const p = spawnAgent(def, name, params.task, ctx.cwd, signal, undefined, ctx.model ?? undefined);
           p.catch(() => {}); // errors are visible via agent_status
           return {
             content: [{ type: "text" as const, text: `Agent ${name} spawned in background. Use agent_status to monitor or agent_wait to block until done.` }],
@@ -517,7 +522,7 @@ export default function (pi: ExtensionAPI) {
             content: [{ type: "text" as const, text: `[${name}] ${accumulated.slice(-300)}` }],
             details: { name, status: "running" },
           });
-        });
+        }, ctx.model ?? undefined);
         return {
           content: [{ type: "text" as const, text: result.output || result.error || "(no output)" }],
           details: { name, status: result.status },
@@ -579,7 +584,7 @@ export default function (pi: ExtensionAPI) {
                 content: [{ type: "text" as const, text: statusText() }],
                 details: { mode: "parallel", agents: registry.getAll().filter((a) => instanceNames.includes(a.name)) },
               });
-            });
+            }, ctx.model ?? undefined);
           }),
         );
 
@@ -619,7 +624,7 @@ export default function (pi: ExtensionAPI) {
               content: [{ type: "text" as const, text: `[chain step ${i + 1}/${params.chain!.length}: ${name}] ${acc.slice(-200)}` }],
               details: { mode: "chain", step: i + 1, total: params.chain!.length },
             });
-          });
+          }, ctx.model ?? undefined);
           results.push(result);
           if (result.status !== "done") {
             return {

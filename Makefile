@@ -792,6 +792,16 @@ install-engram:
 install-pi:
 	@echo "🐦 Installing Bob pi components under .pi/..."
 	@echo ""
+	@echo "📦 LSP Support"
+	@if command -v pi >/dev/null 2>&1; then \
+		echo "   Installing npm:@spences10/pi-lsp..."; \
+		pi install npm:@spences10/pi-lsp; \
+		echo "   ✓ LSP support installed"; \
+	else \
+		echo "   ⚠️  pi not found in PATH — skipping LSP install"; \
+		echo "   Install pi first, then run: pi install npm:@spences10/pi-lsp"; \
+	fi
+	@echo ""
 	@echo "🔌 Extension"
 	@EXT_DIR=".pi/extensions/bob-agents"; \
 	if [ -f "$$EXT_DIR/index.ts" ]; then \
@@ -850,6 +860,7 @@ install-pi:
 	@echo "Installed under .pi/ (project-local, auto-discovered by pi):"
 	@echo "  ✓ Extension → .pi/extensions/bob-agents/"
 	@echo "  ✓ Skills    → .pi/skills/"
+	@echo "  ✓ LSP       → npm:@spences10/pi-lsp"
 	@echo ""
 	@echo "Available skill commands in pi:"
 	@find .pi/skills -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \

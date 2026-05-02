@@ -810,7 +810,6 @@ install-pi:
 	SKILL_COUNT=0; \
 	for skill_dir in skills/*; do \
 		[ -d "$$skill_dir" ] || continue; \
-		skill=$$(basename "$$skill_dir"); \
 		if [ "$(SPEC)" = "simple" ] && [ -f "$$skill_dir/SKILL.simple.md" ]; then \
 			SRC="$$skill_dir/SKILL.simple.md"; \
 		elif [ -f "$$skill_dir/SKILL.md" ]; then \
@@ -824,7 +823,7 @@ install-pi:
 			BOB_REPO_PATH=$$(pwd); \
 			SKILL_COUNT_ALL=$$(find skills -name "SKILL.md" | wc -l); \
 			AGENT_COUNT_ALL=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
-			mkdir -p "$$SKILLS_DIR/$$skill"; \
+			TMP=$$(mktemp); \
 			sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
 			    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
 			    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
@@ -833,16 +832,16 @@ install-pi:
 			    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
 			    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT_ALL|g" \
 			    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT_ALL|g" \
-			    "$$skill_dir/SKILL.md.template" > "$$SKILLS_DIR/$$skill/SKILL.md"; \
-			echo "   Installing $$skill (from template)..."; \
-			SKILL_COUNT=$$((SKILL_COUNT + 1)); \
-			continue; \
+			    "$$skill_dir/SKILL.md.template" > "$$TMP"; \
+			SRC="$$TMP"; \
 		else \
 			continue; \
 		fi; \
-		echo "   Installing $$skill..."; \
-		mkdir -p "$$SKILLS_DIR/$$skill"; \
-		cp "$$SRC" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+		RAW_NAME=$$(grep '^name:' "$$SRC" | head -1 | sed 's/^name:[[:space:]]*//' | tr -d '"' | tr ':' '-'); \
+		if [ -z "$$RAW_NAME" ]; then RAW_NAME=$$(basename "$$skill_dir"); fi; \
+		mkdir -p "$$SKILLS_DIR/$$RAW_NAME"; \
+		sed 's/^name:.*/name: '"$$RAW_NAME"'/' "$$SRC" > "$$SKILLS_DIR/$$RAW_NAME/SKILL.md"; \
+		echo "   Installing $$RAW_NAME..."; \
 		SKILL_COUNT=$$((SKILL_COUNT + 1)); \
 	done; \
 	echo "✅ $$SKILL_COUNT skills installed to $$SKILLS_DIR"

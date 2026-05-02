@@ -236,8 +236,8 @@ function makeBoundTools(agentName: string, teamCtx: TeamContext) {
     description: "List all agents and their current status",
     parameters: Type.Object({}),
     async execute() {
+      const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
       return {
-        const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
         content: [{ type: "text" as const, text: formatAgentStatus(allAgents) }],
         details: { agents: allAgents },
       };
@@ -717,8 +717,8 @@ export default function (pi: ExtensionAPI) {
     description: "List all spawned agents and their current status",
     parameters: Type.Object({}),
     async execute() {
+      const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
       return {
-        const allAgents = teams.getAll().flatMap((t) => t.registry.getAll());
         content: [{ type: "text" as const, text: formatAgentStatus(allAgents) }],
         details: { agents: allAgents },
       };

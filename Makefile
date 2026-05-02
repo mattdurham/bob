@@ -816,7 +816,7 @@ install-pi:
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
 	@echo ""
 	@echo "📚 Skills"
-	@SKILLS_DIR=".pi/skills"; \
+	@SKILLS_DIR="$$HOME/.pi/agent/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review; do \
 		if [ -d "skills/$$skill" ]; then \
@@ -852,7 +852,7 @@ install-pi:
 	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
-	    skills/bob-version/SKILL.md.template > "$$SKILLS_DIR/bob-version/SKILL.md"; \
+	    skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' > "$$SKILLS_DIR/bob-version/SKILL.md"; \
 	if command -v codex >/dev/null 2>&1; then \
 		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
 		sed "s/^name: .*/name: talk-to-codex/" "skills/talk-to-codex/SKILL.md" > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
@@ -861,13 +861,14 @@ install-pi:
 	@echo ""
 	@echo "✅ Pi installation complete!"
 	@echo ""
-	@echo "Installed under .pi/ (project-local, auto-discovered by pi):"
+	@echo "Installed to ~/.pi/agent/:"
 	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
-	@echo "  ✓ Skills    → .pi/skills/"
+	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
+	@echo "  ✓ Skills    → ~/.pi/agent/skills/"
 	@echo "  ✓ LSP       → https://github.com/apmantza/pi-lens"
 	@echo ""
 	@echo "Available skill commands in pi:"
-	@find .pi/skills -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \
+	@find "$$HOME/.pi/agent/skills" -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \
 		| sed 's/name: */  \//' | sort
 	@echo ""
 	@echo "Available tools in pi (from the extension):"

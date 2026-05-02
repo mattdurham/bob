@@ -3,7 +3,7 @@
 
 SPEC ?= full
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-navigator install-no-python install-engram
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-navigator install-no-python install-engram install-pi
 
 all: install install-statusline install-worktree allow enable-agent-teams hooks install-engram
 	@echo ""
@@ -37,6 +37,7 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
 	@echo "  make install-engram           - Install engram persistent memory binary + Claude Code plugin"
+	@echo "  make install-pi               - Install bob-agents pi extension + skills to .pi/"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -783,6 +784,87 @@ install-engram:
 	@echo "   Engram data: ~/.engram/engram.db"
 	@echo "   TUI:         engram tui"
 	@echo "   Restart Claude Code to activate"
+
+# Install bob-agents pi extension and skills into the project-local .pi/ directory.
+# Extensions are already in .pi/extensions/ (auto-discovered by pi when run from this repo).
+# Skills are copied to .pi/skills/ so pi loads them as /bob:* commands.
+# Usage: make install-pi [SPEC=simple]
+install-pi:
+	@echo "🐦 Installing Bob pi components under .pi/..."
+	@echo ""
+	@echo "🔌 Extension"
+	@EXT_DIR=".pi/extensions/bob-agents"; \
+	if [ -f "$$EXT_DIR/index.ts" ]; then \
+		echo "   ✓ Already present: $$EXT_DIR"; \
+	else \
+		echo "   ⚠️  Extension source missing from $$EXT_DIR"; \
+		echo "   Run this from the bob repo root."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "📚 Skills"
+	@SKILLS_DIR=".pi/skills"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	SKILL_COUNT=0; \
+	for skill_dir in skills/*; do \
+		[ -d "$$skill_dir" ] || continue; \
+		skill=$$(basename "$$skill_dir"); \
+		if [ "$(SPEC)" = "simple" ] && [ -f "$$skill_dir/SKILL.simple.md" ]; then \
+			SRC="$$skill_dir/SKILL.simple.md"; \
+		elif [ -f "$$skill_dir/SKILL.md" ]; then \
+			SRC="$$skill_dir/SKILL.md"; \
+		elif [ -f "$$skill_dir/SKILL.md.template" ]; then \
+			GIT_HASH=$$(git rev-parse HEAD); \
+			GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
+			GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+			GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
+			INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
+			BOB_REPO_PATH=$$(pwd); \
+			SKILL_COUNT_ALL=$$(find skills -name "SKILL.md" | wc -l); \
+			AGENT_COUNT_ALL=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+			mkdir -p "$$SKILLS_DIR/$$skill"; \
+			sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
+			    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
+			    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
+			    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
+			    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
+			    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
+			    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT_ALL|g" \
+			    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT_ALL|g" \
+			    "$$skill_dir/SKILL.md.template" > "$$SKILLS_DIR/$$skill/SKILL.md"; \
+			echo "   Installing $$skill (from template)..."; \
+			SKILL_COUNT=$$((SKILL_COUNT + 1)); \
+			continue; \
+		else \
+			continue; \
+		fi; \
+		echo "   Installing $$skill..."; \
+		mkdir -p "$$SKILLS_DIR/$$skill"; \
+		cp "$$SRC" "$$SKILLS_DIR/$$skill/SKILL.md"; \
+		SKILL_COUNT=$$((SKILL_COUNT + 1)); \
+	done; \
+	echo "✅ $$SKILL_COUNT skills installed to $$SKILLS_DIR"
+	@echo ""
+	@echo "✅ Pi installation complete!"
+	@echo ""
+	@echo "Installed under .pi/ (project-local, auto-discovered by pi):"
+	@echo "  ✓ Extension → .pi/extensions/bob-agents/"
+	@echo "  ✓ Skills    → .pi/skills/"
+	@echo ""
+	@echo "Available skill commands in pi:"
+	@find .pi/skills -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \
+		| sed 's/name: */  \//' | sort
+	@echo ""
+	@echo "Available tools in pi (from the extension):"
+	@echo "  subagent              — spawn agents (single / parallel / chain)"
+	@echo "  agent_status          — list running agents and their status"
+	@echo "  mailbox_read          — read orchestrator mailbox"
+	@echo "  mailbox_send_as       — send a message to a specific agent"
+	@echo "  mailbox_broadcast     — broadcast to all active agents"
+	@echo "  TaskCreate/List/Get/Update — shared task board"
+	@echo "  /agents               — show agent status in pi UI"
+	@echo ""
+	@echo "🔄 Reload pi (/reload) or restart to activate"
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

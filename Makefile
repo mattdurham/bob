@@ -816,12 +816,15 @@ install-pi:
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
 	@echo ""
 	@echo "📚 Skills"
-	@SKILLS_DIR="$$HOME/.pi/agent/skills"; \
+	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
+	SKILLS_DIR="$$HOME/.pi/agent/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review; do \
 		if [ -d "skills/$$skill" ]; then \
 			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
 				SRC="skills/$$skill/SKILL.simple.md"; \
+			elif [ -f "skills/$$skill/SKILL.pi.md" ]; then \
+				SRC="skills/$$skill/SKILL.pi.md"; \
 			else \
 				SRC="skills/$$skill/SKILL.md"; \
 			fi; \
@@ -830,7 +833,7 @@ install-pi:
 			[ -z "$$DEST" ] && DEST="$$skill"; \
 			echo "   Installing $$DEST..."; \
 			mkdir -p "$$SKILLS_DIR/$$DEST"; \
-			sed "s/^name: .*/name: $$DEST/" "$$SRC" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+			sed "s/^name: .*/name: $$DEST/; $$PI_TRANSFORM" "$$SRC" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
@@ -855,9 +858,43 @@ install-pi:
 	    skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' > "$$SKILLS_DIR/bob-version/SKILL.md"; \
 	if command -v codex >/dev/null 2>&1; then \
 		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
-		sed "s/^name: .*/name: talk-to-codex/" "skills/talk-to-codex/SKILL.md" > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+		sed "$$PI_TRANSFORM" "skills/talk-to-codex/SKILL.md" > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
 	fi; \
 	echo "✅ Skills installed to $$SKILLS_DIR"
+	@echo ""
+	@echo "🤖 Agents"
+	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
+	AGENTS_DIR="$$HOME/.pi/agent/agents"; \
+	mkdir -p "$$AGENTS_DIR"; \
+	AGENT_COUNT=0; \
+	for agent_dir in agents/*; do \
+		[ -d "$$agent_dir" ] || continue; \
+		agent=$$(basename "$$agent_dir"); \
+		if [ -f "$$agent_dir/SKILL.pi.md" ]; then \
+			SRC="$$agent_dir/SKILL.pi.md"; \
+			NEED_TRANSFORM=0; \
+		elif [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+			SRC="$$agent_dir/SKILL.simple.md"; \
+			NEED_TRANSFORM=1; \
+		elif [ -f "$$agent_dir/SKILL.md" ]; then \
+			SRC="$$agent_dir/SKILL.md"; \
+			NEED_TRANSFORM=1; \
+		else \
+			continue; \
+		fi; \
+		echo "   Installing $$agent..."; \
+		mkdir -p "$$AGENTS_DIR/$$agent"; \
+		if [ "$$NEED_TRANSFORM" = "1" ]; then \
+			sed "$$PI_TRANSFORM" "$$SRC" > "$$AGENTS_DIR/$$agent/SKILL.md"; \
+		else \
+			cp "$$SRC" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+		fi; \
+		for extra in style.md golang-pro.md; do \
+			[ -f "$$agent_dir/$$extra" ] && cp "$$agent_dir/$$extra" "$$AGENTS_DIR/$$agent/$$extra"; \
+		done; \
+		AGENT_COUNT=$$((AGENT_COUNT + 1)); \
+	done; \
+	echo "✅ $$AGENT_COUNT agents installed to $$AGENTS_DIR"
 	@echo ""
 	@echo "✅ Pi installation complete!"
 	@echo ""
@@ -865,6 +902,7 @@ install-pi:
 	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
 	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
 	@echo "  ✓ Skills    → ~/.pi/agent/skills/"
+	@echo "  ✓ Agents    → ~/.pi/agent/agents/"
 	@echo "  ✓ LSP       → https://github.com/apmantza/pi-lens"
 	@echo ""
 	@echo "Available skill commands in pi:"

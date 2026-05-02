@@ -137,8 +137,9 @@ function loadFromDir(dir: string, source: AgentSource): AgentDef[] {
     const entryPath = path.join(dir, entry.name);
 
     if (entry.isDirectory()) {
-      // Bob format: agents/<name>/SKILL.md
-      const skill = tryLoadSkill(path.join(entryPath, "SKILL.md"), source);
+      // Bob format: prefer SKILL.pi.md (pi syntax) over SKILL.md (Claude Code syntax)
+      const piSkill = tryLoadSkill(path.join(entryPath, "SKILL.pi.md"), source);
+      const skill = piSkill ?? tryLoadSkill(path.join(entryPath, "SKILL.md"), source);
       if (skill) defs.push(skill);
     } else if ((entry.isFile() || entry.isSymbolicLink()) && entry.name.endsWith(".md")) {
       // Pi flat format: .pi/agents/<name>.md

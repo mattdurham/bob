@@ -764,10 +764,12 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       agent: Type.Optional(Type.String({ description: 'Read this agent\'s mailbox instead of "orchestrator"' })),
       all: Type.Optional(Type.Boolean({ description: "Include already-read messages (default: false)" })),
+      team: Type.Optional(Type.String({ description: "Read from this team\'s bus instead of root. Defaults to root team." })),
     }),
     async execute(_id, params) {
       const target = params.agent ?? "orchestrator";
-      const msgs = params.all ? teams.root().bus.all(target) : teams.root().bus.receive(target);
+      const teamCtx = params.team ? (teams.get(params.team) ?? teams.root()) : teams.root();
+      const msgs = params.all ? teamCtx.bus.all(target) : teamCtx.bus.receive(target);
       if (msgs.length === 0) {
         return {
           content: [{ type: "text" as const, text: `No ${params.all ? "" : "unread "}messages in mailbox "${target}".` }],
@@ -794,9 +796,11 @@ export default function (pi: ExtensionAPI) {
     parameters: Type.Object({
       to: Type.String({ description: "Recipient agent name" }),
       content: Type.String({ description: "Message content" }),
+      team: Type.Optional(Type.String({ description: "Send on this team\'s bus. Defaults to root team." })),
     }),
     async execute(_id, params) {
-      const msg = teams.root().bus.send("orchestrator", params.to, params.content);
+      const teamCtx = params.team ? (teams.get(params.team) ?? teams.root()) : teams.root();
+      const msg = teamCtx.bus.send("orchestrator", params.to, params.content);
       return {
         content: [{ type: "text" as const, text: `Message sent to ${params.to} (id: ${msg.id})` }],
         details: { messageId: msg.id },

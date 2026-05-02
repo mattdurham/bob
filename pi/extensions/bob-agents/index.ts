@@ -40,7 +40,7 @@ import {
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { AgentRegistry, TaskBoard } from "./agent-registry.js";
-import { type AgentDef, buildBuiltinTools, discoverAgents } from "./agent-loader.js";
+import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
 import { MessageBus } from "./message-bus.js";
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
@@ -770,11 +770,17 @@ export default function (pi: ExtensionAPI) {
     // Files pi already loaded natively — skip to avoid duplication
     const alreadyLoaded = new Set<string>((opts?.contextFiles ?? []).map((f) => f.path));
 
+    const agentDir = getAgentDir();
     const candidates = [
-      path.join(cwd, "AGENTS.md"),
-      path.join(cwd, "CLAUDE.md"),
+      // User-global (loaded first — project context appends on top)
+      path.join(agentDir, "AGENTS.md"),
+      path.join(agentDir, "CLAUDE.md"),
+      // Project .pi/
       path.join(cwd, ".pi", "AGENTS.md"),
       path.join(cwd, ".pi", "CLAUDE.md"),
+      // Project root
+      path.join(cwd, "AGENTS.md"),
+      path.join(cwd, "CLAUDE.md"),
     ];
 
     const sections: string[] = [];

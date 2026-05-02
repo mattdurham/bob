@@ -12,6 +12,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { getAgentDir, parseFrontmatter } from "@mariozechner/pi-coding-agent";
+export { getAgentDir };
 
 export type AgentSource = "bob-project" | "pi-project" | "pi-user";
 

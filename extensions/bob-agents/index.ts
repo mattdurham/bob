@@ -353,8 +353,6 @@ async function spawnAgent(
     registry.appendLog(instanceName, "[bob-agents] spawnAgent: model resolved");
   }
 
-  const builtinToolNames = buildBuiltinTools(agentDef.tools);
-
   registry.appendLog(instanceName, "[bob-agents] spawnAgent: building resource loader...");
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " building loader model=" + (model ? (model as any).id ?? "set" : "none") + "\n");
 
@@ -392,7 +390,6 @@ async function spawnAgent(
     sessionManager: SessionManager.inMemory(),
     settingsManager: SettingsManager.create(cwd, agentDir),
     resourceLoader: loader,
-    tools: builtinToolNames as any,
     ...(model ? { model } : {}),
     modelRegistry,
   });

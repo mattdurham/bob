@@ -40,3 +40,6 @@ Thumbs.db
 
 # Planning documents
 bots/
+
+# Pi skills are installed to ~/.pi/agent/skills/ via make install-pi, not tracked here
+.pi/skills/

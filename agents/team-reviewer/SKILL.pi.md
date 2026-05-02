@@ -73,7 +73,7 @@ Use them when reviewing is ambiguous:
 
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     reviewing: true,
     reviewer: "team-reviewer-<your-instance-id>",
@@ -88,7 +88,7 @@ TaskUpdate(
 
 Get the full task information:
 ```
-TaskGet(taskId: "<task-id>")
+TaskGet(id: "<task-id>")
 ```
 
 Understand:
@@ -192,7 +192,7 @@ Based on your review, make one of two decisions:
 If the implementation is good:
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     reviewing: false,
     reviewed: true,
@@ -211,7 +211,7 @@ If issues are found:
 1. **Update original task to mark as reviewed but not approved:**
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     reviewing: false,
     reviewed: true,
@@ -297,7 +297,7 @@ Go back to Step 1 and claim another completed task. Continue until:
 
 ```
 TaskUpdate(
-  taskId: "123",
+  id: "123",
   metadata: {
     reviewing: false,
     reviewed: true,
@@ -413,7 +413,7 @@ TaskCreate(
 **Update original task:**
 ```
 TaskUpdate(
-  taskId: "456",
+  id: "456",
   metadata: {
     reviewing: false,
     reviewed: true,

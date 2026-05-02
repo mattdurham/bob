@@ -16,12 +16,22 @@ export { getAgentDir };
 
 export type AgentSource = "bob-project" | "pi-project" | "pi-user";
 
+/** Parse extensions frontmatter: true/false/comma-separated list */
+function parseExtensions(raw: unknown): true | string[] | false {
+  if (raw === true || raw === 'true') return true;
+  if (!raw || raw === false || raw === 'false') return false;
+  if (typeof raw === 'string') return raw.split(',').map((s: string) => s.trim()).filter(Boolean);
+  return false;
+}
+
 export interface AgentDef {
   name: string;
   description: string;
   /** Raw tool names from SKILL.md frontmatter; mapped to pi built-in name allowlist via buildBuiltinTools(). */
   tools?: string[];
   model?: string;
+  /** Which extensions to load in child session: true = all, false = none (default), comma-separated list = named. */
+  extensions: true | string[] | false;
   systemPrompt: string;
   source: AgentSource;
   filePath: string;
@@ -116,6 +126,7 @@ function tryLoadSkill(filePath: string, source: AgentSource): AgentDef | undefin
     description: frontmatter.description ?? "",
     tools: rawTools,
     model: frontmatter.model,
+    extensions: parseExtensions(frontmatter.extensions),
     systemPrompt: body.trim(),
     source,
     filePath,

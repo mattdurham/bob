@@ -33,31 +33,18 @@ import * as path from "node:path";
 import { StringEnum } from "@mariozechner/pi-ai";
 import {
   AuthStorage,
+  DefaultResourceLoader,
   ModelRegistry,
   SessionManager,
+  SettingsManager,
   createAgentSession,
   defineTool,
-  allTools as allBuiltInTools,
 } from "@mariozechner/pi-coding-agent";
-import { type ExtensionAPI, type LoadExtensionsResult, createExtensionRuntime } from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { AgentRegistry, TaskBoard } from "./agent-registry.js";
 import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
 import { MessageBus } from "./message-bus.js";
-
-// ─── Minimal ResourceLoader for child agent sessions ────────────────────────
-// Bypasses DefaultResourceLoader.reload() which loads all installed pi extensions
-// (pi-subagents, pi-intercom, pi-lens etc.) and can block indefinitely on startup.
-// Child agents only need customTools — no extensions required.
-function makeMinimalResourceLoader(): { getExtensions(): LoadExtensionsResult; reload(): Promise<void> } {
-  // Return empty extensions so createAgentSession skips DefaultResourceLoader.reload()
-  // which would load all installed pi packages (pi-subagents, pi-intercom etc.) and hang.
-  const result: LoadExtensionsResult = { extensions: [], errors: [], runtime: createExtensionRuntime() };
-  return {
-    getExtensions: () => result,
-    reload: async () => {},
-  };
-}
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
 
@@ -86,10 +73,10 @@ function getFinalOutput(session: { messages: { role: string; content: { type: st
   return "";
 }
 
-async function resolveModel(modelId: string) {
+function resolveModel(modelId: string) {
+  // Use synchronous find() — getAvailable() does async API calls and can hang
   try {
-    const available = await modelRegistry.getAvailable();
-    return available.find((m) => m.id === modelId);
+    return modelRegistry.find(undefined, modelId) ?? undefined;
   } catch {
     return undefined;
   }
@@ -333,11 +320,13 @@ async function spawnAgent(
   parentModel?: import("@mariozechner/pi-ai").Model<any>,
 ): Promise<SpawnResult> {
   // Register (or update existing placeholder from parallel pre-reservation)
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent start " + instanceName + "\n");
   if (registry.isTaken(instanceName)) {
     registry.update(instanceName, { role: agentDef.name, task, model: agentDef.model, status: "spawning" });
   } else {
     registry.register(instanceName, agentDef.name, task, agentDef.model);
   }
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent registered\n");
 
   // Build system prompt with injected identity so the agent knows its name
   const identityBlock = [
@@ -353,40 +342,63 @@ async function spawnAgent(
 
   // Resolve model
   let model: Awaited<ReturnType<typeof resolveModel>> = undefined;
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent entered " + instanceName + "\n");
   registry.appendLog(instanceName, "[bob-agents] spawnAgent: resolving model...");
   if (agentDef.model) {
-    model = await resolveModel(agentDef.model);
+    model = resolveModel(agentDef.model);
     registry.appendLog(instanceName, "[bob-agents] spawnAgent: model resolved");
   }
 
-  // Build tool sets
-  // Map string tool names to Tool objects for createAgentSession.
-  // Omitting options.tools (or passing undefined) lets customTools be activated automatically.
-  const toolNames = buildBuiltinTools(agentDef.tools);
-  const builtinTools = toolNames
-    .map((n) => allBuiltInTools[n as keyof typeof allBuiltInTools])
-    .filter(Boolean);
   const customTools = makeBoundTools(instanceName);
-  registry.appendLog(instanceName, "[bob-agents] spawnAgent: calling createAgentSession...");
+  const builtinToolNames = buildBuiltinTools(agentDef.tools);
 
-  // Create isolated in-process session.
-  // Pass builtinTools as tools[] so SDK maps them correctly, AND customTools so
-  // mailbox/task tools are registered and activated alongside built-ins.
+  registry.appendLog(instanceName, "[bob-agents] spawnAgent: building resource loader...");
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " building loader model=" + (model ? (model as any).id ?? "set" : "none") + "\n");
+
+  // Use DefaultResourceLoader with all extensions/skills/themes disabled.
+  // This is the correct pattern (from tintinweb/pi-subagents) — our custom stub
+  // broke because createExtensionRuntime() stubs aren't wired up properly.
+  const agentDir = getAgentDir();
+  const loader = new DefaultResourceLoader({
+    cwd,
+    agentDir,
+    noExtensions: agentDef.extensions === false,
+    noSkills: true,
+    noPromptTemplates: true,
+    noThemes: true,
+    noContextFiles: true,
+    systemPromptOverride: () => systemPrompt,
+    appendSystemPromptOverride: () => [],
+  });
+  await loader.reload();
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " loader ready, calling createAgentSession\n");
+
   const { session } = await createAgentSession({
     cwd,
+    agentDir,
     sessionManager: SessionManager.inMemory(),
-    resourceLoader: makeMinimalResourceLoader(),
+    settingsManager: SettingsManager.create(cwd, agentDir),
+    resourceLoader: loader,
     customTools,
+    tools: builtinToolNames as any,
     ...(model ? { model } : {}),
-    authStorage,
     modelRegistry,
   });
 
+  fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " session created, filtering tools\n");
 
-  // Override system prompt via the agent state after creation
-  // (simplest way without a full ResourceLoader per-agent)
-  registry.appendLog(instanceName, "[bob-agents] spawnAgent: session created, prompting...");
-  session.agent.state.systemPrompt = systemPrompt;
+  // Filter active tools: exclude our own subagent tool to prevent infinite nesting,
+  // then add all custom tools (mailbox, task board) explicitly.
+  const customToolNames = customTools.map((t) => t.name);
+  const activeTools = session.getActiveToolNames()
+    .filter((t) => t !== "subagent")
+    .concat(customToolNames.filter((t) => !session.getActiveToolNames().includes(t)));
+  session.setActiveToolsByName([...new Set(activeTools)]);
+
+  // Fire session_start for any extensions (none loaded, but required by SDK lifecycle)
+  await session.bindExtensions({});
+
+  registry.appendLog(instanceName, "[bob-agents] spawnAgent: session ready, prompting...");
 
   liveSessions.set(instanceName, session);
   registry.update(instanceName, { status: "running" });
@@ -472,7 +484,10 @@ export default function (pi: ExtensionAPI) {
     }),
 
     async execute(_toolCallId, params, signal, onUpdate, ctx) {
+      fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " execute called cwd=" + ctx.cwd + " agent=" + (params.agent ?? "?") + "\n");
+      fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " calling discoverAgents\n");
       const { agents } = discoverAgents(ctx.cwd);
+      fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " discoverAgents done agents=" + agents.length + "\n");
 
       const findAgent = (name: string): AgentDef | undefined =>
         agents.find((a) => a.name === name);
@@ -871,11 +886,12 @@ export default function (pi: ExtensionAPI) {
   // ── Cleanup on session shutdown ────────────────────────────────────────────
 
   pi.on("session_shutdown", async () => {
+    // Only abort live sessions spawned by THIS session's extension instance.
+    // Do NOT reset shared singletons (bus, registry, taskBoard) — they are
+    // process-lifetime objects shared across all sessions. Resetting them on
+    // child session shutdown would wipe the parent orchestrator's state.
     const aborts = Array.from(liveSessions.values()).map((s) => s.abort().catch(() => {}));
     await Promise.all(aborts);
     liveSessions.clear();
-    bus.reset();
-    registry.reset();
-    taskBoard.reset();
   });
 }

@@ -811,6 +811,9 @@ install-pi:
 	mkdir -p "$$DST_EXT"; \
 	cp "$$SRC_EXT"/*.ts "$$DST_EXT/"; \
 	echo "   ✓ Copied $$SRC_EXT → $$DST_EXT"
+	@echo "📡 OTel Extension"
+	@cp extensions/otel.ts "$$HOME/.pi/agent/extensions/otel.ts"; \
+	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
 	@echo ""
 	@echo "📚 Skills"
 	@SKILLS_DIR=".pi/skills"; \

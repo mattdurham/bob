@@ -37,7 +37,7 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-navigator        - Build + install navigator HTTP MCP server to ~/.local/bin"
 	@echo "  make install-engram           - Install engram persistent memory binary + Claude Code plugin"
-	@echo "  make install-pi               - Install bob-agents pi extension to .pi/, skills to ~/.pi/agent/skills/"
+	@echo "  make install-pi               - Install bob-agents pi extension + skills from pi/ to ~/.pi/agent/"
 	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
 	@echo ""
 	@echo "Quick start:"
@@ -785,22 +785,24 @@ install-engram:
 	@echo "   TUI:         engram tui"
 	@echo "   Restart Claude Code to activate"
 
-# Install the bob-agents pi extension (project-local .pi/extensions/) and
-# copy skills to the user-global ~/.pi/agent/skills/ so pi loads them as
-# /bob:* commands from any project.
+# Install the bob-agents pi extension and skills from the pi/ source directory
+# to the user-global ~/.pi/agent/ so pi loads them in every project.
+# pi/ is plain source — it is NOT auto-discovered by pi (no dot prefix).
 # Usage: make install-pi [SPEC=simple]
 install-pi:
 	@echo "🐦 Installing Bob pi components..."
 	@echo ""
-	@echo "🔌 Extension"
-	@EXT_DIR=".pi/extensions/bob-agents"; \
-	if [ -f "$$EXT_DIR/index.ts" ]; then \
-		echo "   ✓ Already present: $$EXT_DIR"; \
-	else \
-		echo "   ⚠️  Extension source missing from $$EXT_DIR"; \
+	@echo "🔌 Extension (installing to ~/.pi/agent/extensions/)"
+	@SRC_EXT="pi/extensions/bob-agents"; \
+	DST_EXT="$$HOME/.pi/agent/extensions/bob-agents"; \
+	if [ ! -f "$$SRC_EXT/index.ts" ]; then \
+		echo "   ⚠️  Extension source missing from $$SRC_EXT"; \
 		echo "   Run this from the bob repo root."; \
 		exit 1; \
-	fi
+	fi; \
+	mkdir -p "$$DST_EXT"; \
+	cp "$$SRC_EXT"/*.ts "$$DST_EXT/"; \
+	echo "   ✓ Installed: $$DST_EXT"
 	@echo ""
 	@echo "📚 Skills (installing to ~/.pi/agent/skills/)"
 	@SKILLS_DIR="$$HOME/.pi/agent/skills"; \
@@ -848,8 +850,8 @@ install-pi:
 	@echo "✅ Pi installation complete!"
 	@echo ""
 	@echo "Installed:"
-	@echo "  ✓ Extension → .pi/extensions/bob-agents/ (project-local, auto-discovered)"
-	@echo "  ✓ Skills    → ~/.pi/agent/skills/ (user-global, available in all projects)"
+	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/ (user-global)"
+	@echo "  ✓ Skills    → ~/.pi/agent/skills/ (user-global)"
 	@echo ""
 	@echo "Available skill commands in pi:"
 	@find $$HOME/.pi/agent/skills -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \

@@ -332,6 +332,24 @@ async function spawnAgent(
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " spawnAgent registered\n");
 
   // Build system prompt with injected identity so the agent knows its name
+  // Also load AGENTS.md / CLAUDE.md from agentDir and cwd for user guidance (e.g. conciseness rules)
+  const agentsMdCandidates = [
+    path.join(getAgentDir(), "AGENTS.md"),
+    path.join(getAgentDir(), "CLAUDE.md"),
+    path.join(cwd, "AGENTS.md"),
+    path.join(cwd, "CLAUDE.md"),
+  ];
+  const agentsMdSections: string[] = [];
+  for (const filePath of agentsMdCandidates) {
+    try {
+      const fileContent = fs.readFileSync(filePath, "utf-8").trim();
+      if (fileContent) {
+        const label = path.basename(filePath);
+        agentsMdSections.push(`\n\n--- ${label} ---\n${fileContent}`);
+      }
+    } catch { /* file not found — skip */ }
+  }
+
   const identityBlock = [
     `\n\n---`,
     `Your agent name is: **${instanceName}**`,
@@ -342,7 +360,7 @@ async function spawnAgent(
     `TaskCreate / TaskList / TaskGet / TaskUpdate coordinate shared work within your team.`,
   ].join("\n");
 
-  const systemPrompt = agentDef.systemPrompt + identityBlock;
+  const systemPrompt = agentDef.systemPrompt + identityBlock + agentsMdSections.join("");
 
   // Resolve model
   let model: Awaited<ReturnType<typeof resolveModel>> = undefined;

@@ -819,6 +819,8 @@ install-pi:
 	echo "   ✓ Copied extensions/bash-compact.ts → $$HOME/.pi/agent/extensions/bash-compact.ts"
 	@cp extensions/quiet-thoughts.ts "$$HOME/.pi/agent/extensions/quiet-thoughts.ts"; \
 	echo "   ✓ Copied extensions/quiet-thoughts.ts → $$HOME/.pi/agent/extensions/quiet-thoughts.ts"
+	@cp extensions/tps.ts "$$HOME/.pi/agent/extensions/tps.ts"; \
+	echo "   ✓ Copied extensions/tps.ts → $$HOME/.pi/agent/extensions/tps.ts"
 	@echo ""
 	@echo "📚 Skills"
 	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
@@ -908,6 +910,7 @@ install-pi:
 	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
 	@echo "  ✓ Bash      → ~/.pi/agent/extensions/bash-compact.ts"
 	@echo "  ✓ Quiet     → ~/.pi/agent/extensions/quiet-thoughts.ts"
+	@echo "  ✓ TPS       → ~/.pi/agent/extensions/tps.ts"
 	@echo "  ✓ Skills    → ~/.pi/agent/skills/"
 	@echo "  ✓ Agents    → ~/.pi/agent/agents/"
 	@echo "  ✓ LSP       → https://github.com/apmantza/pi-lens"

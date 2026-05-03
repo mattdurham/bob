@@ -58,7 +58,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem; do \
+	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem premortem; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -824,7 +824,7 @@ install-pi:
 	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
 	SKILLS_DIR="$$HOME/.pi/agent/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem; do \
+	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem premortem; do \
 		if [ -d "skills/$$skill" ]; then \
 			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
 				SRC="skills/$$skill/SKILL.simple.md"; \

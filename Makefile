@@ -814,6 +814,9 @@ install-pi:
 	@echo "📡 OTel Extension"
 	@cp extensions/otel.ts "$$HOME/.pi/agent/extensions/otel.ts"; \
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
+	@echo "🔧 Bash Compact Extension"
+	@cp extensions/bash-compact.ts "$$HOME/.pi/agent/extensions/bash-compact.ts"; \
+	echo "   ✓ Copied extensions/bash-compact.ts → $$HOME/.pi/agent/extensions/bash-compact.ts"
 	@echo ""
 	@echo "📚 Skills"
 	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
@@ -901,6 +904,7 @@ install-pi:
 	@echo "Installed to ~/.pi/agent/:"
 	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
 	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
+	@echo "  ✓ Bash      → ~/.pi/agent/extensions/bash-compact.ts"
 	@echo "  ✓ Skills    → ~/.pi/agent/skills/"
 	@echo "  ✓ Agents    → ~/.pi/agent/agents/"
 	@echo "  ✓ LSP       → https://github.com/apmantza/pi-lens"

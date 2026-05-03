@@ -731,26 +731,38 @@ export default function (pi: ExtensionAPI) {
   pi.registerTool({
     name: "agent_output",
     label: "Agent Output",
-    description: "Get the live stdout buffer for a specific agent (last 8KB of streaming output).",
+    description: "Get the live stdout buffer and lifecycle log for a specific agent (last 8KB of streaming output + last 50 log entries).",
     parameters: Type.Object({
       agent: Type.String({ description: "Agent name" }),
-      tail: Type.Optional(Type.Number({ description: "Number of lines to tail (default: all buffered)" })),
+      tail: Type.Optional(Type.Number({ description: "Number of stdout lines to tail (default: all buffered)" })),
     }),
     async execute(_id, params) {
       const rec = teams.getAll().flatMap(t => t.registry.getAll()).find(a => a.name === params.agent);
       if (!rec) {
         return { content: [{ type: "text" as const, text: `Agent ${params.agent} not found.` }], details: {}, isError: true };
       }
+      const elapsed = rec.finishedAt
+        ? ((rec.finishedAt - rec.spawnedAt) / 1000).toFixed(1)
+        : ((Date.now() - rec.spawnedAt) / 1000).toFixed(1);
+      const status = `Agent: ${rec.name} [${rec.role}] ${rec.status} ${elapsed}s${rec.team ? ` team=${rec.team}` : ""}`;
+
+      // Lifecycle log
+      const logSection = rec.log.length > 0
+        ? `\n--- Lifecycle Log ---\n${rec.log.join("\n")}`
+        : "\n--- Lifecycle Log ---\n(empty)";
+
+      // Stdout
       const lines = rec.stdout.split("\n");
       const tail = params.tail ?? lines.length;
       const output = lines.slice(-tail).join("\n");
       const overflow = rec.stdoutBytes > rec.stdout.length
         ? `[... +${rec.stdoutBytes - rec.stdout.length} bytes truncated ...]\n`
         : "";
-      const status = `Agent: ${rec.name} [${rec.role}] ${rec.status} ${rec.finishedAt ? ((rec.finishedAt - rec.spawnedAt)/1000).toFixed(1) : ((Date.now()-rec.spawnedAt)/1000).toFixed(1)}s`;
+      const stdoutSection = `\n--- Stdout ---\n${overflow}${output || "(no output yet)"}`;
+
       return {
-        content: [{ type: "text" as const, text: `${status}\n${overflow}${output || "(no output yet)"}` }],
-        details: { name: rec.name, status: rec.status, stdoutBytes: rec.stdoutBytes, stdout: rec.stdout },
+        content: [{ type: "text" as const, text: `${status}${logSection}${stdoutSection}` }],
+        details: { name: rec.name, status: rec.status, log: rec.log, stdoutBytes: rec.stdoutBytes, stdout: rec.stdout },
       };
     },
   });

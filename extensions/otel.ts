@@ -281,7 +281,7 @@ export default function (pi: ExtensionAPI) {
 			kind: 1,
 			startTimeUnixNano: now,
 			endTimeUnixNano: now, // updated on shutdown
-			attributes: [attr("session.cwd", ctx.cwd)],
+			attributes: [attr("session.cwd", ctx.cwd), ...(ctx.model ? [attr("model", ctx.model.id ?? ctx.model.name ?? "unknown")] : [])],
 			events: [],
 			status: { code: 0 },
 		};

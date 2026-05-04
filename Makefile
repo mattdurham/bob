@@ -815,8 +815,6 @@ install-pi:
 	@cp extensions/otel.ts "$$HOME/.pi/agent/extensions/otel.ts"; \
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
 	@echo "🔧 Bash Compact Extension"
-	@cp extensions/bash-compact.ts "$$HOME/.pi/agent/extensions/bash-compact.ts"; \
-	echo "   ✓ Copied extensions/bash-compact.ts → $$HOME/.pi/agent/extensions/bash-compact.ts"
 	@cp extensions/quiet-thoughts.ts "$$HOME/.pi/agent/extensions/quiet-thoughts.ts"; \
 	echo "   ✓ Copied extensions/quiet-thoughts.ts → $$HOME/.pi/agent/extensions/quiet-thoughts.ts"
 	@cp extensions/tps.ts "$$HOME/.pi/agent/extensions/tps.ts"; \
@@ -908,7 +906,6 @@ install-pi:
 	@echo "Installed to ~/.pi/agent/:"
 	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
 	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
-	@echo "  ✓ Bash      → ~/.pi/agent/extensions/bash-compact.ts"
 	@echo "  ✓ Quiet     → ~/.pi/agent/extensions/quiet-thoughts.ts"
 	@echo "  ✓ TPS       → ~/.pi/agent/extensions/tps.ts"
 	@echo "  ✓ Skills    → ~/.pi/agent/skills/"

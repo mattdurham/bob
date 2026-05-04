@@ -285,6 +285,10 @@ export default function (pi: ExtensionAPI) {
 			events: [],
 			status: { code: 0 },
 		};
+		// Send immediately so child spans have a parent in Tempo.
+		// Will be re-sent on shutdown with the final endTime.
+		enqueue({ ...sessionSpan });
+		drainAndFlush();
 	});
 
 	pi.on("session_shutdown", async () => {

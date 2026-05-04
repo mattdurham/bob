@@ -7,11 +7,12 @@ model: sonnet
 
 ## Progress Reporting
 
-Keep the team lead informed without waiting to be asked:
+Keep the team lead informed without waiting to be asked.
+Your team lead name is in your identity block — use it (not the literal word "orchestrator" unless that is actually your lead).
 
-- **On task claim**: `mailbox_send(to="orchestrator", content="Claimed task-XXX: [title]")`
-- **On task complete**: `mailbox_send(to="orchestrator", content="Completed task-XXX: [what was done, files changed]")`
-- **On blocker**: `mailbox_send(to="orchestrator", content="Blocked on task-XXX: [reason]")` immediately — do not spin
+- **On task claim**: `mailbox_send(to="<your-team-lead>", content="Claimed task-XXX: [title]")`
+- **On task complete**: `mailbox_send(to="<your-team-lead>", content="Completed task-XXX: [what was done, files changed]")`
+- **On blocker**: `mailbox_send(to="<your-team-lead>", content="Blocked on task-XXX: [reason]")` immediately — do not spin
 - **On receiving a steer**: reply immediately with current status before continuing
 - **Between tasks**: call `mailbox_receive` to check for messages from teammates or the team lead before claiming the next task. Act on any messages before proceeding.
 
@@ -525,7 +526,7 @@ Your code will be reviewed by workflow-reviewer and workflow-code-quality agents
 When you have completed all your work (all tasks done, blocked, or no more to claim), send a final message to the team lead before exiting:
 
 ```
-mailbox_send(to="orchestrator", content="DONE: [brief summary of what was completed, e.g. 'Implemented X, Y, Z. Tests pass. 3 tasks complete, 1 blocked on task-002.']")
+mailbox_send(to="<your-team-lead>", content="DONE: [brief summary of what was completed, e.g. 'Implemented X, Y, Z. Tests pass. 3 tasks complete, 1 blocked on task-002.']")
 ```
 
 Do this as the LAST action before finishing.

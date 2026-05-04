@@ -354,10 +354,18 @@ async function spawnAgent(
     `\n\n---`,
     `Your agent name is: **${instanceName}**`,
     `Your team: **${teamName}** | Team lead: **${teamCtx.lead}**`,
-    `You are running inside a pi agent session. Use mailbox_receive to check for`,
-    `incoming messages, mailbox_send to reply (use "orchestrator" to reach the team lead),`,
-    `mailbox_broadcast to reach all active agents, and agent_status to see who else is running.`,
-    `TaskCreate / TaskList / TaskGet / TaskUpdate coordinate shared work within your team.`,
+    `You are running inside a pi agent session.`,
+    ``,
+    `Communication tools:`,
+    `- mailbox_receive: check for incoming messages (including status requests from the team lead)`,
+    `- mailbox_send to="orchestrator": reply to the team lead — use this whenever you receive a steer/status request`,
+    `- mailbox_broadcast: reach all active agents`,
+    `- agent_status: see who else is running`,
+    ``,
+    `When you receive a steering message (an interruption from the team lead), respond immediately`,
+    `with a brief status update via mailbox_send to="orchestrator" before continuing your work.`,
+    ``,
+    `Task coordination: TaskCreate / TaskList / TaskGet / TaskUpdate`,
   ].join("\n");
 
   const systemPrompt = agentDef.systemPrompt + identityBlock + agentsMdSections.join("");
@@ -688,6 +696,44 @@ export default function (pi: ExtensionAPI) {
         content: [{ type: "text" as const, text: "No mode matched." }],
         details: {},
         isError: true,
+      };
+    },
+  });
+
+
+  // ── agent_steer ───────────────────────────────────────────────────────────
+
+  pi.registerTool({
+    name: "agent_steer",
+    label: "Agent Steer",
+    description: "Send a steering message to a running agent. Delivered after its current tool call finishes. The agent is instructed to reply via mailbox_send to the team lead so you can read the response without waiting for full completion.",
+    parameters: Type.Object({
+      agent: Type.String({ description: "Agent name to steer" }),
+      message: Type.String({ description: "Message to deliver — e.g. 'brief status update', 'what are you currently working on?'" }),
+      team: Type.Optional(Type.String({ description: "Team name to read reply from. Defaults to root team." })),
+    }),
+    async execute(_id, params) {
+      const liveSession = liveSessions.get(params.agent);
+      if (!liveSession) {
+        const rec = teams.getAll().flatMap(t => t.registry.getAll()).find(a => a.name === params.agent);
+        if (!rec) return { content: [{ type: "text" as const, text: `Agent ${params.agent} not found.` }], details: {}, isError: true };
+        if (rec.status === "done" || rec.status === "error" || rec.status === "aborted") {
+          return { content: [{ type: "text" as const, text: `Agent ${params.agent} is ${rec.status} — cannot steer.` }], details: {}, isError: true };
+        }
+        return { content: [{ type: "text" as const, text: `Agent ${params.agent} has no live session.` }], details: {}, isError: true };
+      }
+
+      // Find the team lead for the reply instruction
+      const teamCtx = params.team ? (teams.get(params.team) ?? teams.root()) : teams.teamOf(params.agent) ?? teams.root();
+      const lead = teamCtx.lead;
+
+      // Inject the steer with explicit reply instruction
+      const steerText = `[Steering message from ${lead}]: ${params.message}\n\nReply now via mailbox_send(to="${lead}", content="<your status>") before continuing your work.`;
+      await liveSession.steer(steerText);
+
+      return {
+        content: [{ type: "text" as const, text: `Steered ${params.agent}. Reply will arrive in mailbox "${lead}" — use mailbox_read(team: "${teamCtx.name}") to check.` }],
+        details: { agent: params.agent, team: teamCtx.name, lead },
       };
     },
   });

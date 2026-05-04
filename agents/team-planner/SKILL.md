@@ -17,6 +17,7 @@ Keep the team lead informed without waiting to be asked:
 - **On task complete**: `mailbox_send(to="orchestrator", content="Completed task-XXX: [what was done, files changed]")`
 - **On blocker**: `mailbox_send(to="orchestrator", content="Blocked on task-XXX: [reason]")` immediately — do not spin
 - **On receiving a steer**: reply immediately with current status before continuing
+- **Between tasks**: call `mailbox_receive` to check for messages from teammates or the team lead before claiming the next task. Act on any messages before proceeding.
 
 Keep messages brief. File paths and task IDs, not paragraphs.
 
@@ -239,7 +240,18 @@ I didn't spell it out in the plan but the struct + interface approach is what th
 found at auth/middleware.go:45."
 ```
 
-### When to Stop
+#
+## When Done
+
+When you have completed all your work (all tasks done, blocked, or no more to claim), send a final message to the team lead before exiting:
+
+```
+mailbox_send(to="orchestrator", content="DONE: [brief summary of what was completed, e.g. 'Implemented X, Y, Z. Tests pass. 3 tasks complete, 1 blocked on task-002.']")
+```
+
+Do this as the LAST action before finishing.
+
+## When to Stop
 
 Stop when:
 - The team lead sends an explicit shutdown message

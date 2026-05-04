@@ -23,7 +23,6 @@
  */
 
 import * as crypto from "node:crypto";
-import { logFlush, logHttp, logError } from "./otel-debug-log.js";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 // ─── Shared trace context (read by bob-agents to propagate to subagents) ────────
@@ -184,7 +183,12 @@ async function flush(
 		],
 	});
 
-	logFlush(spans);
+	const nl = String.fromCharCode(10);
+	try {
+		const parts = [new Date().toISOString() + " flush " + String(spans.length) + " spans"];
+		for (const s of spans) parts.push("  " + s.name + " traceId=" + s.traceId.slice(0, 8) + " parent=" + (s.parentSpanId ?? "none") + " attrs=[" + s.attributes.map((a: Attr) => a.key).join(",") + "] events=" + String(s.events.length));
+		require("fs").appendFileSync("/tmp/otel_debug.log", parts.join(nl) + nl);
+	} catch { /* ignore */ }
 	try {
 		const res = await fetch(url, {
 			method: "POST",
@@ -195,13 +199,13 @@ async function flush(
 			body,
 			signal: AbortSignal.timeout(10_000),
 		});
-		logHttp(res.status, res.statusText);
+		try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " HTTP " + String(res.status) + " " + res.statusText + nl); } catch { /* ignore */ }
 		if (!res.ok) {
 			const text = await res.text().catch(() => "(unreadable)");
-			logError("ERROR", text);
+			try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " ERROR: " + text + nl); } catch { /* ignore */ }
 		}
 	} catch (e) {
-		logError("EXCEPTION", String(e));
+		try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " EXCEPTION: " + String(e) + nl); } catch { /* ignore */ }
 	}
 }
 

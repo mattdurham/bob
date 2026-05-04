@@ -186,7 +186,7 @@ async function flush(
 	const nl = String.fromCharCode(10);
 	try {
 		const parts = [new Date().toISOString() + " flush " + String(spans.length) + " spans"];
-		for (const s of spans) parts.push("  " + s.name + " traceId=" + s.traceId.slice(0, 8) + " parent=" + (s.parentSpanId ?? "none") + " attrs=[" + s.attributes.map((a: Attr) => a.key).join(",") + "] events=" + String(s.events.length));
+		for (const s of spans) parts.push("  " + s.name + " traceId=" + s.traceId + " parent=" + (s.parentSpanId ?? "none") + " attrs=[" + s.attributes.map((a: Attr) => a.key).join(",") + "] events=" + String(s.events.length));
 		require("fs").appendFileSync("/tmp/otel_debug.log", parts.join(nl) + nl);
 	} catch { /* ignore */ }
 	try {
@@ -199,7 +199,7 @@ async function flush(
 			body,
 			signal: AbortSignal.timeout(10_000),
 		});
-		try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " HTTP " + String(res.status) + " " + res.statusText + nl); } catch { /* ignore */ }
+		try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " HTTP " + String(res.status) + " " + res.statusText + nl + "BODY: " + body + nl); } catch { /* ignore */ }
 		if (!res.ok) {
 			const text = await res.text().catch(() => "(unreadable)");
 			try { require("fs").appendFileSync("/tmp/otel_debug.log", new Date().toISOString() + " ERROR: " + text + nl); } catch { /* ignore */ }
@@ -237,7 +237,7 @@ export default function (pi: ExtensionAPI) {
 	const buffer: OtelSpan[] = [];
 	let timer: ReturnType<typeof setInterval> | null = null;
 
-	let rootTraceId = isChild ? parentCtx!.traceId : "";
+	let rootTraceId = isChild ? parentCtx!.traceId : ((globalThis as any).__bobOtelRootTraceId ?? "");
 	let sessionSpan: OtelSpan | null = null;
 	let agentSpan: OtelSpan | null = null;
 	let currentModel = "unknown";

@@ -45,6 +45,7 @@ import { Type } from "typebox";
 import { TeamManager, ROOT_TEAM, type TeamContext } from "./agent-registry.js";
 import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
 import { registerTeamCommands } from "./team-ui.js";
+import otelExtension from "../otel.js";
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
 
@@ -426,17 +427,22 @@ async function spawnAgent(
     }
   };
 
+  // If OTel is configured, inject the otel extension into the child session so
+  // it emits traces into the parent's trace (reads __bobOtelCtx for child mode).
+  const otelEnabled = !!(process.env.OTEL_ENDPOINT && process.env.OTEL_USER && process.env.OTEL_TOKEN);
+  const childExtensionFactories = otelEnabled ? [otelExtension] : [];
+
   const loader = new DefaultResourceLoader({
     cwd,
     agentDir,
-    noExtensions: true, // block all path-based extensions including bob-agents from settings.json
+    noExtensions: true, // block path-based extensions (bob-agents, pi-lens etc.)
     noSkills: true,
     noPromptTemplates: true,
     noThemes: true,
     noContextFiles: true,
     systemPromptOverride: () => systemPrompt,
     appendSystemPromptOverride: () => [],
-    extensionFactories: [agentExtensionFactory],
+    extensionFactories: [agentExtensionFactory, ...childExtensionFactories],
   });
   await loader.reload();
   fs.appendFileSync("/tmp/bob-agents-debug.log", new Date().toISOString() + " loader ready, calling createAgentSession\n");

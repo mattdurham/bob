@@ -25,6 +25,13 @@
 import * as crypto from "node:crypto";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
+// ─── Shared trace context (read by bob-agents to propagate to subagents) ────────
+
+declare global {
+  // biome-ignore lint: cross-extension sharing via globalThis
+  var __bobOtelCtx: { traceId: string; spanId: string } | undefined;
+}
+
 // ─── OTLP types (minimal, JSON encoding) ─────────────────────────────────────
 
 interface Attr {
@@ -208,15 +215,23 @@ export default function (pi: ExtensionAPI) {
 	const authHeader =
 		"Basic " + Buffer.from(`${user}:${token}`).toString("base64");
 
+	// ─── Child vs root mode ────────────────────────────────────────────────────
+	// If __bobOtelCtx is set we are running inside a spawned subagent.
+	// Use the parent's traceId and parent spanId — no session span, no timer.
+	const parentCtx = globalThis.__bobOtelCtx;
+	const isChild = !!parentCtx;
+
 	// ─── Mutable state ─────────────────────────────────────────────────────────
 
 	const buffer: OtelSpan[] = [];
 	let timer: ReturnType<typeof setInterval> | null = null;
 
-	let rootTraceId = "";
+	let rootTraceId = isChild ? parentCtx!.traceId : "";
 	let sessionSpan: OtelSpan | null = null;
 	let agentSpan: OtelSpan | null = null;
 	let currentModel = "unknown";
+	// In child mode the parent span is the bob-agents subagent tool span
+	const childParentSpanId = isChild ? parentCtx!.spanId : undefined;
 
 	// ─── Batching ───────────────────────────────────────────────────────────────
 
@@ -228,12 +243,24 @@ export default function (pi: ExtensionAPI) {
 	function drainAndFlush(): void {
 		if (buffer.length === 0) return;
 		const batch = buffer.splice(0);
-		void flush(tracesUrl, authHeader, batch);
+		const debug = process.env.OTEL_DEBUG === "1";
+	if (debug) {
+		for (const s of batch) {
+			process.stderr.write(`[otel] span: ${s.name} attrs=${s.attributes.map(a => a.key).join(",")} events=${s.events.length}\n`);
+		}
+	}
+	void flush(tracesUrl, authHeader, batch);
 	}
 
 	// ─── Session lifecycle ──────────────────────────────────────────────────────
 
 	pi.on("session_start", async (_event, ctx) => {
+		// Start flush timer once — /reload fires session_start again
+		if (!timer) timer = setInterval(drainAndFlush, 10_000);
+		// Child: inherit parent trace, no session span needed
+		if (isChild) return;
+		// Root: only initialise once so /reload keeps spans in the same trace
+		if (sessionSpan) return;
 		rootTraceId = newTraceId();
 		const now = nowNano();
 		sessionSpan = {
@@ -247,8 +274,6 @@ export default function (pi: ExtensionAPI) {
 			events: [],
 			status: { code: 0 },
 		};
-
-		timer = setInterval(drainAndFlush, 10_000);
 	});
 
 	pi.on("session_shutdown", async () => {
@@ -276,6 +301,7 @@ export default function (pi: ExtensionAPI) {
 	// ─── Agent loop ─────────────────────────────────────────────────────────────
 
 	pi.on("before_agent_start", async (event) => {
+		if (process.env.OTEL_DEBUG === "1") process.stderr.write(`[otel] before_agent_start prompt_len=${event.prompt.length}\n`);
 		// Close any dangling agent span
 		if (agentSpan) {
 			agentSpan.endTimeUnixNano = nowNano();
@@ -283,10 +309,12 @@ export default function (pi: ExtensionAPI) {
 		}
 
 		const now = nowNano();
+		const agentSpanId = newSpanId();
+		globalThis.__bobOtelCtx = { traceId: rootTraceId, spanId: agentSpanId };
 		agentSpan = {
 			traceId: rootTraceId,
-			spanId: newSpanId(),
-			parentSpanId: sessionSpan?.spanId,
+			spanId: agentSpanId,
+			parentSpanId: isChild ? childParentSpanId : sessionSpan?.spanId,
 			name: "pi.agent.loop",
 			kind: 1,
 			startTimeUnixNano: now,
@@ -304,6 +332,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("model_select", async (event) => {
+		if (process.env.OTEL_DEBUG === "1") process.stderr.write(`[otel] model_select: ${event.model?.id ?? event.model?.name ?? 'unknown'}\n`);
 		currentModel = event.model?.id ?? event.model?.name ?? "unknown";
 		if (sessionSpan) {
 			// Update model on session span so the last-used model is always recorded
@@ -317,6 +346,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_end", async (event) => {
+		if (process.env.OTEL_DEBUG === "1") process.stderr.write(`[otel] agent_end model=${currentModel} msgs=${event.messages.length} span_events=${agentSpan?.events.length ?? 0}\n`);
 		if (!agentSpan) return;
 
 		// Record model on the span
@@ -393,6 +423,7 @@ export default function (pi: ExtensionAPI) {
 		agentSpan.endTimeUnixNano = nowNano();
 		enqueue(agentSpan);
 		agentSpan = null;
+		globalThis.__bobOtelCtx = undefined;
 	});
 
 	// ─── Tool calls ─────────────────────────────────────────────────────────────

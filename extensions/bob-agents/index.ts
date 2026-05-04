@@ -299,7 +299,37 @@ function makeBoundTools(agentName: string, teamCtx: TeamContext) {
     },
   });
 
-  return [AgentStatus, MailboxReceive, MailboxSend, MailboxBroadcast, ...makeTaskTools(teamCtx)];
+  const AgentTeam = defineTool({
+    name: "agent_team",
+    label: "Agent Team",
+    description: "List your teammates — agents in the same team, their roles, and current status.",
+    parameters: Type.Object({}),
+    async execute() {
+      const members = teamCtx.registry.getAll().filter((a) => a.name !== agentName);
+      if (members.length === 0) {
+        return {
+          content: [{ type: "text" as const, text: `You are the only member of team "${teamCtx.name}". Team lead: ${teamCtx.lead}.` }],
+          details: { team: teamCtx.name, lead: teamCtx.lead, teammates: [] },
+        };
+      }
+      const lines = [
+        `Team: ${teamCtx.name} | Lead: ${teamCtx.lead}`,
+        ...members.map((m) => {
+          const elapsed = m.finishedAt
+            ? `${((m.finishedAt - m.spawnedAt) / 1000).toFixed(1)}s`
+            : `${((Date.now() - m.spawnedAt) / 1000).toFixed(1)}s`;
+          const icon = { spawning: "⏳", running: "▶", done: "✓", error: "✗", aborted: "⊘" }[m.status] ?? "?";
+          return `${icon} ${m.name} [${m.role}] ${m.status} ${elapsed}`;
+        }),
+      ];
+      return {
+        content: [{ type: "text" as const, text: lines.join("\n") }],
+        details: { team: teamCtx.name, lead: teamCtx.lead, teammates: members },
+      };
+    },
+  });
+
+  return [AgentStatus, AgentTeam, MailboxReceive, MailboxSend, MailboxBroadcast, ...makeTaskTools(teamCtx)];
 }
 
 // ─── Core spawn logic ─────────────────────────────────────────────────────────

@@ -65,6 +65,7 @@ Each phase has specific prerequisites that MUST be satisfied before proceeding.
 ## Execution Rules
 
 - ✅ **ALWAYS use `background: true`** for ALL subagent calls
+- ✅ **Call `mailbox_read` between every tool call** — agents report progress, blockers, and completions there; do not rely on TaskList alone
 - ✅ **Check progress with `TaskList()` and `agent_status`** after spawning
 - ❌ **Never use `agent_wait`** — blocks the orchestrator; must remain responsive at all times
 - ❌ **Never use foreground execution** — blocks the workflow

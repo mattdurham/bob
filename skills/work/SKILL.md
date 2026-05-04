@@ -91,6 +91,7 @@ Teammates must not commit either.
 
 - ✅ **ALWAYS use `background: true`** for ALL subagent calls — single, parallel, and chain modes
 - ✅ **After spawning agents, check progress with `TaskList()` and `agent_status`**
+- ✅ **Call `mailbox_read` between every tool call** — agents report progress, blockers, and completions there; do not rely on TaskList alone
 - ❌ **Never use `agent_wait`** — it blocks the orchestrator; the team lead must remain responsive at all times
 - ❌ **Never use foreground execution** — it blocks the workflow
 - ❌ **Never use the `tasks: [...]` parallel mode** — it blocks until ALL agents complete; spawn each agent individually with `background: true` instead

@@ -44,6 +44,7 @@ import { type ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { Type } from "typebox";
 import { TeamManager, ROOT_TEAM, type TeamContext } from "./agent-registry.js";
 import { type AgentDef, buildBuiltinTools, discoverAgents, getAgentDir } from "./agent-loader.js";
+import { registerTeamCommands } from "./team-ui.js";
 
 // ─── Module-level singletons (shared across all sessions in this process) ─────
 
@@ -998,6 +999,10 @@ export default function (pi: ExtensionAPI) {
       }
     },
   });
+
+  // ── Team UI commands (/team-status, /team-tasks) ────────────────────────
+
+  registerTeamCommands(pi, teams);
 
   // ── Context file loading (AGENTS.md / CLAUDE.md) ─────────────────────────
 

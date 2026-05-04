@@ -23,6 +23,7 @@
  */
 
 import * as crypto from "node:crypto";
+import { logFlush, logHttp, logError } from "./otel-debug-log.js";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 
 // ─── Shared trace context (read by bob-agents to propagate to subagents) ────────
@@ -183,8 +184,9 @@ async function flush(
 		],
 	});
 
+	logFlush(spans);
 	try {
-		await fetch(url, {
+		const res = await fetch(url, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
@@ -193,8 +195,13 @@ async function flush(
 			body,
 			signal: AbortSignal.timeout(10_000),
 		});
-	} catch {
-		// Telemetry failures must never surface to the user
+		logHttp(res.status, res.statusText);
+		if (!res.ok) {
+			const text = await res.text().catch(() => "(unreadable)");
+			logError("ERROR", text);
+		}
+	} catch (e) {
+		logError("EXCEPTION", String(e));
 	}
 }
 

@@ -4,6 +4,7 @@ Cargo.lock
 
 # Binaries
 cmd/bob/bob
+/navigator
 *.exe
 *.exe~
 *.dll

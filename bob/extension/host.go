@@ -1,5 +1,7 @@
 package extension
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"context"
 	"encoding/json"
@@ -10,6 +12,7 @@ import (
 	"github.com/mattdurham/bob/bob/sdk"
 	"github.com/tetratelabs/wazero"
 	"github.com/tetratelabs/wazero/api"
+	"github.com/tetratelabs/wazero/imports/wasi_snapshot_preview1"
 )
 
 // Extension wraps a loaded WASM module.
@@ -52,6 +55,10 @@ func NewHost(logFn func(level int, msg string)) *Host {
 		registeredTools: make(map[string]sdk.Tool),
 	}
 	h.runtime = wazero.NewRuntime(context.Background())
+	// WASI is required by native Go WASM modules (GOOS=wasip1).
+	if _, err := wasi_snapshot_preview1.Instantiate(context.Background(), h.runtime); err != nil {
+		logFn(3, fmt.Sprintf("extension: install wasi module: %v", err))
+	}
 	if err := h.installEnvModule(); err != nil {
 		// If "env" fails to install, log and continue — extensions without
 		// imports will still work.
@@ -570,6 +577,7 @@ func (h *Host) Reload(ctx context.Context, paths []string) error {
 	h.mu.Lock()
 	old := h.extensions
 	h.extensions = nil
+	h.registeredTools = make(map[string]sdk.Tool)
 	h.mu.Unlock()
 
 	for _, ext := range old {

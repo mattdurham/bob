@@ -1,11 +1,13 @@
 package harness
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"strings"
 
-	lipgloss "charm.land/lipgloss/v2"
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/viewport"
+	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/mattdurham/bob/bob/sdk"
 )
 
@@ -117,16 +119,22 @@ func (c *ChatView) refreshContent() {
 	c.vp.SetContent(sb.String())
 }
 
-func renderMessage(sb *strings.Builder, m chatMessage, _ int) {
+func renderMessage(sb *strings.Builder, m chatMessage, width int) {
+	const minWidth = 20
+	if width < minWidth {
+		width = minWidth
+	}
 	switch m.role {
 	case sdk.RoleUser:
-		sb.WriteString(userStyle.Render("You: "))
-		sb.WriteString(m.content)
+		prefix := userStyle.Render("You: ")
+		sb.WriteString(prefix)
+		sb.WriteString(lipgloss.Wrap(m.content, width-5, ""))
 	case sdk.RoleAssistant:
-		sb.WriteString(assistantStyle.Render("Bob: "))
-		sb.WriteString(m.content)
+		prefix := assistantStyle.Render("Bob: ")
+		sb.WriteString(prefix)
+		sb.WriteString(lipgloss.Wrap(m.content, width-5, ""))
 	default:
-		sb.WriteString(systemStyle.Render("» " + m.content))
+		sb.WriteString(systemStyle.Render(lipgloss.Wrap("» "+m.content, width, "")))
 	}
 	sb.WriteString("\n\n")
 }

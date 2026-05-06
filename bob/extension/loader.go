@@ -1,5 +1,7 @@
 package extension
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"context"
 	"fmt"
@@ -21,8 +23,16 @@ func validateExports(m api.Module) error {
 }
 
 // callInit calls the extension's _init() export.
+// For native Go WASM modules, _initialize is called first to set up the Go runtime.
 // Returns an error if _init is absent or returns a non-zero status code.
 func callInit(ctx context.Context, m api.Module) error {
+	// Native Go WASM (GOOS=wasip1) exports _initialize to bootstrap the runtime.
+	// Call it before _init so Go globals and the scheduler are ready.
+	if fn := m.ExportedFunction("_initialize"); fn != nil {
+		if _, err := fn.Call(ctx); err != nil {
+			return fmt.Errorf("_initialize trap: %w", err)
+		}
+	}
 	fn := m.ExportedFunction("_init")
 	if fn == nil {
 		return fmt.Errorf("extension missing _init export")

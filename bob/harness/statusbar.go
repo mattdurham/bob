@@ -1,12 +1,15 @@
 package harness
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
-	lipgloss "charm.land/lipgloss/v2"
 	tea "charm.land/bubbletea/v2"
+	lipgloss "charm.land/lipgloss/v2"
 )
 
 // StatusBar renders provider/model info and keyed status values.
@@ -20,9 +23,9 @@ type StatusBar struct {
 
 var (
 	statusBarStyle = lipgloss.NewStyle().
-			Bold(true).
-			Foreground(lipgloss.Color("#FFFFFF")).
-			Background(lipgloss.Color("#333333"))
+		Bold(true).
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(lipgloss.Color("#333333"))
 )
 
 // NewStatusBar creates a StatusBar.
@@ -80,4 +83,13 @@ func (s StatusBar) View() string {
 		line = line[:s.width-1] + "…"
 	}
 	return statusBarStyle.Width(s.width).Render(line)
+}
+
+// formatElapsed formats a duration as "42s" or "1m 10s".
+func formatElapsed(d time.Duration) string {
+	s := int(d.Seconds())
+	if s < 60 {
+		return fmt.Sprintf("%ds", s)
+	}
+	return fmt.Sprintf("%dm %ds", s/60, s%60)
 }

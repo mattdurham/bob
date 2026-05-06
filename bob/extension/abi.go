@@ -1,5 +1,7 @@
 package extension
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 // This file documents the WASM ABI constants used by the extension host.
 // The actual host export functions are methods on Host defined in host.go.
 

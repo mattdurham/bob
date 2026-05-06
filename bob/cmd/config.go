@@ -8,8 +8,14 @@ import (
 
 // Config holds runtime configuration for the bob binary.
 type Config struct {
-	// APIKey is the Anthropic API key (ANTHROPIC_API_KEY).
-	APIKey string
+	// AnthropicAPIKey is the Anthropic API key (ANTHROPIC_API_KEY).
+	AnthropicAPIKey string
+
+	// OpenAIAPIKey is the OpenAI API key (OPENAI_API_KEY).
+	OpenAIAPIKey string
+
+	// GeminiAPIKey is the Google Gemini API key (GEMINI_API_KEY).
+	GeminiAPIKey string
 
 	// ExtensionsDir is the directory scanned for .wasm extension files (BOB_EXTENSIONS_DIR).
 	ExtensionsDir string
@@ -30,13 +36,15 @@ type Config struct {
 //   - BOB_MODEL: claude-sonnet-4-5
 //   - BOB_PROVIDER: anthropic
 //
-// Returns an error if the provider is "anthropic" and ANTHROPIC_API_KEY is empty.
+// Returns an error if the active provider's API key is empty.
 func LoadConfig() (*Config, error) {
 	cfg := &Config{
-		APIKey:        os.Getenv("ANTHROPIC_API_KEY"),
-		ExtensionsDir: expandTilde(os.Getenv("BOB_EXTENSIONS_DIR")),
-		Model:         os.Getenv("BOB_MODEL"),
-		Provider:      os.Getenv("BOB_PROVIDER"),
+		AnthropicAPIKey: os.Getenv("ANTHROPIC_API_KEY"),
+		OpenAIAPIKey:    os.Getenv("OPENAI_API_KEY"),
+		GeminiAPIKey:    os.Getenv("GEMINI_API_KEY"),
+		ExtensionsDir:   expandTilde(os.Getenv("BOB_EXTENSIONS_DIR")),
+		Model:           os.Getenv("BOB_MODEL"),
+		Provider:        os.Getenv("BOB_PROVIDER"),
 	}
 
 	if cfg.Model == "" {
@@ -46,8 +54,21 @@ func LoadConfig() (*Config, error) {
 		cfg.Provider = "anthropic"
 	}
 
-	if cfg.Provider == "anthropic" && cfg.APIKey == "" {
-		return nil, fmt.Errorf("ANTHROPIC_API_KEY is required when BOB_PROVIDER=anthropic")
+	switch cfg.Provider {
+	case "anthropic":
+		if cfg.AnthropicAPIKey == "" {
+			return nil, fmt.Errorf("ANTHROPIC_API_KEY is required when BOB_PROVIDER=anthropic")
+		}
+	case "openai":
+		if cfg.OpenAIAPIKey == "" {
+			return nil, fmt.Errorf("OPENAI_API_KEY is required when BOB_PROVIDER=openai")
+		}
+	case "gemini":
+		if cfg.GeminiAPIKey == "" {
+			return nil, fmt.Errorf("GEMINI_API_KEY is required when BOB_PROVIDER=gemini")
+		}
+	default:
+		// Unknown/custom providers: no built-in key requirement.
 	}
 
 	return cfg, nil

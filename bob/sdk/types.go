@@ -1,6 +1,8 @@
 // Package sdk defines shared types for the bob coding harness and its WASM extensions.
 package sdk
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import "encoding/json"
 
 // EventType identifies a lifecycle event dispatched to extensions.
@@ -126,14 +128,14 @@ type HostCallResponse struct {
 
 // host_call method constants.
 const (
-	MethodSubscribe        = "subscribe"
-	MethodRegisterTool     = "register_tool"
-	MethodRegisterCommand  = "register_command"
-	MethodSendMessage      = "send_message"
-	MethodSetStatus        = "set_status"
-	MethodNotify           = "notify"
-	MethodToolResult       = "tool_result"
-	MethodStoreSet         = "store_set"
-	MethodStoreGet         = "store_get"
-	MethodAbort            = "abort"
+	MethodSubscribe       = "subscribe"
+	MethodRegisterTool    = "register_tool"
+	MethodRegisterCommand = "register_command"
+	MethodSendMessage     = "send_message"
+	MethodSetStatus       = "set_status"
+	MethodNotify          = "notify"
+	MethodToolResult      = "tool_result"
+	MethodStoreSet        = "store_set"
+	MethodStoreGet        = "store_get"
+	MethodAbort           = "abort"
 )

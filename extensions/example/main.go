@@ -1,10 +1,10 @@
-//go:build tinygo
+//go:build wasip1
 
 // Package main is the hello example extension for the bob coding harness.
 //
 // Build:
 //
-//	tinygo build -o hello.wasm -target wasi .
+//	GOOS=wasip1 GOARCH=wasm go build -o hello.wasm .
 //
 // Install:
 //
@@ -27,26 +27,41 @@ func hostLog(level, ptr, length uint32)
 //go:wasmimport env host_call
 func hostCall(reqPtr, reqLen, respPtrPtr, respLenPtr uint32) uint32
 
+// ---- Memory management ------------------------------------------------------
+
+// pinned keeps allocations alive so the GC does not collect them before the
+// host reads them. Entries are removed when the host calls _free.
+var pinned = map[uintptr][]byte{}
+
+//go:wasmexport _alloc
+func extensionAlloc(size int32) int32 {
+	if size <= 0 {
+		return 0
+	}
+	buf := make([]byte, size)
+	ptr := uintptr(unsafe.Pointer(&buf[0]))
+	pinned[ptr] = buf
+	return int32(ptr)
+}
+
+//go:wasmexport _free
+func extensionFree(ptr int32) {
+	delete(pinned, uintptr(ptr))
+}
+
 // ---- Required exports -------------------------------------------------------
 
-// _init is called once when the extension is loaded.
-// It subscribes to lifecycle events.
-//
-//export _init
-func _init() int32 {
+//go:wasmexport _init
+func extensionInit() int32 {
 	if rc := subscribe("session_start"); rc != 0 {
 		return rc
 	}
 	return 0
 }
 
-// _on_event is called for every event the extension subscribed to.
-// ptr points to a JSON-encoded sdk.Event in WASM memory; length is its byte length.
-// Returns 0 (no response pointer) for all events in this example.
-//
-//export _on_event
-func _on_event(ptr, length int32) int32 {
-	data := readBytes(ptr, length)
+//go:wasmexport _on_event
+func extensionOnEvent(ptr, length int32) int32 {
+	data := unsafe.Slice((*byte)(unsafe.Pointer(uintptr(ptr))), length)
 
 	var evt struct {
 		Type    string          `json:"type"`
@@ -63,19 +78,6 @@ func _on_event(ptr, length int32) int32 {
 	}
 	return 0
 }
-
-// _alloc allocates size bytes in WASM linear memory and returns the pointer.
-//
-//export _alloc
-func _alloc(size int32) int32 {
-	buf := make([]byte, size)
-	return int32(uintptr(unsafe.Pointer(&buf[0])))
-}
-
-// _free frees a previously allocated pointer (no-op; GC handles it).
-//
-//export _free
-func _free(_ int32) {}
 
 // ---- Event handlers ---------------------------------------------------------
 
@@ -109,12 +111,10 @@ func logMsg(level int, msg string) {
 	hostLog(uint32(level), uint32(uintptr(unsafe.Pointer(&b[0]))), uint32(len(b)))
 }
 
-// hostCallJSON marshals params to JSON and issues a host_call RPC.
-// Returns 0 on success, non-zero on error.
-func hostCallJSON(method string, params interface{}) int32 {
+func hostCallJSON(method string, params any) int32 {
 	type request struct {
-		Method string      `json:"method"`
-		Params interface{} `json:"params,omitempty"`
+		Method string `json:"method"`
+		Params any    `json:"params,omitempty"`
 	}
 	reqBytes, err := json.Marshal(request{Method: method, Params: params})
 	if err != nil {
@@ -122,42 +122,20 @@ func hostCallJSON(method string, params interface{}) int32 {
 		return 1
 	}
 
-	// Copy request into WASM memory.
-	reqPtr := _alloc(int32(len(reqBytes)))
-	reqMem := (*[1 << 28]byte)(unsafe.Pointer(uintptr(reqPtr)))
-	copy(reqMem[:len(reqBytes)], reqBytes)
+	reqBuf := make([]byte, len(reqBytes))
+	copy(reqBuf, reqBytes)
+	reqPtr := uintptr(unsafe.Pointer(&reqBuf[0]))
 
-	// Allocate out-params for response pointer and length.
-	var respPtr uint32
-	var respLen uint32
+	var respPtr, respLen uint32
 	rc := hostCall(
-		uint32(reqPtr), uint32(len(reqBytes)),
+		uint32(reqPtr), uint32(len(reqBuf)),
 		uint32(uintptr(unsafe.Pointer(&respPtr))),
 		uint32(uintptr(unsafe.Pointer(&respLen))),
 	)
-	_free(reqPtr)
-
-	if rc != 0 {
-		return int32(rc)
+	if respPtr != 0 {
+		delete(pinned, uintptr(respPtr))
 	}
-	if respPtr != 0 && respLen > 0 {
-		_free(int32(respPtr))
-	}
-	return 0
+	return int32(rc)
 }
 
-// ---- Memory helpers ---------------------------------------------------------
-
-// readBytes reads length bytes from WASM memory starting at ptr.
-func readBytes(ptr, length int32) []byte {
-	if length <= 0 {
-		return nil
-	}
-	mem := (*[1 << 28]byte)(unsafe.Pointer(uintptr(ptr)))
-	out := make([]byte, length)
-	copy(out, mem[:length])
-	return out
-}
-
-// main is required by TinyGo WASI target but never called.
 func main() {}

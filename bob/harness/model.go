@@ -1,15 +1,18 @@
 package harness
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/fantasy"
 	"github.com/mattdurham/bob/bob/extension"
-	"github.com/mattdurham/bob/bob/provider"
 	"github.com/mattdurham/bob/bob/sdk"
 )
 
@@ -20,11 +23,13 @@ type Model struct {
 	statusBar StatusBar
 	commands  *Registry
 
-	prov    provider.Provider
-	extHost *extension.Host
+	langModel fantasy.LanguageModel
+	provName  string // display identifier for status bar (e.g. "anthropic")
+	extHost   *extension.Host
 
 	history     []sdk.Message
 	streaming   bool
+	streamStart time.Time
 	activeModel string
 
 	// cancelStream is set when a stream is in progress.
@@ -44,29 +49,48 @@ type Model struct {
 const inputAreaHeight = 5
 const statusBarHeight = 1
 
-// New creates a Model wired to the given provider and extension host.
-func New(p provider.Provider, h *extension.Host) Model {
+// New creates a Model wired to the given language model and extension host.
+func New(langModel fantasy.LanguageModel, provName string, h *extension.Host) Model {
 	modelName := ""
-	if p != nil && len(p.Models()) > 0 {
-		modelName = p.Models()[0]
-	}
-	providerName := ""
-	if p != nil {
-		providerName = p.Name()
+	if langModel != nil {
+		modelName = langModel.Model()
 	}
 
 	m := Model{
 		chat:        NewChatView(80, 20),
 		input:       NewInputArea(80),
-		statusBar:   NewStatusBar(providerName, modelName),
+		statusBar:   NewStatusBar(provName, modelName),
 		commands:    NewRegistry(),
-		prov:        p,
+		langModel:   langModel,
+		provName:    provName,
 		extHost:     h,
 		activeModel: modelName,
 	}
 
 	registerBuiltins(m.commands)
 	return m
+}
+
+// sdkToFantasyMessages converts the harness conversation history to fantasy message format.
+// Only text content is supported; this is a text-only conversion.
+func sdkToFantasyMessages(msgs []sdk.Message) []fantasy.Message {
+	result := make([]fantasy.Message, 0, len(msgs))
+	for _, m := range msgs {
+		var role fantasy.MessageRole
+		switch m.Role {
+		case sdk.RoleUser:
+			role = fantasy.MessageRoleUser
+		case sdk.RoleAssistant:
+			role = fantasy.MessageRoleAssistant
+		default:
+			continue
+		}
+		result = append(result, fantasy.Message{
+			Role:    role,
+			Content: []fantasy.MessagePart{fantasy.TextPart{Text: m.Content}},
+		})
+	}
+	return result
 }
 
 // SetProgram stores the bubbletea program reference so goroutines can call Send.
@@ -158,6 +182,15 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.chat.AppendToken(msg.Token)
 		return m, nil
 
+	case streamTickMsg:
+		if m.streaming {
+			since := time.Since(m.streamStart)
+			dots := strings.Repeat(".", int(since/400/time.Millisecond)%3+1)
+			m.statusBar.statuses["stream"] = fmt.Sprintf("working%-3s %s", dots, formatElapsed(since))
+			cmds = append(cmds, tea.Tick(400*time.Millisecond, func(time.Time) tea.Msg { return streamTickMsg{} }))
+		}
+		return m, tea.Batch(cmds...)
+
 	case StreamDoneMsg:
 		m.streaming = false
 		m.cancelStream = nil
@@ -248,15 +281,18 @@ func (m Model) startStream(content string) (tea.Model, tea.Cmd) {
 	m.chat.AddUserMessage(content)
 	m.history = append(m.history, sdk.Message{Role: sdk.RoleUser, Content: content})
 	m.streaming = true
-	m.statusBar.statuses["stream"] = "streaming…"
+	m.streamStart = time.Now()
+	m.statusBar.statuses["stream"] = "working."
 
 	ctx, cancel := context.WithCancel(context.Background())
 	m.cancelStream = &cancel
 
-	prov := m.prov
+	langModel := m.langModel
 	extHost := m.extHost
 	activeModel := m.activeModel
-	history := append([]sdk.Message(nil), m.history...) // snapshot
+	// Snapshot history WITHOUT the current user message — the current message
+	// goes in Prompt; prior history goes in Messages.
+	priorHistory := append([]sdk.Message(nil), m.history[:len(m.history)-1]...)
 	prog := m.program
 
 	cmd := func() tea.Msg {
@@ -271,41 +307,48 @@ func (m Model) startStream(content string) (tea.Model, tea.Cmd) {
 
 		// Dispatch before_provider_request.
 		if extHost != nil {
+			allHistory := append(priorHistory, sdk.Message{Role: sdk.RoleUser, Content: content})
 			payload, _ := json.Marshal(sdk.BeforeProviderRequestPayload{
-				Messages: history,
+				Messages: allHistory,
 				Model:    activeModel,
 			})
 			evt := sdk.Event{Type: sdk.EventBeforeProviderRequest, Payload: payload}
 			_, _ = extHost.DispatchEvent(ctx, evt)
 		}
 
-		if prov == nil {
+		if langModel == nil {
 			cancel()
-			return StreamDoneMsg{Err: fmt.Errorf("no provider configured")}
+			return StreamDoneMsg{Err: fmt.Errorf("no language model configured")}
 		}
 
 		var collected strings.Builder
-		req := provider.Request{
-			Model:    activeModel,
-			Messages: history,
-		}
-		err := prov.Stream(ctx, req, func(token string) error {
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
-			}
-			collected.WriteString(token)
-			if prog != nil {
-				prog.Send(TokenMsg{Token: token})
-			}
-			return nil
+		agent := fantasy.NewAgent(langModel)
+		_, err := agent.Stream(ctx, fantasy.AgentStreamCall{
+			Messages: sdkToFantasyMessages(priorHistory),
+			Prompt:   content,
+			OnTextDelta: func(id, text string) error {
+				if text == "" {
+					return nil
+				}
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+				}
+				collected.WriteString(text)
+				if prog != nil {
+					prog.Send(TokenMsg{Token: text})
+				}
+				return nil
+			},
 		})
 		cancel()
 
 		// Send history update before StreamDoneMsg so history is correct when
 		// after_provider_response is dispatched.
-		if err == nil || errors.Is(err, context.Canceled) {
+		// Only send if content was actually collected — avoid empty assistant messages
+		// on early cancellation (e.g. ctrl+c before any tokens arrive).
+		if (err == nil || errors.Is(err, context.Canceled)) && collected.Len() > 0 {
 			if prog != nil {
 				prog.Send(addAssistantMsgToHistoryMsg{content: collected.String()})
 			}
@@ -314,7 +357,8 @@ func (m Model) startStream(content string) (tea.Model, tea.Cmd) {
 		return StreamDoneMsg{Err: err}
 	}
 
-	return m, cmd
+	tick := tea.Tick(400*time.Millisecond, func(time.Time) tea.Msg { return streamTickMsg{} })
+	return m, tea.Batch(cmd, tick)
 }
 
 func (m Model) cmdDispatchAfterProviderResponse() tea.Cmd {
@@ -359,5 +403,7 @@ func (m Model) View() tea.View {
 	// Input area.
 	sb.WriteString(m.input.View())
 
-	return tea.NewView(sb.String())
+	v := tea.NewView(sb.String())
+	v.AltScreen = true
+	return v
 }

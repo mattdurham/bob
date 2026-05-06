@@ -1,5 +1,7 @@
 package sdk
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 // ABIVersion is the current WASM ABI version.
 // Extensions must export _abi_version() returning this value if they want
 // strict version checking (optional in v1).

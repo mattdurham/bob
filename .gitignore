@@ -3,7 +3,7 @@ target/
 Cargo.lock
 
 # Binaries
-cmd/bob/bob
+bob/dist/
 *.exe
 *.exe~
 *.dll

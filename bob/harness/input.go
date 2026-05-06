@@ -1,17 +1,20 @@
 package harness
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import (
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textarea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // InputArea wraps a textarea and handles command detection.
 type InputArea struct {
-	ta    textarea.Model
-	width int
+	ta         textarea.Model
+	width      int
+	lastWasEsc bool // true if the previous keypress was esc
 }
 
 // NewInputArea creates an InputArea with the given width.
@@ -40,8 +43,8 @@ func (i InputArea) Value() string { return i.ta.Value() }
 func (i *InputArea) Reset() { i.ta.Reset() }
 
 // Update handles keyboard input for the input area.
-// It intercepts Enter (submit) and Esc (cancel command mode) before
-// forwarding remaining events to the textarea.
+// It intercepts Enter (submit) and Esc (clear input or abort active stream on double-press)
+// before forwarding remaining events to the textarea.
 func (i InputArea) Update(msg tea.Msg) (InputArea, tea.Cmd) {
 	switch m := msg.(type) {
 	case tea.KeyPressMsg:
@@ -65,8 +68,17 @@ func (i InputArea) Update(msg tea.Msg) (InputArea, tea.Cmd) {
 			return i, func() tea.Msg { return SubmitMsg{Content: content} }
 
 		case "esc":
+			if i.lastWasEsc {
+				i.lastWasEsc = false
+				i.ta.Reset()
+				return i, func() tea.Msg { return abortStreamMsg{} }
+			}
+			i.lastWasEsc = true
 			i.ta.Reset()
 			return i, nil
+
+		default:
+			i.lastWasEsc = false
 		}
 	}
 

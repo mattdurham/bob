@@ -8,9 +8,12 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/fantasy"
+	fantasyanthropicprovider "charm.land/fantasy/providers/anthropic"
+	fantasygoogleprovider "charm.land/fantasy/providers/google"
+	fantasyopenapiprovider "charm.land/fantasy/providers/openai"
 	"github.com/mattdurham/bob/bob/extension"
 	"github.com/mattdurham/bob/bob/harness"
-	anthropicprovider "github.com/mattdurham/bob/bob/provider/anthropic"
 )
 
 func main() {
@@ -20,8 +23,40 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Build provider.
-	p := anthropicprovider.New(cfg.APIKey)
+	ctx := context.Background()
+
+	// Build fantasy provider based on configured provider name.
+	var fantasyProv fantasy.Provider
+	var provErr error
+
+	switch cfg.Provider {
+	case "anthropic":
+		fantasyProv, provErr = fantasyanthropicprovider.New(
+			fantasyanthropicprovider.WithAPIKey(cfg.AnthropicAPIKey),
+		)
+	case "openai":
+		fantasyProv, provErr = fantasyopenapiprovider.New(
+			fantasyopenapiprovider.WithAPIKey(cfg.OpenAIAPIKey),
+		)
+	case "gemini":
+		fantasyProv, provErr = fantasygoogleprovider.New(
+			fantasygoogleprovider.WithGeminiAPIKey(cfg.GeminiAPIKey),
+		)
+	default:
+		fmt.Fprintf(os.Stderr, "bob: unknown provider %q\n", cfg.Provider)
+		os.Exit(1)
+	}
+
+	if provErr != nil {
+		fmt.Fprintf(os.Stderr, "bob: create provider: %v\n", provErr)
+		os.Exit(1)
+	}
+
+	langModel, provErr := fantasyProv.LanguageModel(ctx, cfg.Model)
+	if provErr != nil {
+		fmt.Fprintf(os.Stderr, "bob: get language model %q from provider %q: %v\n", cfg.Model, cfg.Provider, provErr)
+		os.Exit(1)
+	}
 
 	// Build extension host with a simple stderr logger.
 	h := extension.NewHost(func(level int, msg string) {
@@ -32,8 +67,6 @@ func main() {
 			log.Printf("[?] %s", msg)
 		}
 	})
-
-	ctx := context.Background()
 
 	// Load .wasm extensions from the configured directory.
 	var extPaths []string
@@ -56,23 +89,20 @@ func main() {
 		}
 	}
 
-	// Ensure the active model is set.
-	m := harness.New(p, h)
+	defer func() {
+		if err := h.Close(ctx); err != nil {
+			fmt.Fprintf(os.Stderr, "bob: close extension host: %v\n", err)
+		}
+	}()
+
+	m := harness.New(langModel, cfg.Provider, h)
 	m.SetExtensionPaths(extPaths)
-	if cfg.Model != "" {
-		m.SetActiveModel(cfg.Model)
-	}
 
 	prog := tea.NewProgram(&m)
 	m.SetProgram(prog)
 
 	if _, err := prog.Run(); err != nil {
 		fmt.Fprintln(os.Stderr, "bob: "+err.Error())
-		h.Close(ctx) //nolint:errcheck
 		os.Exit(1)
-	}
-
-	if err := h.Close(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "bob: close extension host: %v\n", err)
 	}
 }

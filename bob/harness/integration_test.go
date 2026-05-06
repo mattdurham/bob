@@ -5,18 +5,41 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/mattdurham/bob/bob/extension"
-	mockprovider "github.com/mattdurham/bob/bob/provider/mock"
 	"github.com/mattdurham/bob/bob/sdk"
 )
+
+// runStreamCmd executes a cmd returned from SubmitMsg and returns the StreamDoneMsg.
+// startStream now returns a tea.Batch (stream cmd + tick cmd), so we unwrap BatchMsg
+// and find the sub-cmd that produces StreamDoneMsg.
+func runStreamCmd(cmd tea.Cmd) (StreamDoneMsg, bool) {
+	if cmd == nil {
+		return StreamDoneMsg{}, false
+	}
+	msg := cmd()
+	if done, ok := msg.(StreamDoneMsg); ok {
+		return done, true
+	}
+	batch, ok := msg.(tea.BatchMsg)
+	if !ok {
+		return StreamDoneMsg{}, false
+	}
+	for _, subCmd := range batch {
+		if subCmd == nil {
+			continue
+		}
+		if done, ok := subCmd().(StreamDoneMsg); ok {
+			return done, true
+		}
+	}
+	return StreamDoneMsg{}, false
+}
 
 // TestIntegration_FullStreamingFlow exercises the full submit → stream → done flow.
 // Because there is no real bubbletea program in tests, prog is nil, so TokenMsgs are
 // not sent via prog.Send. The stream cmd returns a StreamDoneMsg directly.
 func TestIntegration_FullStreamingFlow(t *testing.T) {
-	p := &mockprovider.Provider{
-		Tokens: []string{"hello", " ", "world", "!", "\n"},
-	}
-	m := New(p, nil)
+	lm := newMockLM("hello", " ", "world", "!", "\n")
+	m := New(lm, "mock", nil)
 
 	// Send SubmitMsg — should start streaming.
 	m, cmd := callUpdate(m, SubmitMsg{Content: "what is 2+2?"})
@@ -27,12 +50,10 @@ func TestIntegration_FullStreamingFlow(t *testing.T) {
 		t.Fatal("expected non-nil cmd after SubmitMsg")
 	}
 
-	// Execute the cmd. Since prog is nil, TokenMsgs go nowhere; the cmd returns
-	// StreamDoneMsg when it finishes.
-	result := cmd()
-	doneMsg, ok := result.(StreamDoneMsg)
+	// Execute the cmd (unwrapping any BatchMsg from the tick being co-scheduled).
+	doneMsg, ok := runStreamCmd(cmd)
 	if !ok {
-		t.Fatalf("expected StreamDoneMsg from cmd, got %T", result)
+		t.Fatal("expected StreamDoneMsg from cmd")
 	}
 	if doneMsg.Err != nil {
 		t.Fatalf("expected no error in StreamDoneMsg, got %v", doneMsg.Err)
@@ -55,18 +76,16 @@ func TestIntegration_FullStreamingFlow(t *testing.T) {
 		t.Errorf("history[0].Content: got %q, want %q", m.history[0].Content, "what is 2+2?")
 	}
 
-	// Verify mock provider was called once.
-	if p.CallCount != 1 {
-		t.Errorf("expected CallCount == 1, got %d", p.CallCount)
+	// Verify mock language model was called once.
+	if lm.callCount != 1 {
+		t.Errorf("expected callCount == 1, got %d", lm.callCount)
 	}
 }
 
 // TestIntegration_UserMessageInHistory verifies the user message is recorded correctly.
 func TestIntegration_UserMessageInHistory(t *testing.T) {
-	p := &mockprovider.Provider{
-		Tokens: []string{"ok"},
-	}
-	m := New(p, nil)
+	lm := newMockLM("ok")
+	m := New(lm, "mock", nil)
 
 	m, cmd := callUpdate(m, SubmitMsg{Content: "hello world"})
 
@@ -94,10 +113,8 @@ func TestIntegration_UserMessageInHistory(t *testing.T) {
 
 // TestIntegration_CtrlC_CancelsStream verifies that ctrl+c while streaming calls cancelStream.
 func TestIntegration_CtrlC_CancelsStream(t *testing.T) {
-	p := &mockprovider.Provider{
-		Tokens: []string{"a", "b", "c"},
-	}
-	m := New(p, nil)
+	lm := newMockLM("a", "b", "c")
+	m := New(lm, "mock", nil)
 
 	// Start streaming.
 	m, _ = callUpdate(m, SubmitMsg{Content: "hi"})
@@ -127,8 +144,8 @@ func TestIntegration_CtrlC_CancelsStream(t *testing.T) {
 
 // TestIntegration_NilExtensionHost_Safe verifies that nil host never panics.
 func TestIntegration_NilExtensionHost_Safe(t *testing.T) {
-	p := &mockprovider.Provider{Tokens: []string{"hi"}}
-	m := New(p, nil)
+	lm := newMockLM("hi")
+	m := New(lm, "mock", nil)
 
 	// Init should return a non-nil Cmd and not panic.
 	cmd := m.Init()
@@ -143,23 +160,22 @@ func TestIntegration_NilExtensionHost_Safe(t *testing.T) {
 	}
 
 	// A normal SubmitMsg should work without panicking.
-	m, streamCmd := callUpdate(m, SubmitMsg{Content: "test"})
+	_, streamCmd := callUpdate(m, SubmitMsg{Content: "test"})
 	if streamCmd == nil {
 		t.Error("expected non-nil stream cmd")
 	}
 	// Execute cmd — no panic expected.
-	result := streamCmd()
-	_, ok := result.(StreamDoneMsg)
+	_, ok := runStreamCmd(streamCmd)
 	if !ok {
-		t.Errorf("expected StreamDoneMsg, got %T", result)
+		t.Error("expected StreamDoneMsg from stream cmd")
 	}
 }
 
 // TestIntegration_ExtensionHost_NoExtensions_Safe verifies a real host with no extensions loaded.
 func TestIntegration_ExtensionHost_NoExtensions_Safe(t *testing.T) {
-	p := &mockprovider.Provider{Tokens: []string{"hi"}}
+	lm := newMockLM("hi")
 	h := extension.NewHost(nil)
-	m := New(p, h)
+	m := New(lm, "mock", h)
 
 	// Init should not panic.
 	cmd := m.Init()
@@ -168,15 +184,14 @@ func TestIntegration_ExtensionHost_NoExtensions_Safe(t *testing.T) {
 	}
 
 	// Submit and execute stream — no extensions loaded, no panics expected.
-	m, streamCmd := callUpdate(m, SubmitMsg{Content: "test with host"})
+	_, streamCmd := callUpdate(m, SubmitMsg{Content: "test with host"})
 	if streamCmd == nil {
 		t.Fatal("expected non-nil stream cmd")
 	}
 
-	result := streamCmd()
-	doneMsg, ok := result.(StreamDoneMsg)
+	doneMsg, ok := runStreamCmd(streamCmd)
 	if !ok {
-		t.Fatalf("expected StreamDoneMsg, got %T", result)
+		t.Fatal("expected StreamDoneMsg from stream cmd")
 	}
 	if doneMsg.Err != nil {
 		t.Errorf("expected no error, got %v", doneMsg.Err)

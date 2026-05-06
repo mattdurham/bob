@@ -6,15 +6,12 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	mockprovider "github.com/mattdurham/bob/bob/provider/mock"
 	"github.com/mattdurham/bob/bob/sdk"
 )
 
 func newTestModel() Model {
-	p := &mockprovider.Provider{
-		Tokens: []string{"hello", " ", "world"},
-	}
-	return New(p, nil)
+	lm := newMockLM("hello", " ", "world")
+	return New(lm, "mock", nil)
 }
 
 // callUpdate is a helper that calls Update and returns the concrete Model.
@@ -172,8 +169,8 @@ func TestModel_Update_CommandMsg_UnknownCommand(t *testing.T) {
 }
 
 func TestModel_Update_SubmitMsg_StartsStream(t *testing.T) {
-	p := &mockprovider.Provider{Tokens: []string{"hi"}}
-	m := New(p, nil)
+	lm := newMockLM("hi")
+	m := New(lm, "mock", nil)
 
 	m, cmd := callUpdate(m, SubmitMsg{Content: "hello"})
 	if !m.streaming {
@@ -188,10 +185,7 @@ func TestModel_Update_SubmitMsg_IgnoredWhileStreaming(t *testing.T) {
 	m := newTestModel()
 	m.streaming = true
 
-	m, cmd := callUpdate(m, SubmitMsg{Content: "new message"})
-	if cmd != nil {
-		// cmd may be non-nil (batch with nil cmds), but no stream should start.
-	}
+	m, _ = callUpdate(m, SubmitMsg{Content: "new message"})
 	_ = m
 	// We just verify no panic and model stays consistent.
 }
@@ -218,5 +212,30 @@ func TestModel_Update_WindowSizeMsg(t *testing.T) {
 	m, _ = callUpdate(m, tea.WindowSizeMsg{Width: 120, Height: 40})
 	if m.width != 120 || m.height != 40 {
 		t.Errorf("dimensions: got %dx%d, want 120x40", m.width, m.height)
+	}
+}
+
+// TestModel_NilLangModel_StreamError verifies §15: when langModel is nil, startStream
+// immediately returns StreamDoneMsg with an error.
+func TestModel_NilLangModel_StreamError(t *testing.T) {
+	// Construct model with nil language model.
+	m := New(nil, "none", nil)
+
+	m, cmd := callUpdate(m, SubmitMsg{Content: "hello"})
+	if !m.streaming {
+		t.Error("streaming should be true after SubmitMsg (before cmd runs)")
+	}
+	if cmd == nil {
+		t.Fatal("expected non-nil cmd after SubmitMsg")
+	}
+
+	// Execute the cmd directly — should produce StreamDoneMsg with error.
+	// startStream returns a batch (stream cmd + tick), so unwrap it.
+	doneMsg, ok := runStreamCmd(cmd)
+	if !ok {
+		t.Fatal("expected StreamDoneMsg from startStream BatchMsg — batch structure may have changed")
+	}
+	if doneMsg.Err == nil {
+		t.Fatal("expected error when langModel is nil, got nil")
 	}
 }

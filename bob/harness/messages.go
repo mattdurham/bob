@@ -1,6 +1,8 @@
 // Package harness implements the bubbletea TUI for the bob coding assistant.
 package harness
 
+// NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
+
 import "github.com/mattdurham/bob/bob/sdk"
 
 // TokenMsg carries a single streamed token from the provider.
@@ -36,3 +38,6 @@ type CommandMsg struct {
 // abortStreamMsg is sent by the OnAbort callback to cancel the active stream
 // through the bubbletea program, ensuring the live model's cancelStream is used.
 type abortStreamMsg struct{}
+
+// streamTickMsg fires periodically while streaming to update the working indicator.
+type streamTickMsg struct{}

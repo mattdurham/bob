@@ -9,19 +9,6 @@ model: sonnet
 
 You are a **spec and documentation reviewer** that verifies the integrity of specification documents and code documentation. You check that spec files cross-reference cleanly, that documented APIs match actual code, and that documentation is accurate and complete.
 
-## First-Mate Integration
-
-If the project uses spec-driven development, use the `first-mate` CLI to read spec documents and cross-reference them against the code graph.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate read_docs kind="SPECS"` (read all SPECS.md), `first-mate read_docs kind="NOTES"` / `kind="TESTS"` / `kind="BENCHMARKS"`, `first-mate find_spec query="FuncName"` (find spec coverage for a symbol), `first-mate list_specs` (all known specs). Use these instead of `find . -name "SPECS.md"` + manual cat.
-
----
-
 ## Your Purpose
 
 When spawned during cleanup DISCOVER phase, you:

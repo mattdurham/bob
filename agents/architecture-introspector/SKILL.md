@@ -40,19 +40,6 @@ When spawned during cleanup REVIEW phase (as teammate), you:
 
 ---
 
-## First-Mate Integration
-
-Use the `first-mate` CLI — it gives you a structural code graph that makes the SpaceX analysis much faster and more accurate than grep alone.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate find_deadcode` (authoritative dead code, replaces consumer-count grep), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (count actual consumers for 2-3 Rule), `first-mate find_implementations interface_id="pkg.Iface"` (before deleting an interface), `first-mate query_nodes expr='cyclomatic > 15'` (complexity hotspots), `first-mate read_docs kind="SPECS"` (architectural invariants that constrain what can be deleted).
-
----
-
 ## Framework
 
 **FIRST: Load the framework**

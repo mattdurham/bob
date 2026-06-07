@@ -36,19 +36,6 @@ When spawned by workflow-coder, you:
 
 ---
 
-## First-Mate Integration
-
-If the project uses spec-driven development (CLAUDE.md invariant files in subdirectories), use the `first-mate` CLI before writing code.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact of changes). CLAUDE.md invariants are hard constraints — never violate them silently.
-
----
-
 ## Reference Guide
 
 **IMPORTANT: Read and apply the golang-pro development guide**
@@ -164,31 +151,6 @@ A directory is **documented** if it contains a `CLAUDE.md` with numbered invaria
 - Keep updates tidy: only update invariants that are genuinely affected — never add trivial, ephemeral, or obviously code-derivable content
 
 **Do CLAUDE.md updates alongside code changes, not as an afterthought.** When you modify a function that affects an invariant, update `CLAUDE.md` in the same step.
-
-### Step 2.6: Navigator: Pull Patterns Before Coding
-
-Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
-
-Call `mcp__navigator__recall` with:
-- query: "[the feature or package being implemented, e.g. 'rate limiter implementation' or 'store layer concurrent access']"
-- scope: the primary package being modified
-- limit: 10
-
-Review the results. If navigator returns past findings, extract:
-- **Proven patterns** to follow (copy the approach, don't reinvent)
-- **Known pitfalls** to avoid (nil maps, race conditions, etc.)
-- **Prior decisions** that constrain your implementation
-
-Incorporate these directly into your implementation — treat them as constraints from a senior developer who has worked this code before.
-
-After completing the implementation, report what was done:
-
-Call `mcp__navigator__remember` with:
-- content: "Implementation: [what was built]. Key decisions: [non-obvious choices made]. Patterns used: [which existing patterns were followed]. Any surprises or edge cases discovered: [if any]."
-- scope: primary package
-- tags: ["implementation", plus any relevant technical tags e.g. "concurrency", "error-handling"]
-- confidence: "observed"
-- source: "implementation"
 
 ### Step 3: Implement Using TDD
 

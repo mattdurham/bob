@@ -311,18 +311,6 @@ code changes:
 
 ---
 
-## Navigator: Treat as Senior Developer
-
-Navigator (`mcp__navigator__*` tools) is a persistent knowledge base that accumulates findings across sessions. If available, use it throughout this workflow:
-
-- **consult** before brainstorming, planning, and reviewing — ask what it knows about the task scope
-- **recall** before coding — pull proven patterns for the package
-- **remember** after each major phase — record decisions and findings for future sessions
-
-All navigator calls are optional. If the tool is unavailable (server not running), skip and continue normally.
-
----
-
 ## Phase 1: INIT
 
 **Goal:** Initialize and understand requirements
@@ -715,8 +703,6 @@ GO CODING GUIDELINES:
 - Store errors: only fs.ErrNotExist is a miss; propagate other errors to callers
 - Tests: name must match assertion; use //go:noinline + KeepAlive for GC-dependent tests
 
-Navigator (before coding): Attempt mcp__navigator__recall to pull proven patterns for the packages in scope. After completing all tasks, call mcp__navigator__remember to record implementation decisions. Skip if unavailable.
-
 SPEC-DRIVEN MODULES: Before writing any code, check each target directory for
 SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or .go files containing:
   // NOTE: Any changes to this file must be reflected in the corresponding SPECS.md or NOTES.md.
@@ -1049,8 +1035,6 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 **Goal:** Shut down team and run final comprehensive code review, fix, commit, and CI monitoring
 
 Even though incremental reviews happened during EXECUTE, this phase does a final holistic review of the complete changeset.
-
-**Navigator (before reviewing):** Attempt `mcp__navigator__consult` for known issues, past bugs, or quality findings in the packages being changed. After the review completes, call `mcp__navigator__remember` to record all high/critical findings for future sessions. If navigator tools are unavailable, skip and continue.
 
 **Actions:**
 

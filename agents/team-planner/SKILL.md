@@ -99,16 +99,6 @@ find . -name "SPECS.md" -o -name "NOTES.md" -o -name "TESTS.md" -o -name "BENCHM
 
 The plan MUST include invariant-derived tests and explicit doc update steps for spec-driven modules.
 
-### Step 4: Consult Navigator
-
-Attempt this call (skip if unavailable):
-```
-mcp__navigator__consult(
-  question: "What implementation patterns, prior decisions, or known pitfalls exist for: [task description]?",
-  scope: "[primary package]"
-)
-```
-
 ### Step 5: Create the Plan
 
 Write a detailed, TDD-first plan to `.bob/state/plan.md`:
@@ -201,17 +191,6 @@ TaskUpdate(
     task_type: "plan",
     output_file: ".bob/state/plan.md"
   }
-)
-```
-
-Report to Navigator (skip if unavailable):
-```
-mcp__navigator__remember(
-  content: "Plan: [task summary]. Approach: [strategy]. Key decisions: [2-4 specific decisions with rationale].",
-  scope: "[primary package]",
-  tags: ["plan", "design-decision"],
-  confidence: "observed",
-  source: "planning"
 )
 ```
 

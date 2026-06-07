@@ -36,19 +36,6 @@ If fixing a bug would require adding new behavior (e.g., "this function needs a 
 
 ---
 
-## First-Mate Integration
-
-Use the `first-mate` CLI — it runs static analysis on the code graph and surfaces bugs faster than manual grep.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate run_analysis` (escape + lint + race detection in one call — annotates nodes), then `first-mate query_nodes expr='race_count > 0'` and `first-mate query_nodes expr='lint_count > 0'` to find flagged nodes. Also: `first-mate find_races` (race pattern heuristics), `first-mate run_vet`, `first-mate find_todos`. These replace most of the manual grep steps in Step 2.
-
----
-
 ## DISCOVER Mode
 
 ### Step 1: Establish Scope

@@ -49,19 +49,6 @@ When spawned by workflow-coder, you:
 
 ---
 
-## First-Mate Integration
-
-If the project uses spec-driven development (SPECS.md, NOTES.md, TESTS.md, or BENCHMARKS.md present), use the `first-mate` CLI to look up specs and understand call structure before writing code.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate read_docs kind="SPECS"` (read invariants), `first-mate read_docs kind="NOTES"` (design decisions), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact of your changes). If your implementation would violate a stated invariant, raise it in your status report rather than silently violating it.
-
----
-
 ## Reference Guide
 
 **IMPORTANT: Read and apply the golang-pro development guide**
@@ -188,31 +175,6 @@ A directory is **spec-driven** if it contains any of: `SPECS.md`, `NOTES.md`, `T
 - **NEVER delete NOTES.md entries** — add `*Addendum (date):*` if a decision is reversed
 
 **Do spec doc updates alongside code changes, not as an afterthought.** When you modify a function, update SPECS.md in the same step.
-
-### Step 2.6: Navigator: Pull Patterns Before Coding
-
-Attempt the following tool call. **If it fails or the tool is unavailable, skip and continue.**
-
-Call `mcp__navigator__recall` with:
-- query: "[the feature or package being implemented, e.g. 'rate limiter implementation' or 'store layer concurrent access']"
-- scope: the primary package being modified
-- limit: 10
-
-Review the results. If navigator returns past findings, extract:
-- **Proven patterns** to follow (copy the approach, don't reinvent)
-- **Known pitfalls** to avoid (nil maps, race conditions, etc.)
-- **Prior decisions** that constrain your implementation
-
-Incorporate these directly into your implementation — treat them as constraints from a senior developer who has worked this code before.
-
-After completing the implementation, report what was done:
-
-Call `mcp__navigator__remember` with:
-- content: "Implementation: [what was built]. Key decisions: [non-obvious choices made]. Patterns used: [which existing patterns were followed]. Any surprises or edge cases discovered: [if any]."
-- scope: primary package
-- tags: ["implementation", plus any relevant technical tags e.g. "concurrency", "error-handling"]
-- confidence: "observed"
-- source: "implementation"
 
 ### Step 3: Implement Using TDD
 

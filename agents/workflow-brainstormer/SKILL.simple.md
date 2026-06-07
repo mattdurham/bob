@@ -19,19 +19,6 @@ When spawned by the work orchestrator, you:
 5. Make a final recommendation
 6. Signal completion
 
-## First-Mate Integration
-
-If the project uses spec-driven development (CLAUDE.md invariant files in subdirectories), use the `first-mate` CLI for code graph analysis before reading files manually.
-
-Read the full reference guide before using it:
-```
-Read(file_path: "[agent-directory]/../first-mate/SKILL.md")
-```
-
-Key uses: `first-mate parse_tree` (load graph), `first-mate call_graph function_id="pkg.Fn" direction="callers"` (impact analysis), `first-mate find_deadcode`. CLAUDE.md invariants are hard constraints — never propose violating them.
-
----
-
 ## CRITICAL: You Are Non-Interactive
 
 - ❌ **DO NOT ask the user questions**
@@ -101,27 +88,6 @@ Task(subagent_type: "Explore",
 - Architecture and structure
 - Libraries and dependencies in use
 - Test patterns and approaches
-
-### Step 2.1: Consult Navigator for Prior Knowledge
-
-Navigator accumulates findings from past agent sessions — treat it like a senior developer who has worked this codebase before.
-
-Attempt the following tool call. **If it fails or the tool is unavailable, skip this step and continue.**
-
-Call `mcp__navigator__consult` with:
-- question: "What patterns, prior decisions, or pitfalls exist for: [paste the task description from brainstorm-prompt.md]?"
-- scope: the primary package or directory this task touches
-
-If navigator responds, **incorporate its findings into your research** — add them to the Research Findings section under a "Navigator Knowledge" sub-heading. Prior decisions and known pitfalls are constraints, not suggestions.
-
-After writing your final recommendation (Step 5), report back:
-
-Call `mcp__navigator__remember` with:
-- content: "Brainstorm: [one-sentence task summary]. Chose approach: [approach name]. Key rationale: [2-3 sentences]. Key risks: [any identified risks]."
-- scope: primary package
-- tags: ["brainstorm", "approach-decision"]
-- confidence: "observed"
-- source: "brainstorm"
 
 ### Step 2.5: Detect Documented Modules
 

@@ -94,14 +94,6 @@ Task(agent: "Explore",
              Provide concrete findings with file paths and line numbers.")
 ```
 
-Also consult Navigator if available (skip if unavailable):
-```
-mcp__navigator__consult(
-  question: "What patterns, prior decisions, or pitfalls exist for: [task description]?",
-  scope: "[primary package or directory]"
-)
-```
-
 ### Step 4: Check Spec-Driven Modules
 
 Check every directory that will be touched by this task:
@@ -197,17 +189,6 @@ TaskUpdate(
     output_file: ".bob/state/brainstorm.md",
     chosen_approach: "[name of chosen approach]"
   }
-)
-```
-
-Report to Navigator (skip if unavailable):
-```
-mcp__navigator__remember(
-  content: "Brainstorm: [task summary]. Chose approach: [name]. Key rationale: [2-3 sentences]. Risks: [any identified].",
-  scope: "[primary package]",
-  tags: ["brainstorm", "approach-decision"],
-  confidence: "observed",
-  source: "brainstorm"
 )
 ```
 

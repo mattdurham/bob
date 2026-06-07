@@ -199,18 +199,6 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 
 ---
 
-## Navigator: Treat as Senior Developer
-
-Navigator (`mcp__navigator__*` tools) is a persistent knowledge base that accumulates findings across sessions. If available, use it throughout this workflow:
-
-- **consult** before brainstorming, planning, and reviewing — ask what it knows about the task scope
-- **recall** before coding — pull proven patterns for the package
-- **remember** after each major phase — record decisions and findings for future sessions
-
-All navigator calls are optional. If the tool is unavailable (server not running), skip and continue normally.
-
----
-
 ## Phase 1: INIT
 
 **Goal:** Initialize and understand requirements
@@ -516,8 +504,6 @@ TaskUpdate(taskId: "<test-task-id>", addBlockedBy: ["<implementation-task-id>"])
 **Goal:** Add coder and reviewer teammates to the existing team
 
 The knowledge team is already running. Now spawn the execution team.
-
-**Navigator (before coding):** Attempt `mcp__navigator__recall` to pull proven patterns for the packages in scope. After completing all tasks, call `mcp__navigator__remember` to record implementation decisions and any non-obvious choices. If navigator tools are unavailable, skip and continue.
 
 **Actions:**
 
@@ -848,8 +834,6 @@ After TEST completes, read `.bob/state/test-results.md` and route:
 **Goal:** Shut down team and run final comprehensive code review, fix, commit, and CI monitoring
 
 Even though incremental reviews happened during EXECUTE, this phase does a final holistic review of the complete changeset.
-
-**Navigator (before reviewing):** Attempt `mcp__navigator__consult` for known issues, past bugs, or quality findings in the packages being changed. After the review completes, call `mcp__navigator__remember` to record all high/critical findings for future sessions. If navigator tools are unavailable, skip and continue.
 
 **Actions:**
 

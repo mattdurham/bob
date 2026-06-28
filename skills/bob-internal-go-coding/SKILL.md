@@ -1,5 +1,5 @@
 ---
-name: bob:internal:go-coding
+name: bob-internal-go-coding
 description: Go coding guidelines for production-quality code — pool lifetimes, concurrency safety, numeric type boundaries, error handling, and test discipline
 user-invocable: false
 category: reference

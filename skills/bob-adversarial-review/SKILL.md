@@ -1,5 +1,5 @@
 ---
-name: bob:adversarial-review
+name: bob-adversarial-review
 description: Adversarial deep code review — orchestrator spawns 8 specialist agents in parallel hunting spec drift, comment lies, memory hazards, concurrency bugs, contract gaps, code quality issues, and structural over-abstraction. Outputs severity-ranked findings to .bob/state/review.md with a routing recommendation.
 user-invocable: true
 category: workflow

@@ -1,5 +1,5 @@
 ---
-name: bob:cleanup
+name: bob-cleanup
 description: Team-based code cleanup workflow - DISCOVER → PLAN → CLEANUP LOOP → COMMIT. Simplifies, removes complexity, fixes documentation. Never introduces new functionality.
 user-invocable: true
 category: workflow

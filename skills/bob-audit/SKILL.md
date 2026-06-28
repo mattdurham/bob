@@ -1,5 +1,5 @@
 ---
-name: bob:audit
+name: bob-audit
 description: Verify spec invariants and analyze codebase health — DISCOVER → AUDIT → [ANALYZE → SCORE] → REPORT → COMPLETE
 user-invocable: true
 category: workflow

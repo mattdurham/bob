@@ -1,5 +1,5 @@
 ---
-name: bob:explore
+name: bob-explore
 description: Team-based codebase exploration with adversarial challenge - DISCOVER → ANALYZE → CHALLENGE → DOCUMENT
 user-invocable: true
 category: workflow

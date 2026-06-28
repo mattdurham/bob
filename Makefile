@@ -57,7 +57,7 @@ install-skills:
 	@echo "📚 Installing Bob workflow skills..."
 	@SKILLS_DIR="$$HOME/.claude/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem premortem; do \
+	for skill in bob-work bob-explore bob-audit bob-code-review bob-cleanup bob-generate-overview bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			echo "   Installing $$skill skill..."; \
 			mkdir -p "$$SKILLS_DIR/$$skill"; \
@@ -743,16 +743,7 @@ install-pi:
 	fi
 	@echo ""
 	@echo "🔌 Extension"
-	@SRC_EXT="extensions/bob-agents"; \
-	DST_EXT="$$HOME/.pi/agent/extensions/bob-agents"; \
-	if [ ! -d "$$SRC_EXT" ]; then \
-		echo "   ⚠️  Extension source missing from $$SRC_EXT"; \
-		echo "   Run this from the bob repo root."; \
-		exit 1; \
-	fi; \
-	mkdir -p "$$DST_EXT"; \
-	cp "$$SRC_EXT"/*.ts "$$DST_EXT/"; \
-	echo "   ✓ Copied $$SRC_EXT → $$DST_EXT"
+	@echo "   ℹ️  bob-agents retired — pi-subagents handles agent spawning natively"
 	@echo "📡 OTel Extension"
 	@cp extensions/otel.ts "$$HOME/.pi/agent/extensions/otel.ts"; \
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
@@ -766,7 +757,7 @@ install-pi:
 	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
 	SKILLS_DIR="$$HOME/.pi/agent/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
-	for skill in work explore brainstorming writing-plans audit code-review cleanup generate-overview stage-prs adversarial-review postmortem premortem; do \
+	for skill in bob-work bob-explore bob-audit bob-code-review bob-cleanup bob-generate-overview bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
 				SRC="skills/$$skill/SKILL.simple.md"; \
@@ -846,7 +837,7 @@ install-pi:
 	@echo "✅ Pi installation complete!"
 	@echo ""
 	@echo "Installed to ~/.pi/agent/:"
-	@echo "  ✓ Extension → ~/.pi/agent/extensions/bob-agents/"
+	@echo "  ✓ Extension → bob-agents retired (pi-subagents used instead)"
 	@echo "  ✓ OTel      → ~/.pi/agent/extensions/otel.ts"
 	@echo "  ✓ Quiet     → ~/.pi/agent/extensions/quiet-thoughts.ts"
 	@echo "  ✓ TPS       → ~/.pi/agent/extensions/tps.ts"

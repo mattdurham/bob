@@ -1,5 +1,5 @@
 ---
-name: bob:work
+name: bob-work
 description: Team-based development workflow using experimental agent teams - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMPLETE
 user-invocable: true
 category: workflow

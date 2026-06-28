@@ -1,5 +1,5 @@
 ---
-name: bob:operational
+name: bob-operational
 description: Multi-repo operational workflow — coordinate code changes across repos, build/deploy, and validate end-to-end. INIT → PLAN → CODE → OPERATE → TEST → COMPLETE
 user-invocable: true
 category: workflow

@@ -1,9 +1,13 @@
 {
-  "spinnerTipsEnabled": false,
   "permissions": {
     "allow": [
       "Bash(rm -rf /Users/mdurham/.claude/skills/cleanup-teams /Users/mdurham/.claude/skills/design /Users/mdurham/.claude/skills/explore-teams /Users/mdurham/.claude/skills/work-agents /Users/mdurham/.claude/skills/work-teams)",
-      "Read(//Users/mdurham/.claude/skills/**)"
+      "Read(//Users/mdurham/.claude/skills/**)",
+      "mcp__grafana-dev__grafana_api_request",
+      "Bash(cp ~/.claude/settings.json ~/.claude/settings.json.backup)",
+      "Bash(jq '.permissions.allow = [.permissions.allow[] | select\\(startswith\\(\"mcp__first-mate__\"\\) | not\\) | select\\(startswith\\(\"mcp__navigator__\"\\) | not\\)]' ~/.claude/settings.json)",
+      "Bash(mv /tmp/settings-new.json ~/.claude/settings.json)"
     ]
-  }
+  },
+  "spinnerTipsEnabled": false
 }

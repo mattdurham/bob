@@ -1,5 +1,5 @@
 ---
-name: bob:generate-overview
+name: bob-generate-overview
 description: Generate a stylized, self-contained HTML report for any Go codebase element — functions, packages, interfaces, structs, handlers, CLI commands, and more
 user-invocable: true
 category: documentation

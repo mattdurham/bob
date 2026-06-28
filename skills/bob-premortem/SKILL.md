@@ -1,5 +1,5 @@
 ---
-name: bob:premortem
+name: bob-premortem
 description: Run a premortem — imagine a project has failed and work backwards to identify risks before they happen
 user-invocable: true
 category: workflow

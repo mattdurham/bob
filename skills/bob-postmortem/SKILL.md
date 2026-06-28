@@ -1,5 +1,5 @@
 ---
-name: bob:postmortem
+name: bob-postmortem
 description: Write a blameless incident postmortem — gather timeline, root cause, impact, action items
 user-invocable: true
 category: workflow

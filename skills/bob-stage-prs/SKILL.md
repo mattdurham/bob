@@ -1,5 +1,5 @@
 ---
-name: bob:stage-prs
+name: bob-stage-prs
 description: Break a large changeset into ordered, reviewable PRs — idempotent, call again to advance the stack after merges
 user-invocable: true
 category: workflow

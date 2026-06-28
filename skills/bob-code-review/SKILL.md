@@ -1,5 +1,5 @@
 ---
-name: bob:code-review
+name: bob-code-review
 description: Code review workflow orchestrator - REVIEW → FIX → TEST → COMMIT → MONITOR
 user-invocable: true
 category: workflow

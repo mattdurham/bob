@@ -250,7 +250,65 @@ The workflow runs autonomously from INIT through COMMIT. The team lead's job is 
 
    Read the output and remember the mode for Phase 8.
 
-4. Move to WORKTREE phase
+4. **Detect workspace mode (OKF and spec-driven):**
+
+   After WORKTREE creates `.bob/state/`, run workspace detection:
+
+   ```
+   Task(subagent_type: "Bash",
+        description: "Detect workspace mode",
+        run_in_background: true,
+        prompt: "Run workspace detection and write .bob/state/workspace.md.
+
+                If scripts/detect-workspace.sh exists in the repo:
+                  bash scripts/detect-workspace.sh $(pwd)
+
+                Otherwise run detection inline:
+                  OKF=false
+                  [ -d .knowledge ] && [ -f .knowledge/index.md ] && OKF=true
+
+                  SPEC_DRIVEN=false
+                  find . -not -path './.knowledge/*' -not -path './.git/*' \
+                    \( -name 'CLAUDE.md' \) -not -name '/.claude/CLAUDE.md' \
+                    2>/dev/null | grep -q . && SPEC_DRIVEN=true
+
+                  if $OKF && $SPEC_DRIVEN; then MODE=full
+                  elif $OKF;               then MODE=okf
+                  elif $SPEC_DRIVEN;        then MODE=spec-driven
+                  else                           MODE=none; fi
+
+                  FEATURE_CONCEPT=''
+                  if $OKF; then
+                    FEATURE_CONCEPT=$(find .knowledge/features -name '*.md' \
+                      ! -name 'index.md' -exec grep -l '^status: planned' {} \; \
+                      2>/dev/null | sort | head -1)
+                  fi
+
+                Print output:
+                  WORKSPACE_MODE=<mode>
+                  WORKSPACE_OKF=<true|false>
+                  WORKSPACE_SPEC_DRIVEN=<true|false>
+                  WORKSPACE_FEATURE=<path or empty>")
+   ```
+
+   Read the output. Store:
+   - `WORKSPACE_MODE` (none / spec-driven / okf / full)
+   - `WORKSPACE_FEATURE` path (if set — this is the Feature concept driving the workflow)
+
+   **If `WORKSPACE_FEATURE` is set and no explicit prompt was given:**
+   Read the feature concept file. Extract:
+   - `# Prompt` section → use as the task description
+   - `# Scope` section → pre-loaded packages and decisions
+   - `# Acceptance Criteria` → hard constraints for the team
+
+   Update the greeting to include workspace mode:
+
+   ```
+   Bob here. Building: [feature title or prompt description]
+   Workspace: [mode] — [brief mode description]
+   ```
+
+5. Move to WORKTREE phase
 
 ---
 
@@ -312,6 +370,7 @@ Task(subagent_type: "Bash",
 2. Check if output says "Already in worktree - skipping creation":
    - If YES: You're already in the worktree, no need to `cd`
    - If NO: Switch the team lead's working directory to the worktree:
+
      ```bash
      cd <WORKTREE_PATH>
      pwd  # Verify you're in the worktree
@@ -343,13 +402,35 @@ Please create the team now — I'll add teammates next."
 
 **Step 2: Write brainstorm prompt**
 
-Write the task context to `.bob/state/brainstorm-prompt.md`:
+Write the task context to `.bob/state/brainstorm-prompt.md`.
+
+Read `.bob/state/workspace.md` first to know what's available.
+
+**If `WORKSPACE_FEATURE` is set** (a Feature concept is driving the workflow):
+
+```
+Task description: [# Prompt section from the Feature concept]
+Requirements: [# Acceptance Criteria from the Feature concept]
+Workspace mode: [mode from workspace.md]
+OKF bundle: .knowledge/ — brainstormer MUST read .knowledge/index.md first,
+  then traverse packages and decisions linked from the Feature concept before
+  doing any codebase discovery.
+Feature concept: [path to feature concept]
+Packages in scope (from Feature): [# Scope > Packages Affected from concept]
+Decisions to respect (from Feature): [# Scope > Decisions to Respect from concept]
+CLAUDE.md modules: [from workspace.md spec-driven section]
+```
+
+**Otherwise (prompt-driven workflow)**:
 
 ```
 Task description: [The feature/task to implement]
 Requirements: [Any specific constraints or acceptance criteria]
-CLAUDE.md modules: [List any directories in scope that contain CLAUDE.md — coders must
-  read and update CLAUDE.md when changes affect numbered invariants.]
+Workspace mode: [mode from workspace.md]
+[If okf or full]: OKF bundle: .knowledge/ — brainstormer MUST read .knowledge/index.md
+  first, then relevant package and decision concepts, before doing codebase discovery.
+CLAUDE.md modules: [any directories in scope that contain CLAUDE.md — coders must
+  read and update CLAUDE.md when changes affect numbered invariants]
 ```
 
 **Step 3: Create brainstorm and plan tasks in the task list**
@@ -913,7 +994,44 @@ After adversarial review + commit completes, proceed to COMPLETE.
    "Clean up the agent team"
    ```
 
-2. **Confirm with user:**
+2. **Enrich OKF bundle (if workspace mode is `okf` or `full`):**
+
+   Spawn a Bash agent to enrich the knowledge bundle with what was learned:
+
+   ```
+   Task(subagent_type: "Bash",
+        description: "Enrich OKF bundle at workflow completion",
+        run_in_background: true,
+        prompt: "Read .bob/state/workspace.md to get the workspace mode and feature path.
+
+                If mode is 'none' or 'spec-driven': skip this task entirely.
+
+                Otherwise enrich the OKF bundle:
+
+                STEP 1 — Update the Feature concept (if WORKSPACE_FEATURE is set):
+                  Read the feature concept file.
+                  Update frontmatter:
+                    status: complete
+                    branch: <current git branch>
+                    pr: <PR URL from .bob/state/review.md or git>
+                    completed: <today ISO date>
+                  Enrich the '# Workflow' section with actual branch/pr/dates.
+                  Enrich '# Decisions Made' with links to any Decision concepts
+                    created in .knowledge/decisions/ during this workflow.
+                  Enrich '# Packages Changed' with links to package concepts for
+                    any modules modified during this workflow.
+                  Preserve all existing content — only add, never remove.
+
+                STEP 2 — Append to .knowledge/log.md:
+                  Add an entry for today (## YYYY-MM-DD) if it does not exist.
+                  Add bullet: '* **Complete**: [Feature title] merged. PR: [url].'
+
+                STEP 3 — Update .knowledge/features/index.md:
+                  Change the feature's listing status annotation from 'planned' to 'complete'
+                  if the feature is listed there.")
+   ```
+
+3. **Confirm with user:**
 
    ```
    "All checks passing!
@@ -923,13 +1041,13 @@ After adversarial review + commit completes, proceed to COMPLETE.
    Shall we merge this into main? [yes/no]"
    ```
 
-3. If approved, merge PR:
+4. If approved, merge PR:
 
    ```bash
    gh pr merge --squash
    ```
 
-4. **Celebrate!**
+5. **Celebrate!**
 
    ```
    "Done!

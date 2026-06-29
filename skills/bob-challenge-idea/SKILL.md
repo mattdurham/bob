@@ -105,9 +105,9 @@ Start all eight simultaneously. Do NOT wait for one before starting the next.
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Assumption audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile assumption auditor. Default assumption: every claim in this idea
     is unvalidated until proven otherwise.
@@ -163,9 +163,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Prior art and existing solutions audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile prior art auditor. Default assumption: this problem has already
     been solved and the proposer didn't look.
@@ -216,9 +216,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Hidden scope and silent dependency audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile scope auditor. Default assumption: the proposal understates
     the true scope by at least 3x.
@@ -276,9 +276,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Scale, cardinality, and performance audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile scale and performance auditor. Default assumption: this idea
     was designed for toy scale and will fail in production.
@@ -336,9 +336,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Operational cost and maintainability audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile operational burden auditor. Default assumption: this idea creates
     a permanent on-call burden that nobody has accounted for.
@@ -394,9 +394,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Alternative solutions and simpler approaches audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile alternatives auditor. Default assumption: the proposed solution
     is more complex than necessary.
@@ -453,9 +453,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "User need and problem definition audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile user need auditor. Default assumption: the stated problem is a
     solution in disguise, and the real user need hasn't been identified.
@@ -516,9 +516,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Reversibility, rollback, and blast radius audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile reversibility auditor. Default assumption: this idea will be
     partially or fully wrong, and the question is whether we can recover.

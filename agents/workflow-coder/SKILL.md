@@ -55,7 +55,7 @@ workflow-coder (you — orchestrator)
 
 **CRITICAL: All subagents MUST run in background**
 
-- Always use `run_in_background: true` for ALL Task calls
+- Always use `background: true` for ALL Task calls
 - After spawning an agent, STOP — do not poll or check status
 - Wait for agent completion notification
 - Never use foreground execution
@@ -133,9 +133,9 @@ The following directories are spec-driven. Your code MUST satisfy their stated i
 ### Step 3: Spawn workflow-implementer
 
 ```
-Task(subagent_type: "workflow-implementer",
+Task(agent: "workflow-implementer",
      description: "Implement feature from plan",
-     run_in_background: true,
+     background: true,
      prompt: "Read your task from .bob/state/implementation-prompt.md in [worktree-path].
              Follow the plan in .bob/state/plan.md.
              Use TDD: write tests first, verify they fail, then implement.
@@ -170,9 +170,9 @@ Check:
 Spawn both reviewers simultaneously in a single message:
 
 ```
-Task(subagent_type: "workflow-task-reviewer",
+Task(agent: "workflow-task-reviewer",
      description: "Validate task completion",
-     run_in_background: true,
+     background: true,
      prompt: "Verify the implementation meets all requirements.
              Read .bob/state/implementation-prompt.md for requirements.
              Read .bob/state/plan.md for the full plan.
@@ -181,9 +181,9 @@ Task(subagent_type: "workflow-task-reviewer",
              Write findings to .bob/state/task-review.md.
              Working directory: [worktree-path]")
 
-Task(subagent_type: "workflow-code-quality",
+Task(agent: "workflow-code-quality",
      description: "Check code quality",
-     run_in_background: true,
+     background: true,
      prompt: "Review the implementation for Go code quality.
              Read .bob/state/implementation-status.md for changed files.
              Run go fmt, go vet, go test -race, gocyclo, golangci-lint.

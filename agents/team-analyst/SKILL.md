@@ -65,7 +65,7 @@ Look for tasks that are:
 
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   status: "in_progress",
   owner: "team-analyst-<your-instance-id>"
 )
@@ -77,7 +77,7 @@ TaskUpdate(
 
 Get the full task description:
 ```
-TaskGet(taskId: "<task-id>")
+TaskGet(id: "<task-id>")
 ```
 
 Understand:
@@ -150,8 +150,8 @@ When analysis is written:
 
 ```
 TaskUpdate(
-  taskId: "<task-id>",
-  status: "completed",
+  id: "<task-id>",
+  status: "done",
   metadata: {
     completed_at: "<current-timestamp>",
     output_file: "<the file you wrote>",

@@ -1,5 +1,5 @@
 ---
-name: bob-explore
+name: bob-explore-teams
 description: Team-based codebase exploration with adversarial challenge - DISCOVER → ANALYZE → CHALLENGE → DOCUMENT
 user-invocable: true
 category: workflow
@@ -46,7 +46,7 @@ INIT → DISCOVER → SPAWN TEAM → CREATE TASKS → EXECUTE (ANALYZE ↔ CHALL
 
 **Read-only:** No code changes, no commits.
 
-Analysts and challengers are persistent teammates that claim tasks from a shared list. Loop-back is natural — challengers create re-analysis tasks, analysts pick them up.
+**Key difference from bob:explore**: Analysts and challengers are persistent teammates that claim tasks from a shared list. Loop-back is natural — challengers create re-analysis tasks, analysts pick them up.
 
 ---
 
@@ -143,9 +143,9 @@ The workflow runs autonomously from INIT through DOCUMENT. The team lead's job i
 
 Spawn an Explore agent (regular subagent, not a teammate):
 ```
-Agent(agent: "Explore",
+Agent(subagent_type: "Explore",
      description: "Discover codebase structure",
-     background: true,
+     run_in_background: true,
      prompt: "Find code related to [exploration goal].
              Map file structure, key components, relationships.
 
@@ -601,7 +601,7 @@ Analyst completes analysis task
     → PASS or FAIL (max 2 rounds)
 ```
 
-This is the same pattern as team-coder/team-reviewer in the work workflow — the loop happens naturally through the task list without requiring the orchestrator to re-run entire phases.
+This is the same pattern as team-coder/team-reviewer in work-teams — the loop happens naturally through the task list without requiring the orchestrator to re-run entire phases.
 
 ---
 

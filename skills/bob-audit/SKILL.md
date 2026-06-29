@@ -36,7 +36,7 @@ INIT → DISCOVER → [AUDIT + ANALYZE in parallel] → SCORE → REPORT → COM
 
 **CRITICAL: All subagents MUST run in background**
 
-- ALWAYS use `run_in_background: true` for ALL Task calls
+- ALWAYS use `background: true` for ALL Task calls
 - After spawning agents, STOP — do not poll or check status
 - Wait for agent completion notification
 - Never use foreground execution
@@ -91,9 +91,9 @@ mkdir -p .bob/state
 Always spawn a spec discovery agent:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Find all spec-driven modules",
-     run_in_background: true,
+     background: true,
      prompt: "Find all spec-driven modules in the repository (or in the specific directory if scoped).
 
               A module is spec-driven if its directory contains any of:
@@ -138,9 +138,9 @@ Task(subagent_type: "Explore",
 If GO_ANALYSIS, also spawn a Go inventory agent in parallel:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Inventory Go packages and collect structural data",
-     run_in_background: true,
+     background: true,
      prompt: "You are inventorying a Go codebase for structural analysis.
 
               SCOPE: [from INIT]
@@ -253,9 +253,9 @@ Task(subagent_type: "Explore",
 Read `.bob/state/audit-discovery.md`. For each module (or batch if few), spawn an audit agent:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Audit module path/to/module against its SPECS.md invariants",
-     run_in_background: true,
+     background: true,
      prompt: "You are auditing whether code satisfies its stated spec invariants.
 
               Module: path/to/module/
@@ -345,9 +345,9 @@ If multiple modules, spawn agents in parallel (one per module or batched sensibl
 If GO_ANALYSIS, also spawn the structural analysis agent in parallel with the audit agents:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Analyze call graph, function metrics, and module coupling",
-     run_in_background: true,
+     background: true,
      prompt: "Read .bob/state/go-discovery.md.
 
               You are building a structural model of the Go codebase.
@@ -442,9 +442,9 @@ Skip this phase if GO_ANALYSIS is no.
 Spawn an Explore agent:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Score functions and modules, rank hot spots",
-     run_in_background: true,
+     background: true,
      prompt: "Read .bob/state/go-analysis.md.
 
               === FUNCTION SCORING ===
@@ -544,9 +544,9 @@ Task(subagent_type: "Explore",
 Spawn a consolidation agent:
 
 ```
-Task(subagent_type: "Explore",
+Task(agent: "Explore",
      description: "Consolidate audit findings into final report",
-     run_in_background: true,
+     background: true,
      prompt: "Read all .bob/state/audit-module-*.md files.
               If .bob/state/go-scores.md exists, also read .bob/state/go-analysis.md and .bob/state/go-scores.md.
 

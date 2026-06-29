@@ -100,9 +100,9 @@ git commit -m "feat: add specific feature"
 Spawn the planner subagent with this exact structure:
 
 ```
-Task(subagent_type: "workflow-planner",
+Task(agent: "workflow-planner",
      description: "Create implementation plan",
-     run_in_background: true,
+     background: true,
      prompt: "Read the design from .bob/state/design.md.
              Check if any directories in scope contain SPECS.md, NOTES.md, TESTS.md,
              or BENCHMARKS.md — these are spec-driven modules. If found, include

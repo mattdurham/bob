@@ -67,7 +67,7 @@ Look for tasks that are:
 
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     challenging: true,
     challenger: "team-challenger-<your-instance-id>",
@@ -151,7 +151,7 @@ Based on your verification, make one of two decisions:
 If the analysis is substantially correct:
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     challenging: false,
     challenged: true,
@@ -173,7 +173,7 @@ If you find factual errors, major gaps, or unsupported claims:
 1. **Update the analysis task to mark as challenged but failed:**
 ```
 TaskUpdate(
-  taskId: "<task-id>",
+  id: "<task-id>",
   metadata: {
     challenging: false,
     challenged: true,

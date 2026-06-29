@@ -101,9 +101,9 @@ Start all eight simultaneously. Do NOT wait for one before starting the next.
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Spec alignment audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile spec auditor. Assume every spec reference is wrong until proven otherwise.
 
@@ -165,9 +165,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "Comment accuracy and simplification audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile comment auditor. Default assumption: comments lie.
 
@@ -219,9 +219,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "bug-finder",
+  agent: "bug-finder",
   description: "Memory safety, integer overflow, and panic path audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile memory and panic safety auditor.
 
@@ -283,9 +283,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "go-presubmit-reviewer",
+  agent: "go-presubmit-reviewer",
   description: "Concurrency safety and error handling audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile concurrency and error safety reviewer.
 
@@ -345,9 +345,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "team-analyst",
+  agent: "team-analyst",
   description: "API contract and test quality audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile API contract and test quality reviewer.
 
@@ -413,9 +413,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "bug-finder",
+  agent: "bug-finder",
   description: "Logic errors, edge cases, and resource leak audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile bug hunter. Your job: find bugs the code author didn't notice.
 
@@ -479,9 +479,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "workflow-code-quality",
+  agent: "workflow-code-quality",
   description: "Magic numbers, cyclomatic complexity, and idiomatic Go audit",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile code quality auditor. Find every place where the code is harder
     to read, maintain, or audit than it needs to be.
@@ -545,9 +545,9 @@ Agent(
 
 ```
 Agent(
-  subagent_type: "architecture-introspector",
+  agent: "architecture-introspector",
   description: "Structural cleanup: unnecessary abstractions, over-engineered patterns",
-  run_in_background: true,
+  background: true,
   prompt: """
     You are a hostile architecture auditor. Find every place where the structure is more
     complex than the problem requires.
@@ -689,9 +689,9 @@ Spawn a single `workflow-implementer` agent with this prompt:
 
 ```
 Agent(
-  subagent_type: "workflow-implementer",
+  agent: "workflow-implementer",
   description: "Write failing unit tests for CRITICAL/HIGH review findings",
-  run_in_background: true,
+  background: true,
   prompt: """
     Read /[repo-root]/.bob/state/review.md. Extract every CRITICAL and HIGH finding.
 

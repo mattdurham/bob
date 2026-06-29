@@ -46,7 +46,7 @@ RESUME ──── no plan found ───────────────�
 
 ## Execution Rules
 
-- All subagents MUST run with `run_in_background: true`
+- All subagents MUST run with `background: true`
 - After spawning, STOP — wait for completion notification before proceeding
 - The CONFIRM phase is a hard pause: present the plan, then wait for user input
 
@@ -180,9 +180,9 @@ RESUME ──── no plan found ───────────────�
 
 3. Spawn commit-agent to perform the rebase and force-push:
    ```
-   Task(subagent_type: "commit-agent",
+   Task(agent: "commit-agent",
         description: "Advance stack: rebase PR N onto main",
-        run_in_background: true,
+        background: true,
         prompt: "Read `.bob/state/stage-prs-advance-N.md` for full instructions.
                 Rebase the branch onto main and force-push. Update PR base if needed.
                 Write status back to that file.")
@@ -318,9 +318,9 @@ RESUME ──── no plan found ───────────────�
 
 2. Spawn Explore agent to produce the plan:
    ```
-   Task(subagent_type: "Explore",
+   Task(agent: "Explore",
         description: "Plan staged PR groupings",
-        run_in_background: true,
+        background: true,
         prompt: "Read `.bob/state/stage-prs-plan-prompt.md` for full instructions.
                 Read `.bob/state/stage-prs-analysis.md` for the changeset details.
                 Read the actual file contents for any files where you need to understand
@@ -427,9 +427,9 @@ Write `.bob/state/stage-prs-execute-N.md` (where N is the PR number):
 
 Spawn commit-agent:
 ```
-Task(subagent_type: "commit-agent",
+Task(agent: "commit-agent",
      description: "Create branch and PR N: <title>",
-     run_in_background: true,
+     background: true,
      prompt: "Read `.bob/state/stage-prs-execute-N.md` for full instructions.
              Follow the steps exactly. Write status and PR URL back to that file.")
 ```

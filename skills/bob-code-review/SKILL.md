@@ -28,7 +28,7 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 ## Orchestrator Boundaries
 
 **You ONLY:**
-- ✅ Spawn subagents via Task tool (always `run_in_background: true`)
+- ✅ Spawn subagents via `subagent(...)` tool
 - ✅ Read `.bob/state/*.md` files to make routing decisions
 - ✅ Write `.bob/state/*-prompt.md` instruction files for subagents
 - ✅ Write `.bob/state/code-review-status.md` (exit signal for parent workflow)
@@ -45,10 +45,7 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
 ## Execution Rules
 
-**All subagents MUST run in background:**
-- ✅ Always `run_in_background: true` for ALL Task calls
-- ✅ After spawning, STOP — wait for completion notification
-- ❌ Never foreground execution
+**Spawning:** use `subagent({ agent: "name", task: "...", context: "fresh" })`. For parallel work use `tasks: [...]` with `concurrency: N`.
 
 ---
 
@@ -96,24 +93,23 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
    Context: [read .bob/state/plan.md and .bob/state/brainstorm.md if they exist]
    ```
 
-2. Spawn **both reviewers in parallel** (start both before waiting for either):
+2. Spawn both reviewers in parallel using `tasks` mode:
 
    ```
-   Task(subagent_type: "review-consolidator",
-        description: "Multi-domain code review",
-        run_in_background: true,
-        prompt: "Review the current code changes. Read .bob/state/review-prompt.md
-                for scope and context. Perform all review passes. Write consolidated
-                report to .bob/state/review.md.")
-
-   Task(subagent_type: "go-presubmit-reviewer",
-        description: "Go pre-submit checklist review",
-        run_in_background: true,
-        prompt: "Run the Go pre-submit checklist on the current code changes.
-                Read .bob/state/review-prompt.md for scope. Check all categories:
-                pool lifetimes, concurrency races, int64/int type boundaries,
-                error handling, spec accuracy, test quality, and I/O patterns.
-                Write findings to .bob/state/go-presubmit.md.")
+   subagent({
+  tasks: [
+    {
+      agent: "review-consolidator",
+      task: "Review the current code changes. Read .bob/state/review-prompt.md for scope and context. Perform all review passes. Write consolidated report to .bob/state/review.md."
+    },
+    {
+      agent: "go-presubmit-reviewer",
+      task: "Run the Go pre-submit checklist on the current code changes. Read .bob/state/review-prompt.md for scope. Check all categories: pool lifetimes, concurrency races, int64/int type boundaries, error handling, spec accuracy, test quality, and I/O patterns. Write findings to .bob/state/go-presubmit.md."
+    }
+  ],
+  concurrency: 2,
+  context: "fresh"
+})
    ```
 
 3. Wait for both agents to complete. Then read **both** `.bob/state/review.md` and `.bob/state/go-presubmit.md` and move to ROUTE.
@@ -185,13 +181,14 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
 2. Spawn workflow-coder:
    ```
-   Task(subagent_type: "workflow-coder",
-        description: "Fix review issues (iteration [N])",
-        run_in_background: true,
-        prompt: "Fix the issues described in .bob/state/fix-prompt.md.
+   subagent({
+  agent: "workflow-coder",
+  task: "Fix the issues described in .bob/state/fix-prompt.md.
                 The issues come from .bob/state/review.md.
                 Do not use .bob/state/plan.md as your guide here — use review.md.
-                Write your status to .bob/state/implementation-status.md when done.")
+                Write your status to .bob/state/implementation-status.md when done.",
+  context: "fresh"
+})
    ```
 
 3. After completion, move to TEST.
@@ -206,10 +203,9 @@ After 3 FIX iterations with unresolved CRITICAL/HIGH issues, exit with `STATUS: 
 
 Spawn workflow-tester:
 ```
-Task(subagent_type: "workflow-tester",
-     description: "Run tests after review fixes",
-     run_in_background: true,
-     prompt: "Run the full test suite and quality checks after code review fixes.
+subagent({
+  agent: "workflow-tester",
+  task: "Run the full test suite and quality checks after code review fixes.
 
              IMPORTANT: Report findings objectively — do NOT make pass/fail
              determinations. The orchestrator makes routing decisions.
@@ -226,7 +222,9 @@ Task(subagent_type: "workflow-tester",
              For each step report: WHAT ran, WHAT failed, WHY it failed (error output),
              WHERE it failed (file:line, test name).
 
-             Write all results to .bob/state/test-results.md.")
+             Write all results to .bob/state/test-results.md.",
+  context: "fresh"
+})
 ```
 
 After completion, read `.bob/state/test-results.md`:
@@ -262,12 +260,13 @@ When looping back to REVIEW after a successful TEST, update `.bob/state/review-p
 
 2. Spawn commit-agent:
    ```
-   Task(subagent_type: "commit-agent",
-        description: "Commit reviewed code",
-        run_in_background: true,
-        prompt: "Read .bob/state/commit-prompt.md for instructions.
+   subagent({
+  agent: "commit-agent",
+  task: "Read .bob/state/commit-prompt.md for instructions.
                 Create commit, push branch, create PR.
-                Write status to .bob/state/commit.md.")
+                Write status to .bob/state/commit.md.",
+  context: "fresh"
+})
    ```
 
 3. After completion, read `.bob/state/commit.md`:
@@ -300,12 +299,13 @@ When looping back to REVIEW after a successful TEST, update `.bob/state/review-p
 
 2. Spawn monitor-agent:
    ```
-   Task(subagent_type: "monitor-agent",
-        description: "Monitor CI and PR status",
-        run_in_background: true,
-        prompt: "Read .bob/state/monitor-prompt.md for instructions.
+   subagent({
+  agent: "monitor-agent",
+  task: "Read .bob/state/monitor-prompt.md for instructions.
                 Check PR status, CI checks, review feedback.
-                Write full status report to .bob/state/monitor.md.")
+                Write full status report to .bob/state/monitor.md.",
+  context: "fresh"
+})
    ```
 
 3. After completion, read `.bob/state/monitor.md` and route:

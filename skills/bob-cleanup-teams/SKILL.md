@@ -1,5 +1,5 @@
 ---
-name: bob-cleanup
+name: bob-cleanup-teams
 description: Team-based code cleanup workflow - DISCOVER → PLAN → CLEANUP LOOP → COMMIT. Simplifies, removes complexity, fixes documentation. Never introduces new functionality.
 user-invocable: true
 category: workflow
@@ -102,7 +102,7 @@ Teammates must not commit either.
 
 **CRITICAL: All subagents MUST run in background**
 
-- ✅ **ALWAYS use `background: true`** for ALL Task calls
+- ✅ **ALWAYS use `run_in_background: true`** for ALL Task calls
 - ✅ **After spawning agents, STOP** — do not poll or check status
 - ✅ **Wait for agent completion notification** — you'll be notified automatically
 - ❌ **Never use foreground execution** — it blocks the workflow
@@ -184,9 +184,9 @@ Worktree MUST exist before any file operations.
 
 Spawn a Bash agent to check for or create a worktree:
 ```
-Task(agent: "Bash",
+Task(subagent_type: "Bash",
      description: "Check for worktree or create one",
-     background: true,
+     run_in_background: true,
      prompt: "Check if already in a worktree, or create a new one.
 
              1. Check:
@@ -248,9 +248,9 @@ Copy the audit report to `.bob/state/audit-results.md` if not already there, or 
 
 **DISCOVER Agent 0 — Bug Finding:**
 ```
-Task(agent: "bug-finder",
+Task(subagent_type: "bug-finder",
      description: "Discover bugs in existing code",
-     background: true,
+     run_in_background: true,
      prompt: "You are scanning for BUGS IN EXISTING CODE — not proposing new features.
 
              Find and create tasks for:
@@ -279,9 +279,9 @@ Task(agent: "bug-finder",
 
 **DISCOVER Agent 1 — Go Idioms & Code Quality:**
 ```
-Task(agent: "workflow-code-quality",
+Task(subagent_type: "workflow-code-quality",
      description: "Discover Go idiom and quality cleanup opportunities",
-     background: true,
+     run_in_background: true,
      prompt: "You are scanning for CLEANUP OPPORTUNITIES, not reviewing a new implementation.
 
              DO NOT propose new functionality. Find only:
@@ -307,9 +307,9 @@ Task(agent: "workflow-code-quality",
 
 **DISCOVER Agent 2 — Architecture & Complexity:**
 ```
-Task(agent: "architecture-introspector",
+Task(subagent_type: "architecture-introspector",
      description: "Discover architectural complexity and deletion opportunities",
-     background: true,
+     run_in_background: true,
      prompt: "You are scanning for CLEANUP OPPORTUNITIES using first-principles analysis.
 
              DO NOT propose new functionality. Find only:
@@ -337,9 +337,9 @@ Task(agent: "architecture-introspector",
 
 **DISCOVER Agent 3 — Spec/Doc Cross-References:**
 ```
-Task(agent: "spec-doc-reviewer",
+Task(subagent_type: "spec-doc-reviewer",
      description: "Discover spec and documentation cleanup opportunities",
-     background: true,
+     run_in_background: true,
      prompt: "You are scanning for DOCUMENTATION AND SPEC CLEANUP OPPORTUNITIES.
 
              DO NOT propose new functionality. Find only:
@@ -643,9 +643,9 @@ Result: CLEAN / HAS_ISSUES
 
 Spawn workflow-tester:
 ```
-Task(agent: "workflow-tester",
+Task(subagent_type: "workflow-tester",
      description: "Verify cleanup didn't break anything",
-     background: true,
+     run_in_background: true,
      prompt: "Run the full test suite after code cleanup.
 
              IMPORTANT: Report findings objectively. Do NOT make pass/fail determinations.
@@ -682,9 +682,9 @@ Message each teammate to shut down and confirm.
 
 **Step 2: Spawn review-consolidator**
 ```
-Task(agent: "review-consolidator",
+Task(subagent_type: "review-consolidator",
      description: "Final holistic review of all cleanup changes",
-     background: true,
+     run_in_background: true,
      prompt: "Perform a final holistic review of all cleanup changes.
 
              Context: This was a CLEANUP pass — no new functionality should have been

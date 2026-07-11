@@ -60,7 +60,11 @@ From the research, break the feature into **sub-concepts** — natural component
 
 - One sidebar entry in `index.html`
 - One detail block (purpose, key types/functions, source links)
-- One linked animation page depicting that sub-concept's real flow
+- One linked animation page depicting that sub-concept's real structure or flow
+- An **animation style** classification: *relationship* (static structure — who talks to
+  whom, what depends on what) or *process* (an ordered sequence — a call chain, a state
+  machine, a request lifecycle). Pick whichever the evidence emphasizes; don't force both into
+  one animation.
 
 ### Phase 4: GENERATE
 
@@ -68,10 +72,17 @@ Produces the output bundle (see Output Structure below). Reuses `bob-generate-ov
 design tokens (fonts, color palette, dark/light toggle, source-link styling) so all of Bob's
 generated HTML looks like one family.
 
-Each animation is a discrete-step state machine (not continuous physics) driven by inline JS:
-each step redraws the canvas to reflect one real transition drawn from Phase 2 evidence (e.g.
-"labelWriter.Put() called" → highlight box, draw arrow to storage). Every animation includes a
-short caption citing the code evidence it's based on.
+Animations are built one of two ways, per their Phase 3 style classification:
+
+- **Relationship → animated SVG.** Inline `<svg>` with nodes for real components and edges for
+  their actual relationships, animated via CSS keyframes/transitions (hover highlight, ambient
+  pulse along dependency lines). No step controls — it's a structural diagram, not a sequence.
+- **Process → canvas step animation.** A discrete-step state machine (not continuous physics)
+  driven by inline JS: each step redraws the canvas to reflect one real transition drawn from
+  Phase 2 evidence (e.g. "labelWriter.Put() called" → highlight box, draw arrow to storage).
+  Ships with Play/Pause/Step Forward/Step Back/Reset controls.
+
+Every animation, either style, includes a short caption citing the code evidence it's based on.
 
 ### Phase 5: OUTPUT
 
@@ -86,7 +97,7 @@ Flat directory named after the feature (kebab-case), written to the current work
 labelstore-explainer/
   index.html                    # sidebar (sub-concepts) + detail pane
   animations/
-    actors.html                 # standalone: canvas + play/pause/step/reset controls
+    actors.html                 # standalone: animated SVG (relationship) or canvas+controls (process)
     storage-model.html
     dedup-logic.html
     config-lifecycle.html
@@ -96,9 +107,10 @@ labelstore-explainer/
   links (`vscode://file/...`) in the right pane, plus a real `<a href>` link ("Watch: Dedup
   Logic →") that navigates to `animations/dedup-logic.html` — not a popup, not a hash-route
   view swap.
-- Each `animations/<concept>.html` is independently self-contained: canvas element, title,
-  one-paragraph caption, inline JS animation, controls bar (Play/Pause/Step Forward/Step
-  Back/Reset), and a "← Back to `<feature>`" link to `index.html`.
+- Each `animations/<concept>.html` is independently self-contained: title, one-paragraph
+  caption, and either an animated SVG relationship diagram or a canvas process animation with
+  controls bar (Play/Pause/Step Forward/Step Back/Reset), plus a "← Back to `<feature>`" link
+  to `index.html`.
 - Every individual HTML file has no external dependencies. The *bundle* as a whole is multiple
   linked files — same "no CDNs, all inline" rule as generate-overview, applied per file.
 

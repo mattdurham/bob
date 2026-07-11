@@ -68,6 +68,13 @@ For each sub-concept, note:
 - One-line purpose
 - Key types/functions/files (with line numbers)
 - The specific evidence (from Phase 2) its animation will depict
+- **Animation style** — classify the sub-concept as one of:
+  - **Relationship** (static structure: who talks to whom, what depends on what, ownership) →
+    animated SVG
+  - **Process** (an ordered sequence: a call chain, a state machine, a request lifecycle) →
+    canvas step animation
+  When a sub-concept has both a structure and a sequence worth showing, pick whichever the
+  evidence emphasizes more; don't force both into one animation.
 
 ---
 
@@ -99,10 +106,29 @@ the full token values; do not invent a new palette.
 
 ### `animations/<concept>.html`
 
-One standalone, self-contained page per sub-concept:
+One standalone, self-contained page per sub-concept. Every animation, regardless of style,
+carries:
 
-- Title + one-paragraph caption stating what the animation shows and citing the specific code
-  evidence it's based on (e.g. "Based on `Put()` in `pkg/labelstore/writer.go:42`")
+- Title + one-paragraph caption stating what it shows and citing the specific code evidence
+  it's based on (e.g. "Based on `Put()` in `pkg/labelstore/writer.go:42`")
+- `← Back to <feature>` link to `../index.html`
+- Same dark/light toggle as `index.html`
+
+Build one of two ways, per the **animation style** chosen in Phase 3:
+
+**Relationship → animated SVG**
+
+- Inline `<svg>` diagram: nodes for the real components/types involved, edges for their actual
+  relationships (calls, ownership, data dependency) — labeled with real names, not generic
+  placeholders
+- Motion via CSS keyframes/transitions: e.g. pulsing/highlighting an edge on hover, a subtle
+  looping pulse along a dependency line, fade-in on scroll into view
+- No step controls needed — this is a structural diagram, not a sequence. Auto-plays its
+  ambient motion (loop), interactive on hover
+- Do not draw an edge or relationship you don't have concrete evidence for
+
+**Process → canvas step animation**
+
 - `<canvas>` element, sized to fill most of the viewport
 - Inline JS driving a **discrete-step state machine** — not continuous physics. Each step
   redraws the canvas to reflect one real transition drawn from Phase 2 evidence (e.g.
@@ -110,8 +136,6 @@ One standalone, self-contained page per sub-concept:
   a transition you don't have concrete evidence for.
 - Controls bar: Play, Pause, Step Forward, Step Back, Reset — same visual tokens as the rest of
   the bundle
-- `← Back to <feature>` link to `../index.html`
-- Same dark/light toggle as `index.html`
 
 ---
 
@@ -158,8 +182,10 @@ Before writing the files, verify the bundle meets these standards:
 
 - [ ] `index.html` and every `animations/*.html` file are independently self-contained (no
   external deps)
-- [ ] Every sub-concept and every animation step is traceable to specific code/doc evidence
-  read in Phase 2 — cited in the animation's caption
+- [ ] Every sub-concept and every animation step/edge is traceable to specific code/doc
+  evidence read in Phase 2 — cited in the animation's caption
+- [ ] Each animation used the right style for its sub-concept: relationships as animated SVG
+  (no step controls), processes as canvas step animations (with Play/Pause/Step/Reset controls)
 - [ ] Dark/light toggle and shared design tokens are consistent across `index.html` and all
   animation pages
 - [ ] All internal links (`index.html` ↔ `animations/*.html`) verified non-broken

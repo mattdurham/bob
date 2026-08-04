@@ -2,8 +2,10 @@
 # Makefile for installing Bob workflow skills and subagents
 
 SPEC ?= full
+CODEX_HOME ?= $(HOME)/.codex
+WLLR_HOME ?= $(HOME)/.wllr
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills
 
 all: install install-statusline install-worktree allow enable-agent-teams hooks install-engram
 	@echo ""
@@ -37,7 +39,11 @@ help:
 	@echo "  make clean                    - Clean temporary files"
 	@echo "  make install-engram           - Install engram persistent memory binary + Claude Code plugin"
 	@echo "  make install-pi               - Install bob-agents pi extension + skills to .pi/"
-	# @echo "  make install-bob-plugin       - Build + install bob Zellij plugin (requires Rust + zellij)"
+	@echo "  make install-pi-skills        - Install Bob skills for pi to ~/.pi/agent/skills/"
+	@echo "  make install-codex-skills     - Install Bob skills for Codex to ~/.codex/skills/"
+	@echo "  make install-wllr             - Install Bob skills for wllr to ~/.wllr/skills/"
+	@echo "  make install-wllr-skills      - Install Bob skills for wllr to ~/.wllr/skills/"
+	@# make install-bob-plugin is intentionally hidden; the zellij plugin is not part of the default workflow.
 	@echo ""
 	@echo "Quick start:"
 	@echo "  make install                  - Install everything (skills + agents + LSP)"
@@ -178,20 +184,32 @@ install-lsp:
 
 # Install Claude plugins
 install-plugins:
-	@echo "🔌 Installing Claude plugins..."
-	@if ! command -v claude >/dev/null 2>&1; then \
-		echo "❌ Error: claude command not found"; \
-		exit 1; \
+	@echo "🔌 Installing Claude plugins..."; \
+	if ! command -v claude >/dev/null 2>&1; then \
+		echo "⚠️  Claude CLI not found — skipping Claude plugins"; \
+	else \
+		echo "   Adding grafana/ai-kit to marketplace..."; \
+		claude plugin marketplace add grafana/ai-kit; \
+		echo "   Installing grafana-engineering@grafana-ai-kit..."; \
+		claude plugin install grafana-engineering@grafana-ai-kit; \
+		echo "✅ Claude plugins installed"; \
 	fi
-	@echo "   Adding grafana/ai-kit to marketplace..."
-	@claude plugin marketplace add grafana/ai-kit
-	@echo "   Installing grafana-engineering@grafana-ai-kit..."
-	@claude plugin install grafana-engineering@grafana-ai-kit
-	@echo "✅ Claude plugins installed"
 
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
 install: install-skills install-agents install-lsp install-plugins allow
+	@if command -v codex >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-codex-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)"; \
+	else \
+		echo "⏭️  Codex CLI not installed — skipping Codex skills"; \
+	fi
+	@if command -v wllr >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-wllr-skills SPEC=$(SPEC) WLLR_HOME="$(WLLR_HOME)"; \
+	else \
+		echo "⏭️  wllr CLI not installed — skipping wllr skills"; \
+	fi
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \
@@ -744,6 +762,7 @@ install-pi:
 	@echo ""
 	@echo "🔌 Extension"
 	@echo "   ℹ️  bob-agents retired — pi-subagents handles agent spawning natively"
+	@mkdir -p "$$HOME/.pi/agent/extensions"
 	@echo "📡 OTel Extension"
 	@cp extensions/otel.ts "$$HOME/.pi/agent/extensions/otel.ts"; \
 	echo "   ✓ Copied extensions/otel.ts → $$HOME/.pi/agent/extensions/otel.ts"
@@ -771,7 +790,7 @@ install-pi:
 			[ -z "$$DEST" ] && DEST="$$skill"; \
 			echo "   Installing $$DEST..."; \
 			mkdir -p "$$SKILLS_DIR/$$DEST"; \
-			sed "s/^name: .*/name: $$DEST/; $$PI_TRANSFORM" "$$SRC" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+			sed "s/^name: .*/name: $$DEST/; $$PI_TRANSFORM" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
 		else \
 			echo "   ⚠️  Skill $$skill not found, skipping..."; \
 		fi; \
@@ -793,10 +812,10 @@ install-pi:
 	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
 	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
 	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
-	    skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' > "$$SKILLS_DIR/bob-version/SKILL.md"; \
+	    skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/bob-version/SKILL.md"; \
 	if command -v codex >/dev/null 2>&1; then \
 		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
-		sed "$$PI_TRANSFORM" "skills/talk-to-codex/SKILL.md" > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+		sed "$$PI_TRANSFORM" "skills/talk-to-codex/SKILL.md" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
 	fi; \
 	echo "✅ Skills installed to $$SKILLS_DIR"
 	@echo ""
@@ -859,6 +878,168 @@ install-pi:
 	@echo "  /agents               — show agent status in pi UI"
 	@echo ""
 	@echo "🔄 Reload pi (/reload) or restart to activate"
+
+# Install only Bob skills for pi. pi has native team support, so generated
+# skills omit Claude Code's experimental team environment-variable guidance.
+# Usage: make install-pi-skills [SPEC=simple]
+install-pi-skills:
+	@echo "📚 Installing Bob skills for pi..."
+	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \
+	SKILLS_DIR="$$HOME/.pi/agent/skills"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	for skill in bob-work bob-work-agents bob-work-teams bob-explore bob-explore-teams bob-audit bob-code-review bob-cleanup bob-cleanup-teams bob-design bob-generate-overview bob-generate-feature-page bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
+		if [ -d "skills/$$skill" ]; then \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				SRC="skills/$$skill/SKILL.simple.md"; \
+			elif [ -f "skills/$$skill/SKILL.pi.md" ]; then \
+				SRC="skills/$$skill/SKILL.pi.md"; \
+			else \
+				SRC="skills/$$skill/SKILL.md"; \
+			fi; \
+			RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//'); \
+			DEST=$$(echo "$$RAW" | tr ':' '-'); \
+			[ -z "$$DEST" ] && DEST="$$skill"; \
+			echo "   Installing $$DEST..."; \
+			mkdir -p "$$SKILLS_DIR/$$DEST"; \
+			sed "s/^name: .*/name: $$DEST/; $$PI_TRANSFORM" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+		else \
+			echo "   ⚠️  Skill $$skill not found, skipping..."; \
+		fi; \
+	done; \
+	GIT_HASH=$$(git rev-parse HEAD); \
+	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
+	INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
+	BOB_REPO_PATH=$$(pwd); \
+	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
+	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+	mkdir -p "$$SKILLS_DIR/bob-version"; \
+	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
+	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
+	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
+	    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
+	    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
+	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
+	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
+	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
+	    skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/bob-version/SKILL.md"; \
+	if command -v codex >/dev/null 2>&1; then \
+		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
+		sed "$$PI_TRANSFORM" "skills/talk-to-codex/SKILL.md" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+	fi; \
+	echo "✅ Bob pi skills installed to $$SKILLS_DIR"; \
+	echo ""; \
+	echo "Available skill commands in pi:"; \
+	find "$$SKILLS_DIR" -name "SKILL.md" -exec grep -m1 '^name:' {} \; 2>/dev/null \
+		| sed 's/name: */  \//' | sort
+
+# Install Bob workflow skills for Codex.
+# Codex discovers skills under CODEX_HOME/skills/<name>/SKILL.md.
+# Usage: make install-codex-skills [SPEC=simple] [CODEX_HOME=/path/to/.codex]
+install-codex-skills:
+	@echo "📚 Installing Bob skills for Codex..."
+	@SKILLS_DIR="$(CODEX_HOME)/skills"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	for skill in bob-work bob-work-agents bob-work-teams bob-explore bob-explore-teams bob-audit bob-code-review bob-cleanup bob-cleanup-teams bob-design bob-generate-overview bob-generate-feature-page bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
+		if [ -d "skills/$$skill" ]; then \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then SRC="skills/$$skill/SKILL.simple.md"; \
+			elif [ -f "skills/$$skill/SKILL.codex.md" ]; then SRC="skills/$$skill/SKILL.codex.md"; \
+			else SRC="skills/$$skill/SKILL.md"; fi; \
+			RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//; s/^"//; s/"$$//'); \
+			DEST=$$(echo "$$RAW" | tr ':' '-'); [ -z "$$DEST" ] && DEST="$$skill"; \
+			echo "   Installing $$DEST..."; mkdir -p "$$SKILLS_DIR/$$DEST"; \
+			sed "s/^name: .*/name: $$DEST/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+		fi; \
+	done; \
+	if [ -f "skills/bob-version/SKILL.md.template" ]; then \
+		mkdir -p "$$SKILLS_DIR/bob-version"; \
+		sed -e "s|{{GIT_HASH}}|$$(git rev-parse HEAD)|g" -e "s|{{GIT_DATE}}|$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')|g" -e "s|{{GIT_BRANCH}}|$$(git rev-parse --abbrev-ref HEAD)|g" -e "s|{{GIT_REMOTE}}|$$(git config --get remote.origin.url || echo local)|g" -e "s|{{INSTALL_DATE}}|$$(date '+%Y-%m-%d %H:%M:%S')|g" -e "s|{{BOB_REPO_PATH}}|$$(pwd)|g" skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/bob-version/SKILL.md"; \
+	fi; \
+	echo "✅ Bob Codex skills installed to $$SKILLS_DIR"
+
+# Install Bob skills and agent prompts for wllr.
+# wllr's built-in skills extension scans ~/.wllr/skills/<name>/SKILL.md.
+# Usage: make install-wllr-skills [SPEC=simple] [WLLR_HOME=/path/to/.wllr]
+install-wllr install-wllr-skills:
+	@echo "📚 Installing Bob skills for wllr..."
+	@SKILLS_DIR="$(WLLR_HOME)/skills"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	for skill in bob-work bob-work-agents bob-work-teams bob-explore bob-explore-teams bob-audit bob-code-review bob-cleanup bob-cleanup-teams bob-design bob-generate-overview bob-generate-feature-page bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
+		if [ -d "skills/$$skill" ]; then \
+			if [ "$(SPEC)" = "simple" ] && [ -f "skills/$$skill/SKILL.simple.md" ]; then \
+				SRC="skills/$$skill/SKILL.simple.md"; \
+			else \
+				SRC="skills/$$skill/SKILL.md"; \
+			fi; \
+			RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//; s/^"//; s/"$$//'); \
+			CMD="$$RAW"; \
+			case "$$CMD" in bob-internal-*) CMD="bob:internal:$${CMD#bob-internal-}" ;; bob-*) CMD="bob:$${CMD#bob-}" ;; esac; \
+			DEST=$$(echo "$$CMD" | tr ':' '-'); \
+			[ -z "$$DEST" ] && DEST="$$skill"; \
+			echo "   Installing $$CMD skill..."; \
+			mkdir -p "$$SKILLS_DIR/$$DEST"; \
+			sed "s/^name: .*/name: $$CMD/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+		else \
+			echo "   ⚠️  Skill $$skill not found, skipping..."; \
+		fi; \
+	done; \
+	echo "   Generating bob:version skill..."; \
+	GIT_HASH=$$(git rev-parse HEAD); \
+	GIT_DATE=$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S'); \
+	GIT_BRANCH=$$(git rev-parse --abbrev-ref HEAD); \
+	GIT_REMOTE=$$(git config --get remote.origin.url || echo "local"); \
+	INSTALL_DATE=$$(date '+%Y-%m-%d %H:%M:%S'); \
+	BOB_REPO_PATH=$$(pwd); \
+	SKILL_COUNT=$$(find skills -name "SKILL.md" -o -name "SKILL.md.template" | wc -l); \
+	AGENT_COUNT=$$(find agents -name "SKILL.md" 2>/dev/null | wc -l || echo "0"); \
+	HOOKS_STATUS="**Hooks:** not managed by wllr install"; \
+	mkdir -p "$$SKILLS_DIR/bob-version"; \
+	sed -e "s|{{GIT_HASH}}|$$GIT_HASH|g" \
+	    -e "s|{{GIT_DATE}}|$$GIT_DATE|g" \
+	    -e "s|{{GIT_BRANCH}}|$$GIT_BRANCH|g" \
+	    -e "s|{{GIT_REMOTE}}|$$GIT_REMOTE|g" \
+	    -e "s|{{INSTALL_DATE}}|$$INSTALL_DATE|g" \
+	    -e "s|{{BOB_REPO_PATH}}|$$BOB_REPO_PATH|g" \
+	    -e "s|{{SKILL_COUNT}}|$$SKILL_COUNT|g" \
+	    -e "s|{{AGENT_COUNT}}|$$AGENT_COUNT|g" \
+	    -e "s|{{HOOKS_STATUS}}|$$HOOKS_STATUS|g" \
+	    skills/bob-version/SKILL.md.template | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/bob-version/SKILL.md"; \
+	if command -v codex >/dev/null 2>&1; then \
+		echo "   Installing talk-to-codex skill (codex CLI detected)..."; \
+		mkdir -p "$$SKILLS_DIR/talk-to-codex"; \
+		bash scripts/sanitize-native-team-skill.sh < "skills/talk-to-codex/SKILL.md" > "$$SKILLS_DIR/talk-to-codex/SKILL.md"; \
+	else \
+		echo "   ⏭️  Skipping talk-to-codex (codex CLI not installed)"; \
+	fi; \
+	echo "   Installing agent prompt skills for wllr subagents..."; \
+	AGENT_COUNT=0; \
+	for agent_dir in agents/*; do \
+		[ -d "$$agent_dir" ] || continue; \
+		agent=$$(basename "$$agent_dir"); \
+		if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
+			SRC="$$agent_dir/SKILL.simple.md"; \
+		elif [ -f "$$agent_dir/SKILL.md" ]; then \
+			SRC="$$agent_dir/SKILL.md"; \
+		else \
+			continue; \
+		fi; \
+		echo "   Installing $$agent agent prompt..."; \
+		mkdir -p "$$SKILLS_DIR/$$agent"; \
+		cp "$$SRC" "$$SKILLS_DIR/$$agent/SKILL.md"; \
+		for extra in style.md golang-pro.md; do \
+			[ -f "$$agent_dir/$$extra" ] && cp "$$agent_dir/$$extra" "$$SKILLS_DIR/$$agent/$$extra"; \
+		done; \
+		AGENT_COUNT=$$((AGENT_COUNT + 1)); \
+	done; \
+	echo "✅ Bob wllr skills installed to $$SKILLS_DIR"; \
+	echo ""; \
+	echo "Available wllr skill commands:"; \
+	find "$$SKILLS_DIR" -name "SKILL.md" -exec grep -l '^user-invocable: true' {} \; 2>/dev/null \
+		| while read -r file; do grep -m1 '^name:' "$$file"; done \
+		| sed 's/name: */  \//' | sort; \
+	echo ""; \
+	echo "🔄 Restart wllr or start a new session to load these skills"
 
 clean:
 	@echo "🧹 Cleaning temporary files..."

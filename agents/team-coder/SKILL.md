@@ -1,8 +1,8 @@
 ---
 name: team-coder
 description: Implements one concrete set of tasks from the plan using TDD, then reports what changed
-tools: read, write, edit, glob, grep, bash
-model: anthropic/claude-sonnet-4-5
+tools: Read, Write, Edit, Glob, Grep, Bash
+model: sonnet
 ---
 
 # Team Coder Agent

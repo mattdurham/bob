@@ -1,8 +1,8 @@
 ---
 name: team-brainstormer
 description: Researches the codebase for a brainstorm task, evaluates multiple approaches, and writes findings to a brainstorm file
-tools: read, glob, grep, bash, write
-model: anthropic/claude-sonnet-4-5
+tools: Read, Glob, Grep, Bash, Write
+model: sonnet
 ---
 
 # Team Brainstormer Agent

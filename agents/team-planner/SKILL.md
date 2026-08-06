@@ -1,8 +1,8 @@
 ---
 name: team-planner
 description: Creates a detailed TDD-first implementation plan from brainstorm findings and writes it to a plan file
-tools: read, glob, grep, write, bash
-model: anthropic/claude-sonnet-4-5
+tools: Read, Glob, Grep, Write, Bash
+model: sonnet
 ---
 
 # Team Planner Agent

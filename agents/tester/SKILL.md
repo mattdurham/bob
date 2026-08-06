@@ -1,8 +1,8 @@
 ---
 name: tester
 description: Specialized testing agent for running tests and quality checks
-tools: read, bash, grep, glob, write
-model: anthropic/claude-haiku-4-5
+tools: Read, Bash, Grep, Glob, Write
+model: haiku
 ---
 
 # Workflow Tester Agent

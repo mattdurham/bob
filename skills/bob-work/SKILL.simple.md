@@ -20,7 +20,14 @@ testing, review, commits, or monitoring.
 5. Review the diff yourself for correctness, regressions, spec drift, and missing
    tests. Fix issues found and rerun verification.
 6. Report changed files, verification results, remaining risks, and the final
-   routing recommendation. Commit only when the user requested a commit.
+   routing recommendation. Commit only when the user requested a commit. If you
+   push and open or update a PR, and `BOB_CONFIRM_BEFORE_PUSH` is exactly `1`
+   (check with `echo "confirm-before-push: ${BOB_CONFIRM_BEFORE_PUSH:-unset}"`),
+   commit locally first, then show the user every commit the push will publish
+   (`git log --oneline HEAD --not --remotes=origin`) and the proposed PR title
+   and body verbatim, and ask `Push this branch and create or update its PR
+   with the title and body shown above? [push / stop]` before running `git
+   push` or `gh pr create`/`gh pr edit`. Only proceed on an exact `push` reply.
 
 Use `.bob/state/brainstorm.md`, `.bob/state/plan.md`, and
 `.bob/state/test-results.md` for direct artifacts when useful. If blocked by a

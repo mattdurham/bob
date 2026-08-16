@@ -167,6 +167,19 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
 - Be specific about changes
 - Match existing commit style
 
+**Movement-block re-run guard (apply before Step 3):** Before staging or
+committing on any re-run, inspect `.bob/state/commit.md` for a recorded gate
+block. When its quoted block line says branch or HEAD moved while the hook
+ran, ignore the report's recorded branch/SHA and all Step 5 retry/supersede
+arms. First require the live branch and HEAD to equal exactly the expected
+values that block line names. If either differs, stop without staging,
+committing, or pushing; clean or dirty, the hook-made state must be undone by
+restoring the named pre-hook branch and HEAD, never published or used as a
+repair base. If both match, restoration is established for this run: a clean
+tree may skip the commit steps and run the Step 5 wrapper, and a dirty tree
+may follow the normal commit flow from that restored HEAD and then run the
+wrapper.
+
 ### Step 3: Stage Files
 
 **Stage specific files by name** (never use `git add -A` or `git add .`):
@@ -231,16 +244,57 @@ Step 8 report with `STATUS: AWAITING_CONFIRMATION`, then finish.
 
 ### Step 5: Push to Remote
 
-Push the branch:
+**Nothing to commit on this run?** (This applies whenever Step 4 finds
+nothing to commit — check before failing.) If `.bob/state/commit.md` records a
+gate block and the tree is clean apart from `.bob/state`: when the recorded
+commit SHA equals the live HEAD and either (a) the report records a named
+branch equal to the live branch, or (b) the report explicitly records no
+branch, quotes `BOB_GATE_BLOCK: detached HEAD - publication needs a branch`
+as its block line, and the live branch is now named, this run is a
+publication retry —
+skip the commit steps and run the push call below again; when the recorded
+branch equals the live branch and the recorded SHA is an ancestor of the live
+HEAD (a repair was already committed), the current commit supersedes it — run
+the push call for the live HEAD. A dirty tree goes through the normal flow
+(the repair still needs committing). Movement blocks are governed exclusively
+by the pre-Step-3 guard above; neither recorded-state retry arm nor the
+ancestor/supersede case in this paragraph applies to one.
+
+This step describes the standard publication flow; a spawn task that provides
+its own explicit push steps (bob-stage-prs does) governs its own flow.
+
+Push through the publication gate (allow the call at least 150 seconds — the
+repo's hook gets up to 90):
 
 ```bash
-# Push to remote with upstream tracking
-git push -u origin $(git branch --show-current)
+bash -- "[agent-directory]/scripts/push-with-gate.sh"
 ```
 
-**After push:**
-- Verify push succeeded
-- Note the branch name for PR creation
+The script runs the repo's `.bob/hooks/pre-publish` (if the repo ships one)
+and then pushes, in one process.
+
+- **Exit 0:** the push happened. Note the branch name and continue to Step 6.
+- **Nonzero and the LAST line starts with `BOB_GATE_BLOCK:`:** the gate
+  blocked publication. This is final for this run — it is not a retryable push
+  failure. Do not push another way, do not use `--no-verify`, do not continue
+  to Step 6. Write the Step 8 FAILED report quoting the block line (it names
+  the reason) and, when the hook ran, the hook output above it (the script
+  surfaces the last 8 KiB), recording the branch and commit SHA, with the
+  suggested action
+  "fix what the block line reports, then re-run — the commit exists; a re-run
+  with a clean tree retries publication without recommitting".
+- **The script is missing or won't start** (the call errors without a
+  `BOB_GATE_BLOCK:` line because the script path does not exist or cannot
+  execute — e.g. "No such file or directory"): that is an install error, and
+  it is classified before the ordinary-failure outcome below. Write the
+  Step 8 FAILED report saying so; never fall back to plain `git push`.
+- **Nonzero without that final block line** (and the script itself ran): an
+  ordinary push failure — handle per Error Handling, retrying only by
+  re-running this same wrapper call, never plain `git push`.
+- **The call died without printing a verdict:** re-run the push call — it
+  is safe to repeat (the gate runs again, and re-pushing an already-pushed
+  commit is a no-op). Never skip to Step 6 on a dead call: a matching remote
+  ref does not prove this run's gate ran.
 
 ### Step 6: Create Pull Request
 
@@ -542,6 +596,7 @@ git add path/to/file.go
 - Verify branch name
 - Check permissions
 - Don't force push
+- For Step 5's gated flow, retry only via the wrapper call — never plain `git push` (a spawn task that provides its own explicit push steps governs its own flow)
 
 **If PR creation or update fails:** In `CONFIRM_MODE: PUBLISH`, STOP, retain
 both state files, and report the required PUBLISH failure fields; never use

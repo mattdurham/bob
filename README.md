@@ -135,6 +135,29 @@ To commit the file in a repo that ignores `.bob` paths: `!.bob/config` works onl
 !.bob/config
 ```
 
+## Pre-Publish Gate Hook (opt-in, per repo)
+
+A repo can veto bob's publication step by shipping an executable
+`.bob/hooks/pre-publish` (normally committed with executable mode 100755 — a
+committed hook is compared byte-for-byte against HEAD, and one locally
+altered, deleted, or replaced by a symlink is refused; any symlink at the
+hook path is refused). Before the standard publication path
+(`/bob:code-review`, including when the `/bob:work` variants invoke it) pushes
+or creates a PR, commit-agent runs the hook from the repo top level with no
+arguments and stdin reading end-of-file — a bob-specific contract, not git's pre-push
+interface. Exit 0 lets the push proceed; any other exit (or a broken hook, or
+a hook that overruns its 90-second budget) blocks both the push and the PR
+(when the hook ran, the last 8 KiB of its output are quoted in the failure
+report). Repos without a hook get the plain push through the same script (which uses
+an explicit refspec, so `remote.origin.push` remaps are ignored). Hooks must not commit, move the branch, or modify files.
+Suggested uses: size limits, scope checks, secret scans.
+
+Manual pushes and bob-stage-prs' own publication steps do not run this gate.
+If your repo gitignores `.bob/`, add the hook with
+`git add -f .bob/hooks/pre-publish` (or re-include the path) so the gate
+travels with the repo. On macOS the hook budget needs GNU coreutils
+(`timeout` or `gtimeout`).
+
 ## Git Worktrees
 
 All work workflows create isolated git worktrees before any file operations:

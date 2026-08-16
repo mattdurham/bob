@@ -5,7 +5,7 @@ SPEC ?= full
 CODEX_HOME ?= $(HOME)/.codex
 WLLR_HOME ?= $(HOME)/.wllr
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills
+.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills check-agents
 
 all: install install-statusline install-worktree allow enable-agent-teams hooks install-engram
 	@echo ""
@@ -119,8 +119,72 @@ install-skills:
 	@echo "  /bob:audit       - Spec audit + optional Go structural analysis"
 	@echo "  /bob:version     - Show Bob version info"
 
+# Companion-reference check. Every "[agent-directory]/<path>" token in an agent
+# prompt must name a regular file the installers will actually ship; the gate
+# validates the quoted token and its file, not the surrounding Read/command
+# syntax (that stays a review responsibility). The agent directory
+# itself is the manifest: everything committed under agents/<name>/ ships to all
+# three runtimes, except the SKILL*.md prompt variants (installed separately with
+# the marker rendered) and top-level hidden entries (rejected here so they
+# cannot silently not-ship). Conventions: no spaces in companion filenames (the token grammar
+# stops at whitespace), and nothing prunes previously installed files. No
+# symlinks anywhere under agents/ — cp -R would ship the link itself, so the
+# check rejects them outright. Companions are copied verbatim
+# and never rendered, so the literal marker may not appear inside one.
+#
+# The render below uses sed with a destination byte guard refusing | & and
+# backslash, the three sed metacharacter bytes this raw interpolation cannot
+# preserve safely, plus a double quote, which sed carries fine but the rendered
+# token's own quoting cannot (measured: & duplicates
+# the matched text; | breaks the expression after the shell already truncated
+# the target at exit 0). If a real machine ever hits the guard on those sed
+# bytes, the known drop-in is an awk ENVIRON render: byte-exact, no
+# metacharacter semantics, at the cost of appending a newline to a prompt
+# lacking a trailing one (all current prompt files end with one). The awk
+# route does not help a double-quoted destination — the quote would render
+# byte-exactly and still break the token's own quoting.
+check-agents:
+	@fail=0; \
+	for p in agents/*/SKILL*.md; do \
+		[ -f "$$p" ] || continue; \
+		dir=$${p%/*}; \
+		occ=$$(grep -o '\[agent-directory\]' "$$p" | wc -l); \
+		ok=$$(grep -o '"\[agent-directory\]/[A-Za-z0-9._/-]\{1,\}"' "$$p" | wc -l); \
+		if [ "$$occ" != "$$ok" ]; then \
+			echo "❌ $$p: a marker reference is not a quoted \"[agent-directory]/<path>\" token:"; \
+			grep -n '\[agent-directory\]' "$$p" | sed 's/^/     /'; \
+			fail=1; \
+		fi; \
+		for t in $$(grep -o '"\[agent-directory\]/[A-Za-z0-9._/-]\{1,\}"' "$$p" | sed 's|^"\[agent-directory\]/||; s|"$$||' | sort -u); do \
+			first=$${t%%/*}; \
+			case "$$first" in \
+				SKILL*.md) echo "❌ $$p: [agent-directory]/$$t names a prompt variant, which never ships as a companion"; fail=1; continue ;; \
+				.*) echo "❌ $$p: [agent-directory]/$$t names a hidden entry, which never ships"; fail=1; continue ;; \
+			esac; \
+			case "/$$t/" in */../*) echo "❌ $$p: [agent-directory]/$$t must stay inside the agent directory"; fail=1; continue ;; esac; \
+			[ -f "$$dir/$$t" ] || { echo "❌ $$p: [agent-directory]/$$t is not a shipped regular file ($$dir/$$t)"; fail=1; }; \
+		done; \
+	done; \
+	for e in agents/*/.[!.]* agents/*/..?*; do \
+		[ -e "$$e" ] || [ -L "$$e" ] || continue; \
+		echo "❌ $$e: hidden entries under an agent directory are never installed; rename or remove"; \
+		fail=1; \
+	done; \
+	links=$$(find agents -type l); \
+	if [ -n "$$links" ]; then \
+		echo "$$links" | sed 's/^/❌ /; s/$$/: no symlinks anywhere under agents\/ (cp -R would ship the link itself); commit the real file/'; \
+		fail=1; \
+	fi; \
+	bad=$$(find agents -mindepth 2 -type f | grep -v '^agents/[^/]*/SKILL[^/]*\.md$$' | while read -r f; do grep -qF '[agent-directory]' "$$f" && echo "$$f"; done); \
+	if [ -n "$$bad" ]; then \
+		echo "$$bad" | sed 's/^/❌ /; s/$$/: companions are copied verbatim and never rendered; reference files relative to the script itself/'; \
+		fail=1; \
+	fi; \
+	if [ "$$fail" != 0 ]; then echo "❌ agent companion check failed"; exit 1; fi; \
+	echo "✅ agent companion references check out"
+
 # Install specialized subagents
-install-agents:
+install-agents: check-agents
 	@echo "🤖 Installing workflow subagents..."
 	@AGENTS_DIR="$$HOME/.claude/agents"; \
 	mkdir -p "$$AGENTS_DIR"; \
@@ -130,18 +194,19 @@ install-agents:
 			if [ -d "$$agent_dir" ] && [ -f "$$agent_dir/SKILL.md" ]; then \
 				agent=$$(basename "$$agent_dir"); \
 				echo "   Installing $$agent agent..."; \
-				mkdir -p "$$AGENTS_DIR/$$agent"; \
+				DEST_DIR="$$AGENTS_DIR/$$agent"; \
+				case "$$DEST_DIR" in *'|'*|*'&'*|*'\'*|*'"'*) echo "❌ $$DEST_DIR contains | & \" or a backslash, which cannot be rendered safely into quoted marker references"; exit 1 ;; esac; \
+				mkdir -p "$$DEST_DIR" || exit 1; \
 				if [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then \
-					cp "$$agent_dir/SKILL.simple.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+					SRC="$$agent_dir/SKILL.simple.md"; \
 				else \
-					cp "$$agent_dir/SKILL.md" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+					SRC="$$agent_dir/SKILL.md"; \
 				fi; \
-				if [ -f "$$agent_dir/style.md" ]; then \
-					cp "$$agent_dir/style.md" "$$AGENTS_DIR/$$agent/style.md"; \
-				fi; \
-				if [ -f "$$agent_dir/golang-pro.md" ]; then \
-					cp "$$agent_dir/golang-pro.md" "$$AGENTS_DIR/$$agent/golang-pro.md"; \
-				fi; \
+				sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
+				for extra in "$$agent_dir"/*; do \
+					case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
+					cp -R "$$extra" "$$DEST_DIR/" || { echo "❌ copy failed for $$extra"; exit 1; }; \
+				done; \
 				AGENT_COUNT=$$((AGENT_COUNT + 1)); \
 			fi; \
 		done; \
@@ -615,7 +680,7 @@ resolve-copilot:
 
 # Run full CI pipeline locally (mirrors what GitHub Actions would run)
 # This is the single command that must pass before committing.
-ci:
+ci: check-agents
 	@echo "🔄 Running full CI pipeline locally..."
 	@echo ""
 	@PASS=0; FAIL=0; SKIP=0; \
@@ -749,7 +814,7 @@ install-engram:
 # Extensions are already in .pi/extensions/ (auto-discovered by pi when run from this repo).
 # Skills are copied to .pi/skills/ so pi loads them as /bob:* commands.
 # Usage: make install-pi [SPEC=simple]
-install-pi:
+install-pi: check-agents
 	@echo "🐦 Installing Bob pi components under .pi/..."
 	@echo ""
 	@echo "📦 LSP Support"
@@ -839,14 +904,17 @@ install-pi:
 			continue; \
 		fi; \
 		echo "   Installing $$agent..."; \
-		mkdir -p "$$AGENTS_DIR/$$agent"; \
+		DEST_DIR="$$AGENTS_DIR/$$agent"; \
+		case "$$DEST_DIR" in *'|'*|*'&'*|*'\'*|*'"'*) echo "❌ $$DEST_DIR contains | & \" or a backslash, which cannot be rendered safely into quoted marker references"; exit 1 ;; esac; \
+		mkdir -p "$$DEST_DIR" || exit 1; \
 		if [ "$$NEED_TRANSFORM" = "1" ]; then \
-			sed "$$PI_TRANSFORM" "$$SRC" > "$$AGENTS_DIR/$$agent/SKILL.md"; \
+			sed "$$PI_TRANSFORM; s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
 		else \
-			cp "$$SRC" "$$AGENTS_DIR/$$agent/SKILL.md"; \
+			sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
 		fi; \
-		for extra in style.md golang-pro.md; do \
-			[ -f "$$agent_dir/$$extra" ] && cp "$$agent_dir/$$extra" "$$AGENTS_DIR/$$agent/$$extra"; \
+		for extra in "$$agent_dir"/*; do \
+			case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
+			cp -R "$$extra" "$$DEST_DIR/" || { echo "❌ copy failed for $$extra"; exit 1; }; \
 		done; \
 		AGENT_COUNT=$$((AGENT_COUNT + 1)); \
 	done; \
@@ -959,7 +1027,7 @@ install-codex-skills:
 # Install Bob skills and agent prompts for wllr.
 # wllr's built-in skills extension scans ~/.wllr/skills/<name>/SKILL.md.
 # Usage: make install-wllr-skills [SPEC=simple] [WLLR_HOME=/path/to/.wllr]
-install-wllr install-wllr-skills:
+install-wllr install-wllr-skills: check-agents
 	@echo "📚 Installing Bob skills for wllr..."
 	@SKILLS_DIR="$(WLLR_HOME)/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
@@ -1021,10 +1089,13 @@ install-wllr install-wllr-skills:
 			continue; \
 		fi; \
 		echo "   Installing $$agent agent prompt..."; \
-		mkdir -p "$$SKILLS_DIR/$$agent"; \
-		cp "$$SRC" "$$SKILLS_DIR/$$agent/SKILL.md"; \
-		for extra in style.md golang-pro.md; do \
-			[ -f "$$agent_dir/$$extra" ] && cp "$$agent_dir/$$extra" "$$SKILLS_DIR/$$agent/$$extra"; \
+		DEST_DIR="$$SKILLS_DIR/$$agent"; \
+		case "$$DEST_DIR" in *'|'*|*'&'*|*'\'*|*'"'*) echo "❌ $$DEST_DIR contains | & \" or a backslash, which cannot be rendered safely into quoted marker references"; exit 1 ;; esac; \
+		mkdir -p "$$DEST_DIR" || exit 1; \
+		sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
+		for extra in "$$agent_dir"/*; do \
+			case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
+			cp -R "$$extra" "$$DEST_DIR/" || { echo "❌ copy failed for $$extra"; exit 1; }; \
 		done; \
 		AGENT_COUNT=$$((AGENT_COUNT + 1)); \
 	done; \

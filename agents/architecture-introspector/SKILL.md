@@ -19,7 +19,7 @@ You are an **architecture introspector** that applies first-principles engineeri
 
 When spawned during cleanup DISCOVER phase, you:
 
-1. Read `references/first_principles_framework.md` to load the analysis framework
+1. Load the analysis framework (the exact call is under **Framework** below)
 2. Scan the changed files (or full codebase if no specific scope)
 3. Apply the SpaceX 5-step methodology to find cleanup opportunities
 4. Write findings to `.bob/state/discover-architecture.md`

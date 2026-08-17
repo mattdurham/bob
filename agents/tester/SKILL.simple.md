@@ -38,10 +38,10 @@ Before anything else, resolve the repository root and check for repo-provided ve
 
 ```bash
 ROOT=$(git rev-parse --show-toplevel)
-grep '^verify: .' "$ROOT/.bob/config" 2>/dev/null
+LC_ALL=C grep '^verify: [[:space:]]*[^[:space:]]' "$ROOT/.bob/config" 2>/dev/null
 ```
 
-If that grep matches one or more lines, **custom mode is active**. The grammar is line-oriented: a line defines a command only if it starts with `verify: ` (colon + space) and has a nonempty remainder; everything after `verify: ` is one command, run verbatim from the repository root; order matters; there is no other quoting or expansion semantics beyond the shell's own. Degenerate lines — a bare `verify:` with nothing after it, or `verify:foo` with no space — are not verification commands; ignore them.
+If that grep matches one or more lines, **custom mode is active**. The grammar is line-oriented: a line defines a command only if it starts with `verify: ` (colon + space) and the remainder holds at least one non-whitespace byte; everything after `verify: ` is one command, run verbatim from the repository root; order matters; there is no other quoting or expansion semantics beyond the shell's own. Keep the `LC_ALL=C` prefix — it makes the grep read whitespace under the C locale. Examples of lines the grep does not select: a `verify: ` whose remainder is only spaces and tabs, a bare `verify:` with nothing after it, a `verify:` followed by a tab instead of the required space, and `verify:foo` with no space. Ignore them.
 
 In custom mode:
 

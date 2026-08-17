@@ -45,7 +45,7 @@ One loop counter is shared by both FIX entries — ROUTE→FIX and TEST-failure�
 - ✅ Write `.bob/state/*-prompt.md` instruction files for subagents
 - ✅ Write `.bob/state/code-review-status.md` (exit signal for parent workflow)
 - ✅ Run `git diff --name-only HEAD` or `git status --short` to scope reviews
-- ✅ Resolve the repo root (`git rev-parse --show-toplevel`) and read `.bob/config` there — to evaluate ROUTE's `verify:` predicate (`grep '^verify: .'`) and to render the current verification-gate state into REVIEW's scope block
+- ✅ Resolve the repo root (`git rev-parse --show-toplevel`) and read `.bob/config` there — solely to evaluate ROUTE's `verify:` predicate (`LC_ALL=C grep '^verify: [[:space:]]*[^[:space:]]'`) and to render the current verification-gate state into REVIEW's scope block
 - ✅ At COMMIT: run the confirm-flag echo, `cat .bob/state/pr-body.md` to present
   a proposed PR body verbatim, list the unpushed range
   (`git log --oneline HEAD --not --remotes=origin`), run the resume checks
@@ -117,7 +117,7 @@ One loop counter is shared by both FIX entries — ROUTE→FIX and TEST-failure�
 
    ```bash
    ROOT=$(git rev-parse --show-toplevel)
-   grep '^verify: .' "$ROOT/.bob/config"
+   LC_ALL=C grep '^verify: [[:space:]]*[^[:space:]]' "$ROOT/.bob/config"
    ```
 
    Capture one of three states for step 2: the matching `verify:` lines verbatim (the active gate), ".bob/config present, no verify: commands — gate inactive", or "no .bob/config present — gate inactive".
@@ -192,7 +192,7 @@ One loop counter is shared by both FIX entries — ROUTE→FIX and TEST-failure�
 
 | Situation | Action |
 |-----------|--------|
-| No issues in either report, repo defines `verify:` commands (`grep '^verify: .'` on `.bob/config` at repo root matches), and `TEST_HAS_RUN` is false | → TEST (custom verification); a green TEST loops back to REVIEW — which recomputes the changed-file scope and re-reads the current gate state at entry — and `TEST_HAS_RUN` (now true) routes the next clean pass here to COMMIT |
+| No issues in either report, repo defines `verify:` commands (`LC_ALL=C grep '^verify: [[:space:]]*[^[:space:]]'` on `.bob/config` at repo root matches), and `TEST_HAS_RUN` is false | → TEST (custom verification); a green TEST loops back to REVIEW — which recomputes the changed-file scope and re-reads the current gate state at entry — and `TEST_HAS_RUN` (now true) routes the next clean pass here to COMMIT |
 | No issues in either report (otherwise) | → COMMIT |
 | MEDIUM/LOW only (across both), loop < 3 | → FIX (loop iteration +1) |
 | MEDIUM/LOW only (across both), loop ≥ 3 | → COMMIT (acceptable) |
@@ -312,11 +312,11 @@ subagent({
              determinations. The orchestrator makes routing decisions.
 
              Steps:
-             0. Set ROOT=$(git rev-parse --show-toplevel). If grep '^verify: .' "$ROOT/.bob/config"
-                matches (verify: + space + nonempty command; degenerate lines such as
-                a bare verify: or verify:foo without the space don't count), run
-                exactly those commands serially from the repository root (custom mode,
-                per your SKILL.md Step 0) and skip step 1.
+             0. Set ROOT=$(git rev-parse --show-toplevel). If LC_ALL=C grep '^verify: [[:space:]]*[^[:space:]]' "$ROOT/.bob/config"
+                matches (verify: + space + a remainder holding at least one non-whitespace
+                byte; among the lines that don't count: a whitespace-only remainder, a bare
+                verify:, and verify:foo without the space), run exactly those commands serially
+                from the repository root (custom mode, per your SKILL.md Step 0) and skip step 1.
              1. Run `make ci` if available; otherwise run individually:
                 - go test ./...
                 - go test -race ./...

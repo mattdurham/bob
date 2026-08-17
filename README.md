@@ -125,7 +125,7 @@ verify: pnpm test
 verify: pnpm exec tsc --noEmit
 ```
 
-A line counts only if it starts with `verify: ` (colon + space) and has a nonempty command after it; degenerate lines (a bare `verify:`, or `verify:foo` with no space) are ignored. Commands run exactly as written, serially, from the repository root; any nonzero exit fails verification; when `verify:` lines exist the default Go steps are skipped. Activation is presence-based: the tester reads the file from the working tree on every run, whether or not it is committed.
+A line counts only if it starts with `verify: ` (colon + space) and the remainder holds at least one non-whitespace byte; the check runs under `LC_ALL=C`, so whitespace is read under the C locale. Examples of ignored lines: a `verify: ` whose remainder is only spaces and tabs, a bare `verify:` with nothing after it, a `verify:` followed by a tab instead of the required space, and `verify:foo` with no space. Write `.bob/config` as NUL-free text with LF line endings and plain spaces. Commands run exactly as written, serially, from the repository root; any nonzero exit fails verification; when at least one `verify:` line counts the default Go steps are skipped. Activation is presence-based: the tester reads the file from the working tree on every run, whether or not it is committed.
 
 To commit the file in a repo that ignores `.bob` paths: `!.bob/config` works only when it comes after a `.bob/*` rule. If the directory itself is ignored (`.bob/`), git never descends into it, so re-include the parent first:
 

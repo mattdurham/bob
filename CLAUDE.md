@@ -140,6 +140,28 @@ Workflows enforce strict flow control:
 
 **Never skip REVIEW** - Quality gate enforced even if tests pass.
 
+## Conflicting Inputs (coder + planner contract)
+
+Plans are written by agents and can disagree with the code that already exists. Both
+sides of that handoff have an explicit contract:
+
+**Planner:** before writing a plan, verify its inputs agree (plan vs. code, decision
+record vs. code, decision record vs. decision record). Resolve each conflict in the
+plan, or name it as open with the affected symbols and an instruction to the coder.
+
+**Coder:** before editing, check the inputs agree. On a conflict, do not guess and do
+not stall — bisect what it affects, implement everything it does not, adopt
+already-landed code as the tiebreaker, and record a `DECISION NEEDED` entry (question,
+both readings, affected symbols, tiebreaker applied, impact if wrong) in the status
+file. A `DECISION NEEDED` entry is a successful outcome, not a failure.
+
+**Orchestrator:** read the coder status files before TEST. Resolve every
+`DECISION NEEDED` entry, record the ruling, and re-run the affected work. Routing
+straight to TEST hides whether the tiebreaker was right, because TEST cannot tell you.
+
+`make check-conflict-guidance` enforces that every coder, planner, and workflow prompt
+carries this guidance. It runs as part of `make ci`.
+
 ## Git Worktrees
 
 ⚠️ **CRITICAL**: All workflows create isolated git worktrees BEFORE any file operations.

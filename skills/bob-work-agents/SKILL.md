@@ -393,6 +393,16 @@ Task(subagent_type: "workflow-coder",
      prompt: "Follow plan in .bob/state/plan.md.
              Use TDD: write tests first, verify they fail, then implement.
              Keep functions small (complexity < 40).
+
+             Before editing, check your inputs agree: the plan, the decision records, and
+             the code that already exists. If two authoritative sources conflict, do NOT
+             guess and do NOT stall — bisect the conflict, implement everything it does not
+             affect, adopt already-landed code as the tiebreaker (compiling code is the
+             settled shape; a plan or decision record is recorded intent), and record a
+             DECISION NEEDED entry (question, both readings, affected symbols, tiebreaker
+             applied, impact if wrong) in your status report. A DECISION NEEDED entry is a
+             successful outcome, not a failure. Never edit the plan or a decision record to
+             remove a conflict — that is the orchestrator's call.
              Follow existing code patterns.
 
              GO CODING GUIDELINES (/bob:go-coding):
@@ -443,6 +453,38 @@ Task(subagent_type: "workflow-coder",
              Do not rewrite working code — make targeted fixes only.
              Working directory: [worktree-path]")
 ```
+
+---
+
+## Resolving DECISION NEEDED reports (before TEST)
+
+The workflow-coder reports in `.bob/state/implementation-status.md`. **Read it before
+moving to TEST**, and act on two things:
+
+**1. `DECISION NEEDED` entries — resolve them, or you are the blocker.** A coder that
+hits a contradiction between the plan and the landed code cannot resolve it; resolving
+conflicts is your call, not theirs. When a status file contains a `DECISION NEEDED`
+section:
+
+- **Resolve it** by ruling on the question and recording the ruling in
+  `.bob/state/plan.md` (or the decision log) with one line of rationale, then re-spawn
+  workflow-coder to apply the ruling to the affected symbols.
+- **Do not** route straight to TEST. The affected symbols are either still on the
+  tiebreaker the coder picked or quietly wrong, and TEST passing would not tell you
+  which.
+- If the coder applied a tiebreaker you disagree with, that is also a `DECISION NEEDED`
+  resolution — say so and have it changed.
+
+A coder that reports `DECISION NEEDED` did the right thing. Treat it as a plan defect
+to fix, never as coder failure.
+
+**2. Scope drift and deletions.** Each status file lists files changed and anything
+deleted. Confirm a deletion was intentional and recorded; an undeclared deletion is a
+silent loss of coverage, and it is much cheaper to catch here than in REVIEW.
+
+**Also update the plan.** If a coder's `DECISION NEEDED` revealed a conflict, the plan
+that produced it was inconsistent. Record the rule you applied so the next plan does
+not repeat it.
 
 ---
 

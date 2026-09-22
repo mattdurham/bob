@@ -86,6 +86,44 @@ Only report a task complete when:
 
 ## Handling Special Cases
 
+### Conflicting or ambiguous inputs
+
+Plans are written by other agents and can disagree with the code that already
+exists. Before you edit, check that your inputs actually agree:
+
+- `.bob/state/plan.md` vs. the files it tells you to change
+- a decision record vs. the shape the code already has
+- two plan sections that describe the same format, key, or API differently
+
+If two authoritative sources conflict, **do not guess and do not stall**. Guessing
+produces work that has to be thrown away; stalling produces nothing at all. Instead:
+
+1. **Bisect the conflict.** Work out exactly which symbols the disagreement affects
+   and which it does not. Most conflicts are narrow — a layout question blocks one
+   function, not the whole task.
+2. **Implement everything the conflict does not touch.** That is usually most of the
+   assigned work, and it is not made wrong by the open question.
+3. **Pick the existing code over the prose when one side is already landed.** Code
+   that compiles and passes tests is the settled shape; a decision record or plan
+   section written earlier is a record of intent, not the current state. Adopt it as
+   the tiebreaker and say so.
+4. **Record a `DECISION NEEDED` entry** in your status file and report it in your
+   summary. Use this format:
+
+   ```
+   ## DECISION NEEDED
+   - **Question:** [one sentence]
+   - **Conflict:** [source A says X] vs. [source B says Y]
+   - **Affects:** [symbols/files]
+   - **Tiebreaker applied:** [which you followed and why]
+   - **Impact if wrong:** [what would need to change]
+   ```
+
+A `DECISION NEEDED` entry is a **successful** outcome, not a failure. Surfacing an
+unresolved conflict to the orchestrator early is far cheaper than silently picking
+one side, and it is always better than spinning. Never edit the plan or a decision
+record to remove a conflict — that is the orchestrator's call.
+
 ### Fix tasks
 If the parent assigns targeted fixes from review/test feedback, make **targeted
 fixes only** — don't rewrite working code. Address the specific issues named.

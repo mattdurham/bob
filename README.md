@@ -12,7 +12,8 @@
                                 ^^^^      ^^^
 ```
 
-Workflow orchestration for Claude Code through skills and subagents.
+Workflow orchestration for Claude Code, Goose, Pi, Codex, and wllr through
+skills and subagents.
 
 ## What is Bob?
 
@@ -40,7 +41,10 @@ cd bob
 make install
 ```
 
-This installs workflow skills to `~/.claude/skills/` and subagents to `~/.claude/agents/`. Restart Claude Code after installation.
+This installs workflow skills to `~/.claude/skills/` and subagents to
+`~/.claude/agents/`. When the `goose` CLI is on `PATH`, it also installs
+Goose-native skills to `~/.agents/skills/` and custom agents to
+`~/.agents/agents/`. Restart or open a new agent session after installation.
 
 The default install publishes both normal skills and `-simple` siblings. These
 simple files are alternate workflow specifications; they may still use agents when
@@ -55,7 +59,39 @@ make install SPEC=simple
 For example, this provides both `/bob:adversarial-review` and
 `/bob:adversarial-review-simple`; the latter writes findings to
 `.bob/state/review.md` without spawning subagents. The same naming applies to the
-Pi, Codex, and wllr install targets.
+Pi, Codex, wllr, and Goose install targets.
+
+## Goose
+
+Bob provides Goose-native versions of every orchestration-heavy workflow. The
+parent skill owns phase routing and delegates bounded work through Goose's
+Summon extension using `delegate` and `load`; custom agents never recursively
+delegate.
+
+The default `make install` detects Goose automatically. To install Goose support
+explicitly, without requiring the Goose executable to be present:
+
+```bash
+make install-goose-skills
+make install-goose-skills SPEC=simple
+make install-goose-skills GOOSE_HOME=/custom/.agents
+```
+
+`GOOSE_HOME` defaults to `~/.agents`. Skills are installed under
+`~/.agents/skills/<name>/SKILL.md`, and specialist agents are installed under
+`~/.agents/agents/<name>.md`. Existing unrelated skills and agents are left
+untouched.
+
+Goose's Skills platform extension is enabled by default. Full Bob workflows
+also require the Summon extension and autonomous permission mode; Goose does
+not allow subagents in manual approval, smart approval, or chat-only modes.
+Enable Summon with `goose configure` if it has been disabled. Start a new Goose
+session, then use `goose skills list` or `/skills` to inspect the installed
+skills and invoke one by name, such as `bob-work`.
+
+See the [Goose Agent Skills guide](https://goose-docs.ai/docs/guides/context-engineering/using-skills/)
+and [Goose subagent guide](https://goose-docs.ai/docs/guides/context-engineering/subagents/)
+for runtime details.
 
 ## Workflows
 

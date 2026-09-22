@@ -4,8 +4,9 @@
 SPEC ?= full
 CODEX_HOME ?= $(HOME)/.codex
 WLLR_HOME ?= $(HOME)/.wllr
+GOOSE_HOME ?= $(HOME)/.agents
 
-.PHONY: help all install install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills check-agents
+.PHONY: help all install install-runtime-skills install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills install-goose-skills check-agents check-conflict-guidance
 
 all: install install-statusline install-worktree allow enable-agent-teams hooks install-engram
 	@echo ""
@@ -43,6 +44,8 @@ help:
 	@echo "  make install-codex-skills     - Install Bob skills for Codex to ~/.codex/skills/"
 	@echo "  make install-wllr             - Install Bob skills for wllr to ~/.wllr/skills/"
 	@echo "  make install-wllr-skills      - Install Bob skills for wllr to ~/.wllr/skills/"
+	@echo "  make install-goose-skills     - Install Bob skills and custom agents for Goose"
+	@echo "                                  Override with GOOSE_HOME=/path or SPEC=simple"
 	@# make install-bob-plugin is intentionally hidden; the zellij plugin is not part of the default workflow.
 	@echo ""
 	@echo "Quick start:"
@@ -183,6 +186,32 @@ check-agents:
 	if [ "$$fail" != 0 ]; then echo "❌ agent companion check failed"; exit 1; fi; \
 	echo "✅ agent companion references check out"
 
+# Every coder and planner prompt variant must tell the agent what to do when its
+# inputs disagree. A coder that hits an unresolvable plan/code conflict and has no
+# instruction either guesses (work thrown away) or spins (no work at all); a planner
+# with no consistency check passes the conflict through to the coder. Both were real
+# failures, so this is a gate rather than a convention.
+check-conflict-guidance:
+	@fail=0; \
+	for f in agents/team-coder/SKILL.md agents/team-coder/SKILL.pi.md \
+	         agents/workflow-implementer/SKILL.md agents/workflow-implementer/SKILL.pi.md \
+	         agents/workflow-implementer/SKILL.simple.md; do \
+		[ -f "$$f" ] || continue; \
+		grep -q 'DECISION NEEDED' "$$f" || { echo "❌ $$f: coder prompt has no DECISION NEEDED path for conflicting inputs"; fail=1; }; \
+	done; \
+	for f in agents/planner/SKILL.md agents/planner/SKILL.simple.md \
+	         agents/team-planner/SKILL.md agents/team-planner/SKILL.pi.md; do \
+		[ -f "$$f" ] || continue; \
+		grep -q 'Verify the inputs agree' "$$f" || { echo "❌ $$f: planner prompt has no input-consistency check"; fail=1; }; \
+	done; \
+	for f in skills/bob-work/SKILL.md skills/bob-work-agents/SKILL.md skills/bob-work-teams/SKILL.md; do \
+		[ -f "$$f" ] || continue; \
+		grep -q 'DECISION NEEDED' "$$f" || { echo "❌ $$f: skill has no DECISION NEEDED guidance for coders"; fail=1; }; \
+		grep -qE 'before (moving to )?TEST' "$$f" || { echo "❌ $$f: skill has no orchestrator receive step before TEST"; fail=1; }; \
+	done; \
+	if [ "$$fail" != 0 ]; then echo "❌ conflict-guidance check failed"; exit 1; fi; \
+	echo "✅ conflict guidance present in all coder, planner, and workflow prompts"
+
 # Install specialized subagents
 install-agents: check-agents
 	@echo "🤖 Installing workflow subagents..."
@@ -265,18 +294,7 @@ install-plugins:
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
 install: install-skills install-agents install-lsp install-plugins allow
-	@if command -v codex >/dev/null 2>&1; then \
-		echo ""; \
-		$(MAKE) install-codex-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)"; \
-	else \
-		echo "⏭️  Codex CLI not installed — skipping Codex skills"; \
-	fi
-	@if command -v wllr >/dev/null 2>&1; then \
-		echo ""; \
-		$(MAKE) install-wllr-skills SPEC=$(SPEC) WLLR_HOME="$(WLLR_HOME)"; \
-	else \
-		echo "⏭️  wllr CLI not installed — skipping wllr skills"; \
-	fi
+	@$(MAKE) install-runtime-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)" WLLR_HOME="$(WLLR_HOME)" GOOSE_HOME="$(GOOSE_HOME)"
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \
@@ -294,6 +312,10 @@ install: install-skills install-agents install-lsp install-plugins allow
 	else \
 		echo "  ✓ Personality → Default (built-in)"; \
 	fi
+	@if command -v goose >/dev/null 2>&1; then \
+		echo "  ✓ Goose skills → $(GOOSE_HOME)/skills/"; \
+		echo "  ✓ Goose agents → $(GOOSE_HOME)/agents/"; \
+	fi
 	@echo ""
 	@echo "Installed:"
 	@echo "  ✓ Go LSP plugin (if available)"
@@ -303,10 +325,32 @@ install: install-skills install-agents install-lsp install-plugins allow
 	@echo "  - Pre-commit hooks → Run 'make hooks' to install"
 	@echo "  - Personality → Run 'make install PERSONALITY=pirate' or 'make install PERSONALITY=cartoon_pirate'"
 	@echo ""
-	@echo "🔄 Restart Claude to activate all components"
+	@echo "🔄 Restart your agent session to activate all components"
 	@echo ""
 	@echo "Quick start:"
-	@echo "  /bob:work \"Add new feature\"         - Start team-based workflow (run 'make enable-agent-teams' first)"
+	@echo "  /bob:work \"Add new feature\"         - Start team-based workflow (run 'make enable-agent-teams' first for Claude)"
+
+# Auto-install optional runtime integrations detected on PATH. Kept separate so
+# detection can be tested without running the Claude/LSP/plugin installation.
+install-runtime-skills:
+	@if command -v codex >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-codex-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)"; \
+	else \
+		echo "⏭️  Codex CLI not installed — skipping Codex skills"; \
+	fi
+	@if command -v wllr >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-wllr-skills SPEC=$(SPEC) WLLR_HOME="$(WLLR_HOME)"; \
+	else \
+		echo "⏭️  wllr CLI not installed — skipping wllr skills"; \
+	fi
+	@if command -v goose >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-goose-skills SPEC=$(SPEC) GOOSE_HOME="$(GOOSE_HOME)"; \
+	else \
+		echo "⏭️  Goose CLI not installed — skipping Goose skills"; \
+	fi
 
 # Install Bob personality
 # Usage: make install-personality PERSONALITY=pirate|cartoon_pirate|default
@@ -680,7 +724,14 @@ resolve-copilot:
 
 # Run full CI pipeline locally (mirrors what GitHub Actions would run)
 # This is the single command that must pass before committing.
-ci: check-agents
+ci: check-agents check-conflict-guidance
+	@echo "── Goose installer contract"
+	@if bash tests/test-goose-install.sh > /tmp/bob-goose-test.log 2>&1; then \
+		echo "   ✅ PASS"; \
+	else \
+		echo "   ❌ FAIL"; sed 's/^/   /' /tmp/bob-goose-test.log; rm -f /tmp/bob-goose-test.log; exit 1; \
+	fi
+	@rm -f /tmp/bob-goose-test.log
 	@echo "🔄 Running full CI pipeline locally..."
 	@echo ""
 	@PASS=0; FAIL=0; SKIP=0; \
@@ -1023,6 +1074,65 @@ install-codex-skills:
 		sed -e "s|{{GIT_HASH}}|$$(git rev-parse HEAD)|g" -e "s|{{GIT_DATE}}|$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')|g" -e "s|{{GIT_BRANCH}}|$$(git rev-parse --abbrev-ref HEAD)|g" -e "s|{{GIT_REMOTE}}|$$(git config --get remote.origin.url || echo local)|g" -e "s|{{INSTALL_DATE}}|$$(date '+%Y-%m-%d %H:%M:%S')|g" -e "s|{{BOB_REPO_PATH}}|$$(pwd)|g" skills/bob-version/SKILL.md.template | sed 's/^name: .*/name: bob-version/' | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/bob-version/SKILL.md"; \
 	fi; \
 	echo "✅ Bob Codex skills installed to $$SKILLS_DIR"
+
+# Install Bob workflow skills and bounded custom agents for Goose.
+# Goose discovers global skills and agents below ~/.agents by default.
+# Usage: make install-goose-skills [SPEC=simple] [GOOSE_HOME=/path/to/.agents]
+install-goose-skills: check-agents
+	@echo "📚 Installing Bob skills and custom agents for Goose..."
+	@SKILLS_DIR="$(GOOSE_HOME)/skills"; \
+	AGENTS_DIR="$(GOOSE_HOME)/agents"; \
+	mkdir -p "$$SKILLS_DIR" "$$AGENTS_DIR"; \
+	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
+	for skill in bob-work bob-work-agents bob-work-teams bob-explore bob-explore-teams bob-audit bob-code-review bob-cleanup bob-cleanup-teams bob-design bob-generate-overview bob-generate-feature-page bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-brainstorming bob-internal-writing-plans bob-internal-go-coding; do \
+		[ -d "skills/$$skill" ] || continue; \
+		for variant in $$VARIANTS; do \
+			SRC="skills/$$skill/SKILL.goose.md"; SUFFIX=""; \
+			if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
+			if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; \
+			[ -f "$$SRC" ] || continue; \
+			RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//; s/^"//; s/"$$//'); \
+			DEST=$$(echo "$$RAW" | tr ':' '-'); [ -n "$$DEST" ] || DEST="$$skill"; DEST="$$DEST$$SUFFIX"; \
+			echo "   Installing $$DEST skill..."; mkdir -p "$$SKILLS_DIR/$$DEST"; \
+			bash scripts/render-goose-skill.sh "$$SRC" "$$DEST" > "$$SKILLS_DIR/$$DEST/SKILL.md" || exit 1; \
+		done; \
+	done; \
+	echo "   Generating bob-version skill..."; \
+	VERSION_TMP=$$(mktemp); \
+	sed -e "s|{{GIT_HASH}}|$$(git rev-parse HEAD)|g" \
+	    -e "s|{{GIT_DATE}}|$$(git log -1 --format=%cd --date=format:'%Y-%m-%d %H:%M:%S')|g" \
+	    -e "s|{{GIT_BRANCH}}|$$(git rev-parse --abbrev-ref HEAD)|g" \
+	    -e "s|{{GIT_REMOTE}}|$$(git config --get remote.origin.url || echo local)|g" \
+	    -e "s|{{INSTALL_DATE}}|$$(date '+%Y-%m-%d %H:%M:%S')|g" \
+	    -e "s|{{BOB_REPO_PATH}}|$$(pwd)|g" \
+	    -e "s|{{SKILL_COUNT}}|$$(find skills \( -name SKILL.md -o -name SKILL.md.template \) | wc -l | tr -d ' ')|g" \
+	    -e "s|{{AGENT_COUNT}}|$$(find agents -name SKILL.md | wc -l | tr -d ' ')|g" \
+	    -e "s|{{HOOKS_STATUS}}|**Hooks:** not managed by Goose install|g" \
+	    skills/bob-version/SKILL.md.template > "$$VERSION_TMP"; \
+	mkdir -p "$$SKILLS_DIR/bob-version"; \
+	bash scripts/render-goose-skill.sh "$$VERSION_TMP" bob-version > "$$SKILLS_DIR/bob-version/SKILL.md" || { rm -f "$$VERSION_TMP"; exit 1; }; \
+	rm -f "$$VERSION_TMP"; \
+	AGENT_COUNT=0; \
+	for agent_dir in agents/*; do \
+		[ -d "$$agent_dir" ] || continue; agent=$$(basename "$$agent_dir"); \
+		SRC="$$agent_dir/SKILL.goose.md"; \
+		if [ ! -f "$$SRC" ] && [ "$(SPEC)" = "simple" ] && [ -f "$$agent_dir/SKILL.simple.md" ]; then SRC="$$agent_dir/SKILL.simple.md"; fi; \
+		if [ ! -f "$$SRC" ]; then SRC="$$agent_dir/SKILL.md"; fi; \
+		[ -f "$$SRC" ] || continue; \
+		SUPPORT_DIR="$$AGENTS_DIR/$$agent"; mkdir -p "$$SUPPORT_DIR"; \
+		echo "   Installing $$agent custom agent..."; \
+		bash scripts/render-goose-agent.sh "$$SRC" "$$SUPPORT_DIR" > "$$AGENTS_DIR/$$agent.md" || exit 1; \
+		for extra in "$$agent_dir"/*; do \
+			case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
+			cp -R "$$extra" "$$SUPPORT_DIR/" || exit 1; \
+		done; \
+		AGENT_COUNT=$$((AGENT_COUNT + 1)); \
+	done; \
+	echo "✅ Bob Goose skills installed to $$SKILLS_DIR"; \
+	echo "✅ $$AGENT_COUNT Goose custom agents installed to $$AGENTS_DIR"; \
+	echo "   Delegated workflows require Goose autonomous mode and the Summon extension."
+
+# Install Bob skills and agent prompts for wllr.
 
 # Install Bob skills and agent prompts for wllr.
 # wllr's built-in skills extension scans ~/.wllr/skills/<name>/SKILL.md.

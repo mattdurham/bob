@@ -61,6 +61,36 @@ find . -name "SPECS.md" -o -name "NOTES.md" -o -name "TESTS.md" -o -name "BENCHM
 
 The plan MUST include invariant-derived tests and explicit doc update steps for spec-driven modules.
 
+### Step 2.6: Verify the inputs agree (do this before writing the plan)
+
+A plan that contradicts the code it describes costs a coder real time: the coder
+cannot resolve it (resolving conflicts is the orchestrator's call) and cannot
+proceed without stalling. Catch it here instead, where the fix is a sentence.
+
+Check every source you are about to plan from:
+
+- **plan vs. code:** does each "modify X to do Y" match what X actually does today?
+  Read the file, not a summary of it.
+- **decision record vs. code:** where a decision record and a landed implementation
+  disagree, the implementation is the current state. Plan against the code and record
+  the divergence explicitly.
+- **decision record vs. decision record:** two records describing the same format,
+  key, or API differently is the highest-risk conflict, because both read as
+  authoritative.
+- **plan vs. plan:** sections that describe the same symbol twice.
+
+For each conflict, choose one of two resolutions **in the plan itself**:
+
+1. **Resolve it.** State the ruling and the reason in one line, in the plan, next to
+   the affected step. If the plan is the authority, say so; if the code is, say that.
+2. **Name it as open.** Add it to `Risks/Concerns` with the two readings, the affected
+   symbols, and an explicit instruction to the coder: *"implement everything not
+   affected; adopt the landed code as the tiebreaker; record a `DECISION NEEDED`
+   entry."* Use this only when the resolution genuinely needs the orchestrator.
+
+Never leave a conflict unmentioned. A plan that silently picks a side produces work
+that is discovered to be wrong later, at full cost.
+
 ### Step 3: Create the Plan
 
 Write a detailed, TDD-first plan to the output file the parent specified (default

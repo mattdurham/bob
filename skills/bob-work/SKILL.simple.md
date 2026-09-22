@@ -33,3 +33,12 @@ Use `.bob/state/brainstorm.md`, `.bob/state/plan.md`, and
 `.bob/state/test-results.md` for direct artifacts when useful. If blocked by a
 missing decision or external state, explain the exact blocker instead of spawning
 another agent.
+
+**Conflicting inputs.** You have no coder to escalate to, so a plan/code conflict
+lands on you. Do not guess and do not stall: bisect what the conflict actually
+affects, implement everything it does not, and adopt already-landed code as the
+tiebreaker (compiling code is the settled shape; a plan or decision record is recorded
+intent). Then surface it to the user in your final message as a `DECISION NEEDED` entry
+— question, both readings, affected symbols, the tiebreaker you applied, and the impact
+if it is wrong — and record the ruling in the plan or decision log so the next plan does
+not repeat the conflict. A surfaced conflict is a successful outcome, not a failure.

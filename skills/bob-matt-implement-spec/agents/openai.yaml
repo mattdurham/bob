@@ -1,0 +1,5 @@
+interface:
+  display_name: "Implement Spec"
+  short_description: "Implement the result of /bob-matt-to-spec and /bob-matt-to-tickets in code."
+policy:
+  allow_implicit_invocation: false

@@ -1,56 +1,12 @@
 ---
 name: bob-work
-description: Goose-native development workflow - INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE
+description: Develop a change in an isolated worktree using an existing plan or bob-matt-grill-me, then implement, verify, review, and prepare its PR.
 ---
 
-# Bob Work for Goose
+# Develop a Change
 
-You are the parent orchestrator. Keep orchestration in this session because a
-Goose delegate cannot recursively delegate. Use the Summon extension and run in
-autonomous permission mode.
+Ask “Do you have an existing implementation plan? [yes/no]” and wait; a supplied plan, including `--seed-plan <path>`, counts as yes. Obtain and validate the supplied plan without silently replacing it; resolve file paths before changing directories. If no plan exists, follow `bob-matt-grill-me` and `bob-matt-grilling` in this conversation, asking one question at a time until the user confirms shared understanding. That answer authorizes the manual-only interview; missing interview skills or an unusable supplied plan are blockers. Create or reuse an isolated feature worktree, preserving unrelated user changes. Keep an immutable supplied-plan copy in `.bob/state/seed-plan.md`, or record confirmed requirements in `.bob/state/brainstorm.md`. Derive `.bob/state/plan.md` from this invocation's inputs, ignoring stale state, with a coding worklist of task identifiers, outcomes, owned files, dependencies, verification, assignments, and status.
 
-For each delegated job, record the returned task id. Independent jobs may use:
+Implement directly or delegate bounded, independent tasks when useful; choose coder count from ready work and clear file ownership. The parent owns dispatch; use `delegate(source: "workflow-implementer", instructions: "bounded task, worktree, contracts, owned files, unique result path", async: true)` for coders and bounded read-only `team-reviewer` jobs for reviews. Retain each task id, collect it with `load(source: "<task id>")`, and verify its promised artifact. Workers do not delegate further. Serialize overlapping writes and dependencies, collect results, and update the worklist. Read-only reviewers may check completed assignments while independent coding continues, using captured diffs and stable source inputs; defer review or use matching snapshots when active writers could change them. Changed inputs invalidate early reviews. Collect every coder and reviewer before integrated verification. Require workers to report `DECISION NEEDED` conflicts between plans, contracts, and code; continue unaffected work, surface decisions needing user input, and record the ruling before TEST. Preserve agreed scope and update affected specifications without silently changing contracts.
 
-```text
-job = delegate(source: "workflow-coder", instructions: "One bounded assignment with exact worktree, files, and artifact path", async: true)
-result = load(source: "<job task id>")
-```
-
-Every `load` must succeed and every promised artifact must exist before routing.
-Missing output is a phase failure, never a pass.
-
-## Workflow
-
-`INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → TEST → REVIEW → COMPLETE`
-
-1. **INIT:** Parse the request. Support `--seed-plan <path>` exactly as the
-   standard Bob workflow does: validate a readable non-empty actionable plan
-   and remember that this invocation is seeded.
-2. **WORKTREE:** Reuse the current worktree when already in one; otherwise create
-   a feature worktree. Create `.bob/state/` there. All delegate instructions
-   must name its absolute path.
-3. **BRAINSTORM:** For a normal run, delegate to `workflow-brainstormer` and
-   require `.bob/state/brainstorm.md`. For the first seeded pass, copy the seed
-   to `.bob/state/seed-plan.md` and write the short brainstorm stub locally.
-4. **PLAN:** Delegate to `workflow-planner` and require `.bob/state/plan.md`.
-   On the first seeded pass adopt the staged seed instead. Split the plan into
-   assignments with disjoint file ownership.
-5. **EXECUTE:** Start one async `workflow-coder` delegate per disjoint assignment.
-   Record ownership and task ids in `.bob/state/team-status.md`, then call
-   `load(source: "<task id>")` for every job. Serialize overlapping writes.
-   Require a status artifact from each coder.
-6. **TEST:** Delegate to `tester`; load the result and require
-   `.bob/state/test-results.md`. Failures route to EXECUTE, maximum three loops.
-7. **REVIEW:** Run `workflow-task-reviewer` and `workflow-code-quality` as async,
-   read-only delegates, load both, then delegate to `review-consolidator` and
-   require `.bob/state/review.md`. REVIEW is mandatory.
-8. **ROUTE:** CRITICAL or HIGH findings, CI failure, PR feedback, or
-   `NEEDS_BRAINSTORM` route to BRAINSTORM. MEDIUM/LOW findings route to EXECUTE.
-   Preserve any `BOB_CONFIRM_BEFORE_PUSH=1` publication prompt.
-9. **COMPLETE:** Only after tests and review pass, report completion and ask for
-   the existing final merge decision.
-
-On a review loop, seeded mode is no longer special: use the normal BRAINSTORM
-and PLAN phases. Preserve `.bob/state/brainstorm.md`, `.bob/state/plan.md`,
-`.bob/state/test-results.md`, `.bob/state/review.md`, and all spec-driven module
-updates.
+Honor repository-root `.bob/config` verification commands, including ignored configuration, using the tester’s documented parsing and serial execution rules; otherwise run relevant project tests, formatting, and static checks; record results in `.bob/state/test-results.md`. Follow `bob-code-review` for a read-only review of the final integrated diff, requiring a current clean `.bob/state/review.md` and review status. Fix findings in this workflow and repeat affected verification and final review; early task reviews do not replace this gate. Follow `bob-ship` to commit and prepare the PR, honoring `BOB_CONFIRM_BEFORE_PUSH` and its publication, recovery, and CI controls. Missing, stale, failed, or unresolved gates block completion; declined publication ends it. CI or PR feedback requiring changes returns to the worklist and fresh verification and review. Report the change, verification, PR, and remaining risks, then ask for the final merge decision only when publication and CI are ready. Merge only on the user's approval.

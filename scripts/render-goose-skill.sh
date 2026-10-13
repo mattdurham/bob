@@ -10,8 +10,8 @@ source_file=$1
 installed_name=$2
 
 awk -v installed_name="$installed_name" '
-BEGIN { delimiters = 0; description = "" }
-$0 == "---" {
+BEGIN { delimiters = 0; description = ""; attribution = ""; metadata = 0 }
+delimiters < 2 && $0 == "---" {
     delimiters++
     if (delimiters == 2) {
         if (description == "") {
@@ -21,11 +21,22 @@ $0 == "---" {
         print "---"
         print "name: " installed_name
         print description
+        printf "%s", attribution
         print "---"
     }
     next
 }
 delimiters == 1 && /^description:[[:space:]]*/ { description = $0; next }
+delimiters == 1 && /^(license|metadata):/ {
+    attribution = attribution $0 "\n"
+    metadata = /^metadata:/
+    next
+}
+delimiters == 1 && metadata && /^[[:space:]]/ {
+    attribution = attribution $0 "\n"
+    next
+}
+delimiters == 1 && /^[^[:space:]]/ { metadata = 0; next }
 delimiters >= 2 { print }
 END {
     if (delimiters < 2) {

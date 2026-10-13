@@ -19,7 +19,15 @@ You are the **orchestrator** for a hostile, adversarial idea review. You first r
 
 ## Core Mindset
 
-Default assumption: **every idea has at least one critical flaw.** The job of each agent is to disprove that assumption — not to validate the idea. When in doubt, flag it. False positives are cheaper than missed fatal flaws.
+Challenge the idea's claims using evidence. Treat suspected failure modes as
+hypotheses to investigate; an idea may have no demonstrated critical flaw.
+Separate verified problems from unresolved assumptions and questions. Missing
+evidence is uncertainty, not proof that the idea is broken. State what would
+validate or refute each concern, and assign severity from demonstrated impact
+under the stated constraints. Checklist severity labels below are examples,
+not mandatory verdicts. For each finding, describe plausible remedies and their
+cost, constraints, and remaining uncertainty. Recommendations depend on whether
+the problem can be resolved at an acceptable cost, not the severity count alone.
 
 ---
 
@@ -87,6 +95,8 @@ mkdir -p .bob/review/idea
 Write `.bob/review/idea/scope.md` containing:
 - The original idea verbatim (or the full doc content if a file was provided)
 - Clarification answers from intake (labelled clearly)
+- The Core Mindset rules above, including evidence, uncertainty, severity, and
+  remedy-cost requirements; these rules govern every reviewer
 - One-line summary: "Idea in one sentence: ..."
 
 All eight agents will read this file as their primary input.
@@ -109,16 +119,19 @@ Agent(
   description: "Assumption audit",
   background: true,
   prompt: """
-    You are a hostile assumption auditor. Default assumption: every claim in this idea
+    You are a hostile assumption auditor. Hypothesis to investigate: every claim in this idea
     is unvalidated until proven otherwise.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
     1. UNSTATED USER DEMAND (CRITICAL):
        The idea assumes users want or need X. Is there evidence? User research, usage data,
-       direct requests? "Users will love this" without evidence is a critical flaw. → CRITICAL
+       direct requests? "Users will love this" without evidence needs validation;
+       record the uncertainty and what would resolve it, not a proven critical flaw.
 
     2. CIRCULAR REASONING (CRITICAL):
        The problem statement assumes the solution. "We need a reverse index because querying
@@ -167,10 +180,12 @@ Agent(
   description: "Prior art and existing solutions audit",
   background: true,
   prompt: """
-    You are a hostile prior art auditor. Default assumption: this problem has already
+    You are a hostile prior art auditor. Hypothesis to investigate: this problem has already
     been solved and the proposer didn't look.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -220,10 +235,12 @@ Agent(
   description: "Hidden scope and silent dependency audit",
   background: true,
   prompt: """
-    You are a hostile scope auditor. Default assumption: the proposal understates
+    You are a hostile scope auditor. Hypothesis to investigate: the proposal understates
     the true scope by at least 3x.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -280,10 +297,12 @@ Agent(
   description: "Scale, cardinality, and performance audit",
   background: true,
   prompt: """
-    You are a hostile scale and performance auditor. Default assumption: this idea
+    You are a hostile scale and performance auditor. Hypothesis to investigate: this idea
     was designed for toy scale and will fail in production.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -340,10 +359,12 @@ Agent(
   description: "Operational cost and maintainability audit",
   background: true,
   prompt: """
-    You are a hostile operational burden auditor. Default assumption: this idea creates
+    You are a hostile operational burden auditor. Hypothesis to investigate: this idea creates
     a permanent on-call burden that nobody has accounted for.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -398,10 +419,12 @@ Agent(
   description: "Alternative solutions and simpler approaches audit",
   background: true,
   prompt: """
-    You are a hostile alternatives auditor. Default assumption: the proposed solution
+    You are a hostile alternatives auditor. Hypothesis to investigate: the proposed solution
     is more complex than necessary.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     For each alternative you identify, score it against the proposal on:
     - Complexity to build (less is better)
@@ -457,10 +480,12 @@ Agent(
   description: "User need and problem definition audit",
   background: true,
   prompt: """
-    You are a hostile user need auditor. Default assumption: the stated problem is a
+    You are a hostile user need auditor. Hypothesis to investigate: the stated problem is a
     solution in disguise, and the real user need hasn't been identified.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -520,10 +545,12 @@ Agent(
   description: "Reversibility, rollback, and blast radius audit",
   background: true,
   prompt: """
-    You are a hostile reversibility auditor. Default assumption: this idea will be
+    You are a hostile reversibility auditor. Hypothesis to investigate: this idea will be
     partially or fully wrong, and the question is whether we can recover.
 
-    Read .bob/review/idea/scope.md.
+    Read .bob/review/idea/scope.md and apply its shared review rules.
+    Treat the checklist as investigation prompts; do not infer severity merely
+    from a category label or missing evidence.
 
     Hunt for:
 
@@ -588,12 +615,25 @@ Read all eight once complete.
 
 ## Phase 5: CONSOLIDATE
 
-1. **Sum severities** across all eight agents.
-2. **Deduplicate**: if two agents flagged the same issue, merge them (double-flagged = higher confidence).
-3. **Routing recommendation:**
-   - CRITICAL > 0 → `ABANDON or MAJOR REVISE` (fundamental flaw — rethink the approach)
-   - HIGH > 0, CRITICAL == 0 → `REVISE` (real problems, but fixable with targeted changes)
-   - Only MEDIUM/LOW or zero → `PROCEED` (idea is sound, address medium/low in planning)
+1. **Validate and deduplicate** findings across all eight agents. Check evidence,
+   distinguish demonstrated flaws from open assumptions, and reassess severity
+   from impact. Repeated claims without independent evidence do not increase
+   confidence. Count severities only after consolidation.
+2. **Assess remedies:** for each material finding, explain whether it can be
+   resolved within the user's constraints, what that would cost, and which
+   experiment or decision could resolve remaining uncertainty. Mark unknown
+   feasibility or cost as unknown rather than inventing it.
+3. **Recommendation:**
+   - `REVISE` when material flaws have plausible remedies, or an important
+     assumption needs validation before committing. Name the changes or
+     validation work and their expected cost, including any unknowns.
+   - `ABANDON` only when evidence shows the proposal cannot meet its stated
+     goals or constraints and no feasible remedy fits an acceptable cost.
+     Explain that reasoning and which alternatives remain viable. CRITICAL
+     findings alone do not justify abandonment.
+   - `PROCEED` when no unresolved blocking concern remains under the stated
+     constraints. List residual risks and validation work; this is not proof
+     that the idea is sound or that every uncertainty has been eliminated.
 
 4. **Write `.bob/state/idea-review.md`** with:
 
@@ -608,10 +648,11 @@ Read all eight once complete.
 
 ---
 
-## CRITICAL — Fatal Flaws
+## CRITICAL — Severe Impact
 
 > **[Agent] — Title**
-> Explanation of the flaw, why it's fatal, and what would need to be true for it not to be.
+> Evidence, triggering conditions, impact, and possible remedies with their cost
+> and constraints. Identify remaining uncertainty.
 
 ---
 
@@ -633,6 +674,14 @@ Grouped list with one-line description per finding.
 Grouped list.
 
 ---
+
+## Open Assumptions
+
+Unverified claims, why they matter, and what evidence or experiment would settle them.
+
+## Recommendation Rationale
+
+Explain feasibility, remedy costs, constraints, and remaining uncertainty.
 
 ## Alternatives Considered
 

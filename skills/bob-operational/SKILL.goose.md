@@ -1,46 +1,45 @@
 ---
 name: bob-operational
-description: Goose-native multi-repository operational workflow - INIT → PLAN → CODE → OPERATE → TEST → COMPLETE
+description: Coordinate approved changes across repositories, deploy to the specified environment, and verify the deployed system’s acceptance criteria.
 ---
 
-# Bob Operational for Goose
+# Coordinate Changes and Deployment
 
-You are the parent orchestrator. You do no implementation, deployment, or test
-work yourself. Keep a repository dependency graph and explicit result paths in
-`.bob/operational/plan.md`.
+Coordinate the requested change across the named repositories and target
+environment. Resolve repository paths, deployment method, dependencies,
+acceptance criteria, operational authority, and rollback prerequisites from the
+request and available evidence; ask only for missing information that blocks the
+work. Write .bob/operational/plan.md with ordered per-repository changes,
+isolated worktrees where needed, ownership, exact deployment targets,
+verification, stop conditions, and recovery steps. Present the concrete plan for
+approval unless a matching plan is already approved; obtain an updated decision
+for material changes to scope or authority. Preserve unrelated work and inspect
+recorded progress before resuming.
 
-## INIT
+The Goose parent may work directly or delegate bounded jobs using
+`delegate(source: "workflow-implementer", instructions: "Exact repository,
+worktree, owned paths, approved task, and unique result artifact", async:
+true)`, then `load(source: "<task id>")` for every job. Workers cannot delegate;
+the parent owns approval and dependency decisions. Parallelize independent work
+with clear ownership, serialize overlapping files or shared deployment
+resources, and start dependent steps only after their prerequisites are
+verified. Run repository checks and mandatory code review before deploying each
+affected change; for spec-driven modules, audit applicable documented guarantees
+and resolve blocking violations or deployment-critical unverified claims.
+Operate only within the approved repositories, environment, and command scope,
+using the planned publication and deployment gates. Record each repository’s
+commit or artifact identity and each operational step’s actual result in
+uniquely named artifacts; the parent consolidates
+.bob/operational/operate-results.md without overwriting workers’ evidence.
 
-Identify repositories, worktrees, environments, authority boundaries,
-acceptance criteria, rollback points, and spec-driven modules.
-
-## PLAN
-
-Write ordered per-repository assignments, owned paths, dependencies, and output
-artifacts. Never start a dependent assignment before its prerequisites load.
-
-## CODE
-
-For independent repositories, use
-`delegate(source: "workflow-implementer", instructions: "Bounded repository, exact working directory, paths, acceptance criteria, and result artifact", async: true)`.
-Retain all task ids and call `load(source: "<task id>")` at each dependency
-barrier. Serialize overlapping writes. Delegate review after writers load.
-
-## OPERATE
-
-Delegate each approved operational step with the exact repository, environment,
-command scope, stop conditions, and rollback instructions. Require and validate
-`.bob/operational/operate-results.md`. Stop on ambiguous target, lost authority,
-or failed rollback prerequisite.
-
-## TEST
-
-Delegate end-to-end acceptance checks to `tester`; load the result and require a
-per-repository result artifact. Failures route to PLAN for dependency/approach
-problems or CODE for bounded corrections.
-
-## COMPLETE
-
-Complete only when every repository result, operation, rollback check, and
-acceptance test is accounted for. Report deployed state and remaining manual
-actions. Never let a delegated worker delegate again.
+Verify the deployed system against the agreed acceptance criteria and record
+evidence in .bob/operational/test-results.md. Distinguish code defects,
+deployment failures, and unknown causes: repair the affected code and repeat its
+checks and review before redeploying, correct deployment issues within the
+approved plan, and stop for a decision when target, authority, or recovery is
+unclear. Retry transient failures only when repeating the operation is safe and
+bounded; reconcile partial effects before resuming. Use rollback only within the
+approved recovery scope. Report the actual deployed versions, PRs or commits,
+validation results, partial failures, and remaining actions. Mark completion
+only when the requested operations and acceptance checks are satisfied; preserve
+worktrees and recovery artifacts still needed.

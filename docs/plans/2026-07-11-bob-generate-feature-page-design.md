@@ -1,5 +1,7 @@
 # bob-generate-feature-page — Design
 
+Status: Retired. The skill was removed on 2026-10-13; this document records its original design.
+
 *Date: 2026-07-11*
 
 ## Overview

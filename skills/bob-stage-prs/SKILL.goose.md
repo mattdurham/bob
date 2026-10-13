@@ -1,28 +1,38 @@
 ---
 name: bob-stage-prs
-description: Goose-native staging of a large changeset into ordered reviewable pull requests
+description: Create or resume an approved, verified PR stack in Goose, preserving its dependency order and publication state.
 ---
 
-# Bob Stage PRs for Goose
+# Stage Reviewable Changes
 
-This workflow is idempotent and supports `RESUME → ADVANCE → CONFIRM → EXECUTE`.
-Persist the stack, branch names, commit ranges, dependency/merge order, and
-publication state under `.bob/state/` after every unit.
+Split the requested changeset into coherent, dependency-ordered pull requests,
+or resume its recorded stack. Read [the Git
+procedures](references/git-procedures.md) before modifying branches, committing,
+publishing, or advancing existing PRs. Inspect the source snapshot, target,
+working tree, history, and dependencies. Prefer reviewable units around 200
+implementation lines, with their tests and docs; let coherence and independently
+working intermediate states determine boundaries. The Goose parent can work
+directly or delegate bounded analysis using `delegate(source: "Explore",
+instructions: "Inspect the exact changeset and propose coherent units under
+these constraints", async: true)`, then `load(source: "<task id>")`. Workers
+cannot delegate; the parent retains approval and state ownership.
 
-Use a bounded read-only analysis delegate to partition the changeset:
+For a fresh stack, write .bob/state/stage-prs-plan.md with scope, source and
+base SHAs, unit branches, dependencies, verification, publication actions, and
+merge order. Present the concrete breakdown and wait for approval before
+modifying Git state or publishing. For an existing approved stack, reconcile the
+recorded state with live branches, remote tips, and PR status before resuming
+the next incomplete unit or advancing affected descendants after merges. Obtain
+fresh approval for changed scope or actions outside the prior approval. Preserve
+the source branch and unrelated work; a missing artifact or stale state is a
+blocker, not authorization to recreate the stack.
 
-```text
-analysis = delegate(source: "Explore", instructions: "Analyze the exact diff and write the staged PR plan artifact", async: true)
-load(source: "<analysis task id>")
-```
-
-Validate that each proposed PR is buildable, reviewable, behaviorally coherent,
-and ordered so dependencies merge first. On RESUME, read state and external PR
-status before proposing the next action. On ADVANCE, skip already merged units
-and recompute only affected descendants.
-
-Before the first external publication, show the complete stack and ask for one
-CONFIRM decision. On EXECUTE, delegate each ordered publication unit to
-`commit-agent`, load it synchronously, and validate the updated state artifact
-before continuing. Stop immediately on a failed branch, commit, push, or PR.
-Report merge order and the next resumable command.
+Create or advance approved units in dependency order using isolated worktrees
+and the recorded change boundaries. Verify and review every intermediate unit
+before publication, and check the aggregate stack against the approved source
+scope. Save branch tips, cuts, verification, push/PR results, and failures after
+each step; reuse matching existing PRs rather than duplicating them. Stop on
+conflicts, failed verification, remote movement, or declined publication. Report
+.bob/state/stage-prs-status.md with actual PR URLs, branch/base state, merge
+order, and the next resumable action, distinguishing a published stack from one
+that has fully merged.

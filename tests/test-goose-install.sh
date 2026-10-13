@@ -26,11 +26,24 @@ assert_contains "$tmp_root/skill.md" 'name: bob-test'
 assert_contains "$tmp_root/agent.md" "$tmp_root/support/reference.md"
 
 full_home="$tmp_root/full"
+mkdir -p "$full_home/skills/bob-version"
+printf '%s\n' '---' 'name: bob-version' 'description: Generated Bob installation utility' '---' \
+    '# Bob Version Information' '## Installation Details' '## Installed Components' \
+    > "$full_home/skills/bob-version/SKILL.md"
 make -C "$repo_root" install-goose-skills GOOSE_HOME="$full_home"
 
 assert_file "$full_home/skills/bob-work/SKILL.md"
 assert_file "$full_home/skills/bob-work-simple/SKILL.md"
-assert_file "$full_home/skills/bob-version/SKILL.md"
+[[ ! -e "$full_home/skills/bob-version/SKILL.md" ]] || fail "removed version skill was installed"
+[[ ! -e "$full_home/skills/bob-cleanup-teams/SKILL.md" ]] || fail "removed cleanup teams skill was installed"
+[[ ! -e "$full_home/skills/bob-work-agents/SKILL.md" ]] || fail "removed work agents skill was installed"
+[[ ! -e "$full_home/skills/bob-work-teams/SKILL.md" ]] || fail "removed work teams skill was installed"
+assert_file "$full_home/skills/bob-generate-okf/references/okf-format.md"
+assert_file "$full_home/skills/bob-stage-prs/references/git-procedures.md"
+assert_file "$full_home/skills/bob-ship/references/publication-procedure.md"
+cmp -s "$repo_root/skills/bob-ship/references/publication-procedure.md" "$full_home/skills/bob-ship/references/publication-procedure.md" || fail "publication procedure changed during installation"
+assert_file "$full_home/skills/bob-stage-prs-simple/references/git-procedures.md"
+cmp -s "$repo_root/skills/bob-generate-okf/references/okf-format.md" "$full_home/skills/bob-generate-okf/references/okf-format.md" || fail "OKF reference changed during installation"
 assert_file "$full_home/agents/workflow-brainstormer.md"
 assert_file "$full_home/agents/workflow-implementer.md"
 assert_file "$full_home/agents/workflow-implementer/golang-pro.md"
@@ -46,10 +59,9 @@ assert_not_contains "$full_home/agents/workflow-coder.md" 'delegate('
 assert_contains "$full_home/agents/workflow-implementer.md" "$full_home/agents/workflow-implementer/golang-pro.md"
 
 orchestrated_skills=(
-    bob-work bob-work-agents bob-work-teams bob-explore bob-explore-teams
-    bob-audit bob-code-review bob-cleanup bob-cleanup-teams bob-design
+    bob-work
+    bob-audit bob-code-review bob-ship bob-cleanup bob-specs
     bob-stage-prs bob-adversarial-review bob-challenge-idea bob-operational
-    bob-internal-writing-plans
 )
 for skill in "${orchestrated_skills[@]}"; do
     installed="$full_home/skills/$skill/SKILL.md"
@@ -80,6 +92,8 @@ make -C "$repo_root" install-goose-skills GOOSE_HOME="$full_home"
 simple_home="$tmp_root/simple"
 make -C "$repo_root" install-goose-skills SPEC=simple GOOSE_HOME="$simple_home"
 assert_file "$simple_home/skills/bob-work-simple/SKILL.md"
+assert_file "$simple_home/skills/bob-ship/SKILL.md"
+assert_file "$simple_home/skills/bob-ship/references/publication-procedure.md"
 [[ ! -e "$simple_home/skills/bob-work/SKILL.md" ]] || fail "SPEC=simple installed a full skill"
 assert_not_contains "$simple_home/skills/bob-adversarial-review-simple/SKILL.md" 'delegate('
 
@@ -89,13 +103,14 @@ printf '#!/usr/bin/env bash\nexit 0\n' > "$fake_bin/goose"
 chmod +x "$fake_bin/goose"
 auto_home="$tmp_root/auto"
 PATH="$fake_bin:$PATH" make -C "$repo_root" install-runtime-skills \
-    GOOSE_HOME="$auto_home" CODEX_HOME="$tmp_root/codex" WLLR_HOME="$tmp_root/wllr" >/dev/null
+    GOOSE_HOME="$auto_home" CODEX_HOME="$tmp_root/codex" WLLR_HOME="$tmp_root/wllr" \
+    PI_SKILLS_DIR="$tmp_root/pi/skills" >/dev/null
 assert_file "$auto_home/skills/bob-work/SKILL.md"
 
 absent_home="$tmp_root/absent"
 PATH="/usr/bin:/bin" make -C "$repo_root" install-runtime-skills \
     GOOSE_HOME="$absent_home" CODEX_HOME="$tmp_root/codex-absent" \
-    WLLR_HOME="$tmp_root/wllr-absent" > "$tmp_root/absent.log"
+    WLLR_HOME="$tmp_root/wllr-absent" PI_SKILLS_DIR="$tmp_root/pi-absent/skills" > "$tmp_root/absent.log"
 assert_contains "$tmp_root/absent.log" 'Goose CLI not installed — skipping Goose skills'
 [[ ! -e "$absent_home" ]] || fail "runtime detection created Goose home without Goose"
 

@@ -55,7 +55,7 @@ The key question: is the pooled object returned to the pool BEFORE all reference
 
 - [ ] **Pool-but-never-reused**: Is `Put` called with a freshly allocated object that was created inside the same function (not acquired from the pool)? That turns the pool into a leak, not a reuse. Only return objects that were originally acquired from the pool.
 
-- [ ] **AllocsPerRun with sync.Pool**: Does any `testing.AllocsPerRun(N, fn)` assertion require exactly 0 allocations on code that uses `sync.Pool`? GC can drop pool entries during measurement. Either warm the pool inside the closure before measuring, or accept ≤1 alloc.
+- [ ] **Allocation evidence with sync.Pool**: Is the allocation budget justified by the contract and measured workload? `testing.AllocsPerRun` warms the function once and does not force GC. Pool entries can disappear independently; check meaningful cold-pool behavior separately. Do not flag a zero-allocation assertion or relax it merely because a pool is used.
 
   ```bash
   grep -rn "AllocsPerRun\|testing\.B.*alloc" --include="*_test.go"
@@ -95,17 +95,15 @@ The key question: is the pooled object returned to the pool BEFORE all reference
 
 ### Category 3: Type Safety
 
-<critical>
-These are compile-time errors. If they exist in the diff, they are CRITICAL — the code won't build.
-</critical>
+Distinguish compile failures from runtime bounds, overflow, and resource risks.
+Assign severity from the demonstrated consequence, not the integer type alone.
 
-- [ ] **int64 in make**: Is `make([]byte, x)` or `make([]T, x)` called where `x` is `int64`? Go `make` requires `int`. Pattern: `blockLen`, `bufSize`, `tocSize` derived as `int64` then passed directly to `make`.
-
-  ```bash
-  grep -n "make(\[\]byte," --include="*.go" -r | grep -v "int(" | head -20
-  ```
-
-- [ ] **int64 slice indices**: Are `int64` values used as slice indices `buf[i:j]`? Go slice indices must be `int`. Check: `colStart`, `colLen`, `bOff`, `end` used in slices.
+- [ ] **Integer allocation lengths**: `make` accepts integer types, including
+  `int64` and `uint64`. Check nonnegative values, target-int representability,
+  arithmetic overflow, and the permitted allocation budget before use.
+- [ ] **Integer slice indices**: Integer-typed indices are legal. Check actual
+  bounds and validate offset/length arithmetic before overflow. Convert to `int`
+  only when a receiving API requires it, after validating that range.
 
 - [ ] **Untrusted size overflow**: Sizes read from disk (file headers, TOC entries) must be checked for negative values and upper-bound before casting to `int`. Pattern: `valueSize = fileSize - headerLen - keyLen` can go negative on corrupt data.
 

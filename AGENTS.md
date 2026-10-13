@@ -6,44 +6,47 @@ This repository uses **Belayin' Pin Bob** for workflow orchestration through Cla
 
 Bob installs workflow skills and specialized subagents to `~/.claude/`:
 
-1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:explore`)
+1. **Workflow Skills** - User-invocable workflows (`/bob:work`, `/bob:matt-research`)
 2. **Subagent Orchestration** - Specialized agents for each workflow phase
 3. **State Management** - Persistent workflow artifacts in `.bob/state/` directory
 4. **Git Worktrees** - Isolated development environments
 
 ## Available Workflows
 
-### /bob:work — Concurrent Agent Team Workflow
+### /bob:work — Development Workflow
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE <-> REVIEW → COMMIT → MONITOR → COMPLETE
-```
-
-Multiple coder and reviewer teammates work in parallel. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
-
-### /bob:explore — Team-Based Exploration with Adversarial Challenge
-```
-INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT → COMPLETE
+Plan intake → WORKTREE → supplied plan or bob:matt-grill-me → coding worklist → EXECUTE → TEST → REVIEW → PR → merge decision
 ```
 
-Concurrent specialist agents for codebase exploration. No code changes.
+Ask whether the user has an existing plan. Use the supplied plan, or run the
+imported `bob:matt-grill-me` interview and wait for confirmed shared understanding before
+planning. Both paths produce a coding worklist; choose direct execution or an
+appropriate number of coders based on dependencies and file ownership. Completed assignments may be reviewed while independent coding continues;
+verification and final review wait for all writers and reviewers to finish.
+
+### /bob:matt-research — Research and Codebase Exploration
+
+Investigate a question against primary sources, trace relevant codebase behavior,
+check assumptions, and save one grounded Markdown report. Delegation is optional.
+No source changes.
 
 ### /bob:audit — Spec Audit
 ```
 INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
-Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
+Check documented guarantees against implementation and tests. Report each as
+satisfied, violated, or unverified, with evidence and suggested remedies in
+`.bob/state/audit-report.md`. Code and specs remain unchanged.
 
-## Loop-Back Rules
+## Feedback and Verification
 
-| Trigger | Route to | Reason |
-|---------|----------|--------|
-| CRITICAL/HIGH review issues | BRAINSTORM | Re-think the approach |
-| MEDIUM/LOW review issues | EXECUTE | Targeted fixes |
-| Test failures | EXECUTE | Fix the code |
-| CI failures or PR feedback | BRAINSTORM | Always re-brainstorm |
+The calling workflow owns fixes and plan decisions. Reconsider agreed assumptions
+when findings invalidate the approach; make bounded fixes for other issues. Tests,
+CI, and PR feedback requiring changes return to implementation, followed by
+relevant verification and final review. Failed or incomplete gates block completion.
 
-REVIEW is mandatory — it cannot be skipped even if tests pass.
+Final review is mandatory, even when tests pass.
 
 ## Subagents
 
@@ -52,7 +55,7 @@ REVIEW is mandatory — it cannot be skipped even if tests pass.
 | workflow-brainstormer | BRAINSTORM | Research and creative ideation |
 | workflow-planner | PLAN | Implementation planning |
 | workflow-coder | EXECUTE | Code implementation coordination |
-| workflow-implementer | EXECUTE | Actual code writing (used by workflow-coder and design) |
+| workflow-implementer | EXECUTE | Actual code writing (used by workflow-coder and specs) |
 | workflow-tester | TEST | Test execution and quality checks |
 | review-consolidator | REVIEW | Multi-domain code review |
 | commit-agent | COMMIT | Git operations and PR creation |
@@ -92,7 +95,7 @@ See CLAUDE.md for full spec-driven module documentation.
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make enable-agent-teams     # Enable /bob:work
+make enable-agent-teams     # Optional: enable native Claude teams
 make hooks                  # Optional: pre-commit quality checks
 ```
 
@@ -102,7 +105,10 @@ make hooks                  # Optional: pre-commit quality checks
 /bob:work "Add rate limiting to API"
 ```
 
-The skill creates a worktree, spawns teammate agents that work concurrently, and drives autonomously from INIT through COMMIT — only prompting at the final merge (plus, when `BOB_CONFIRM_BEFORE_PUSH=1`, a single sanctioned push-approval prompt before publication).
+The skill asks about an existing plan and, when needed, runs `bob:matt-grill-me`. After
+planning it creates coding assignments as appropriate and drives autonomously
+through verification, review, and publication, with the final merge decision
+and the configured push-approval prompt when `BOB_CONFIRM_BEFORE_PUSH=1`.
 
 ---
 

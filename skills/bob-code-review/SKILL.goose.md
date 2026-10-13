@@ -1,41 +1,38 @@
 ---
 name: bob-code-review
-description: Goose-native code review workflow - REVIEW → FIX → TEST → COMMIT → MONITOR
+description: Review changes without modifying them; report findings and draft remediation plans or comments.
 ---
 
-# Bob Code Review for Goose
+# Review Changes
 
-The parent session owns routing. Delegate bounded jobs with Summon and validate
-their artifacts after loading them.
+Review the requested changes and relevant surrounding code against the request,
+repository standards, and documented contracts. Inspect the current verification
+configuration, including ignored `.bob/config`, for ineffective checks; missing
+custom checks alone are not a defect. Use the specified diff, branch,
+PR, or revision range; without one, inspect staged, unstaged, and untracked
+work. Record the scope and current revision in the report. Check correctness,
+edge cases, security, resource ownership, concurrency, tests, and
+maintainability; apply Go guidance only to relevant Go changes. Distinguish
+demonstrated defects from suggestions and cite exact locations and evidence.
 
-```text
-review = delegate(source: "review-consolidator", instructions: "Review the exact worktree and write .bob/state/review.md", async: true)
-load(source: "<review task id>")
-```
+This skill is read-only for the codebase and external systems. Read files and
+use inspection commands only. Do not edit source, tests, configuration, or
+project documentation; run builds, tests, formatters, or fixes; commit, push,
+create PRs; or publish comments. A request to fix findings produces a proposed
+remediation plan. Draft comments for the user to review. Review directly or use
+bounded read-only Summon reviewers: `delegate(source: "reviewer", instructions:
+"Inspect the exact scope under these read-only restrictions", async: true)` then
+`load(source: "<task id>")` for every job. Workers cannot delegate; consolidate
+their results in the parent. Never delegate repairs, testing, or publication.
 
-## Workflow
-
-1. **REVIEW:** Run `review-consolidator` and, for Go changes,
-   `go-presubmit-reviewer` asynchronously. Load every task and require
-   `.bob/state/review.md`. Missing output is `FAILED`.
-2. **ROUTE:** CRITICAL/HIGH findings write `NEEDS_BRAINSTORM` to
-   `.bob/state/code-review-status.md` and return to the calling workflow.
-   MEDIUM/LOW findings continue to FIX. No findings continue to TEST.
-3. **FIX:** Delegate one bounded, non-overlapping fix set at a time to
-   `workflow-implementer`; load it and rerun REVIEW. Never let concurrent writers
-   overlap.
-4. **TEST:** Delegate to `tester`, call `load(source: "<tester task id>")`, and
-   require `.bob/state/test-results.md`. Failures return to FIX, maximum three
-   loops.
-5. **COMMIT:** If `.bob/hooks/pre-publish` exists, run it before publication.
-   When `BOB_CONFIRM_BEFORE_PUSH=1`, ask once before pushing; declining writes
-   `FAILED` and stops. Delegate commit and PR publication to `commit-agent` and
-   load the result.
-6. **MONITOR:** Delegate CI and PR feedback monitoring to `monitor-agent` and
-   load it. CI failure or feedback writes `NEEDS_BRAINSTORM`; operational errors
-   write `FAILED`.
-7. **COMPLETE:** Write `COMPLETE` to `.bob/state/code-review-status.md` only
-   after review, tests, publication, CI, and feedback gates pass.
-
-Delegated workers cannot delegate again. The parent handles every retry and
-preserves the existing publication and loop-back rules.
+Write findings to `.bob/state/review.md`, ordered by severity, with proposed
+remedies and any limits on the review. When useful or requested, draft comments
+in `.bob/state/review-comments.md` or an actionable plan in
+`.bob/state/review-plan.md`, including affected files, dependencies, and
+proposed verification. These review artifacts are the only permitted file
+writes; keep existing implementation plans intact. Write
+`.bob/state/code-review-status.md` with `COMPLETE` for no findings,
+`NEEDS_BRAINSTORM` for CRITICAL/HIGH findings, `NEEDS_EXECUTE` for MEDIUM/LOW
+findings, or `FAILED` for incomplete review. Include the reason and report path.
+`COMPLETE` means review complete, with no implementation or publication
+performed; the caller owns subsequent actions.

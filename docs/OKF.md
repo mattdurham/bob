@@ -418,4 +418,4 @@ Create `.knowledge/log.md`:
 
 Create each subdirectory `index.md` with an appropriate heading and empty list.
 
-The `bob-design` skill creates package concepts when scaffolding new modules.
+The `bob-specs` skill creates package concepts when scaffolding new modules.

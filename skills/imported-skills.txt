@@ -1,0 +1,29 @@
+# Matt Pocock: https://github.com/mattpocock/skills
+# Upstream commit: 49dd158d1076134a641b33efb035946536778336
+bob-matt-ask-matt
+bob-matt-code-review
+bob-matt-codebase-design
+bob-matt-diagnosing-bugs
+bob-matt-domain-modeling
+bob-matt-grill-me
+bob-matt-grill-with-docs
+bob-matt-grilling
+bob-matt-handoff
+bob-matt-implement
+bob-matt-implement-spec
+bob-matt-improve-codebase-architecture
+bob-matt-pr
+bob-matt-prototype
+bob-matt-research
+bob-matt-retro
+bob-matt-setup-matt-pocock-skills
+bob-matt-tdd
+bob-matt-teach
+bob-matt-to-questionnaire
+bob-matt-to-spec
+bob-matt-to-tickets
+bob-matt-triage
+bob-matt-wait-what
+bob-matt-wayfinder
+bob-matt-wizard
+bob-matt-writing-for-agents

@@ -21,8 +21,18 @@ domain once and refuse to consolidate incomplete coverage.
 ### Team Agent 8 — Reversibility & Risk Auditor
 
 Each delegate receives the scope, one named domain, evidence requirements, and
-its exact artifact path. After the load barrier, synthesize without averaging
-away disagreement. Write `.bob/state/idea-review.md` with CRITICAL fatal flaws,
+its exact artifact path. Challenge claims with evidence; no idea is assumed to
+have a critical flaw. Each worker distinguishes demonstrated problems from
+unverified assumptions, assigns severity from actual impact, and describes
+possible remedies with cost and constraints. Missing evidence is uncertainty,
+not proof of failure. After the load barrier, verify and deduplicate findings
+without averaging away disagreement; repeated unsupported claims do not gain
+confidence. Write `.bob/state/idea-review.md` with CRITICAL severe-impact findings,
 HIGH issues that must be addressed, MEDIUM planning risks, LOW notes,
 alternatives considered, clean domains, and a proceed/revise/stop routing
-recommendation. This workflow does not implement the idea.
+recommendation. Base it on feasibility, remedy cost, and the user's constraints:
+revise for repairable flaws or important validation gaps; stop only when evidence
+shows no feasible remedy at acceptable cost; proceed with explicit residual
+risks when no blocker remains. A CRITICAL finding alone never implies stop.
+Report unknown feasibility or cost as unknown. This workflow does not implement
+the idea.

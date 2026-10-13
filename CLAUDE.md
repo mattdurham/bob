@@ -6,7 +6,7 @@
 
 Bob gives Claude access to:
 
-- **Workflow Skills** - User-invocable workflows (bob:work, bob:explore)
+- **Workflow Skills** - User-invocable workflows (bob:work, bob:matt-research)
 - **Subagent Orchestration** - Specialized agents for each workflow phase
 - **State Management** - Persistent workflow artifacts in `.bob/` directory
 - **Git Worktrees** - Isolated development environments
@@ -15,38 +15,26 @@ Bob gives Claude access to:
 
 Invoke these workflows with slash commands:
 
-1. **`/bob:work`** - Team-based development workflow with concurrent agents (INIT → WORKTREE → BRAINSTORM → PLAN → EXECUTE → REVIEW → COMMIT → MONITOR)
-2. **`/bob:explore`** - Team-based exploration with adversarial challenge (INIT → DISCOVER → ANALYZE → CHALLENGE → DOCUMENT)
-3. **`/bob:audit`** - Verify spec invariants and optionally analyze Go structural health (call graphs, complexity, coupling) (read-only)
+1. **`/bob:work`** - Development workflow: ask about an existing plan, use it or run `bob:matt-grill-me`, derive a coding worklist, and choose direct execution or independent coders before verification, review, and publication. Startup intake and the confirmed interview precede autonomous execution. Completed assignments may be reviewed concurrently with independent coding; final verification and review follow the write barrier.
+2. **`/bob:matt-research`** - Primary-source research and codebase exploration with a grounded Markdown report.
+3. **`/bob:audit`** - Check documented guarantees against implementation and tests; report satisfied, violated, and unverified guarantees without changing code or specs
+
+4. **`/bob:specs`** - Create or update living module specifications for spec-driven development.
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
 ## How Skills Work
 
-**Skills are orchestration layers:**
+Skills combine task instructions with optional delegation:
 
 ```
-Skill (/bob:work)
-  ↓
-Creates worktree & .bob directory
-  ↓
-Spawns specialized subagents:
-  - Explore agent (research patterns)
-  - workflow-planner agent (create plan)
-  - workflow-coder agents (implement)
-  - workflow-tester agent (run tests)
-  - workflow-reviewer agent (code review)
-  ↓
-Manages artifacts in .bob/:
-  - .bob/state/brainstorm.md
-  - .bob/state/plan.md
-  - .bob/state/test-results.md
-  - .bob/state/review.md
-  ↓
-Result: Complete, high-quality implementation
+Request → existing plan or confirmed interview → coding worklist
+        → direct work or bounded workers → verification → read-only review
+        → publication controls → final merge decision
 ```
 
-**Skills don't do the work themselves** - they coordinate specialized Task tool agents.
+**Skills define the workflow contract.** They may perform work directly or
+coordinate specialized agents; `bob-work` chooses from its coding worklist.
 
 ## Installation
 
@@ -64,7 +52,7 @@ This installs:
 - Specialized subagents → `~/.claude/agents/`
 - Go LSP plugin (if available)
 
-After installation, skills are available via slash commands: `/bob:work`, `/bob:explore`, etc.
+After installation, skills are available via slash commands: `/bob:work`, `/bob:matt-research`, etc.
 
 **Individual component installation:**
 ```bash
@@ -93,12 +81,10 @@ Simply invoke the skill:
 /bob:work "Add user authentication feature"
 ```
 
-The skill will:
-1. Create isolated git worktree
-2. Set up `.bob/` directory for artifacts
-3. Spawn specialized subagents for each phase
-4. Guide you through the complete workflow
-5. Enforce quality gates and loop-back rules
+`bob-work` asks about a plan, uses it or runs the confirmed interview, creates
+or reuses a feature worktree, and derives a coding worklist. It chooses direct
+execution or independent coders, verifies the integrated changes, and obtains a
+read-only final review before publication and the merge decision.
 
 ## Workflow Artifacts
 
@@ -117,12 +103,12 @@ These files persist across Claude sessions and serve as context for subsequent p
 
 ## Subagent Specialization
 
-Each workflow phase uses specialized agents:
+When delegation helps, these specialist roles are available:
 
 | Phase | Agent Type | Purpose |
 |-------|-----------|---------|
 | BRAINSTORM | Explore | Research existing patterns |
-| BRAINSTORM | brainstorming | Creative ideation |
+| BRAINSTORM | workflow-brainstormer | Creative ideation |
 | PLAN | workflow-planner | Create implementation plan |
 | EXECUTE | workflow-coder | Implement code |
 | TEST | workflow-tester | Run tests and checks |
@@ -130,15 +116,13 @@ Each workflow phase uses specialized agents:
 
 ## Flow Control Rules
 
-Workflows enforce strict flow control:
+The calling workflow owns repairs and plan decisions. Reconsider the plan when
+findings invalidate agreed assumptions; otherwise make bounded corrections.
+Test failures and CI or PR feedback return to implementation, followed by
+relevant verification and a fresh final review. Incomplete reviews or failed
+publication gates block completion.
 
-**Loop-back paths:**
-- **REVIEW → BRAINSTORM**: Critical/high severity issues require re-thinking
-- **REVIEW → EXECUTE**: Medium/low severity issues need quick fixes
-- **TEST → EXECUTE**: Test failures require code changes
-- **MONITOR → BRAINSTORM**: CI failures or PR feedback (always re-brainstorm!)
-
-**Never skip REVIEW** - Quality gate enforced even if tests pass.
+**Never skip final review**, even when tests pass.
 
 ## Conflicting Inputs (coder + planner contract)
 
@@ -164,7 +148,9 @@ carries this guidance. It runs as part of `make ci`.
 
 ## Git Worktrees
 
-⚠️ **CRITICAL**: All workflows create isolated git worktrees BEFORE any file operations.
+`bob-work` creates or reuses an isolated feature worktree before implementation.
+`bob-work-simple` operates directly in the current workspace. Read-only skills
+inspect their requested scope without creating a development worktree.
 
 **Why worktrees?**
 - Isolate work from main branch
@@ -216,7 +202,11 @@ the code. Bob detects and enforces this pattern automatically.
 ## Spec Modes
 
 Bob supports two spec modes, chosen at install time via `make install SPEC=full|simple`.
-The installed skills and agents reference **only** the chosen mode — no dual-mode detection.
+Full installation includes normal skills and available single-agent variants;
+simple installation selects the single-agent variants. The shared `bob-ship`
+controls and Matt imports install in both modes. Honor the project’s actual
+documented contracts; existing specialized agents also retain mode-specific
+specification guidance.
 
 ### Full Spec Mode (default: `make install` or `make install SPEC=full`)
 
@@ -254,89 +244,36 @@ Each module carries a single `CLAUDE.md` file containing numbered invariants.
 
 ### Maintaining Spec Mode Variants
 
-Each skill and agent that references spec documentation has two files:
-- `SKILL.md` — full spec mode (references SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md)
-- `SKILL.simple.md` — simple spec mode (references CLAUDE.md only)
-
-The Makefile copies the appropriate variant at install time. **When editing a skill or agent,
-update both `SKILL.md` and `SKILL.simple.md`** if the change affects non-spec content (workflow
-logic, phase structure, tool usage, etc.). Only spec-related sections differ between variants.
-
-Files with simple variants:
-- `agents/`: workflow-brainstormer, planner, workflow-implementer, workflow-coder, tester, review-consolidator
-- `skills/`: brainstorming, explore, work, writing-plans
+Where variants exist, `SKILL.md` provides the normal workflow and
+`SKILL.simple.md` provides its direct, single-agent counterpart. Update both
+when changing their shared behavior; preserve their execution boundaries and
+project-specific specification guidance.
 
 ## Best Practices
 
-**Orchestration:**
-- Let subagents do the work
-- Pass context via `.bob/*.md` files
-- Clear input/output for each phase
-- Chain agents together systematically
-
-**Flow Control:**
-- Enforce loop-back rules strictly
-- MONITOR → BRAINSTORM (not REVIEW or EXECUTE)
-- Never skip REVIEW phase
-- Always validate test passage
-
-**Quality:**
-- TDD throughout (tests first)
-- Comprehensive multi-domain code review (single consolidated reviewer)
-- Fix issues properly (re-brainstorm if needed)
-- Maintain code quality standards
+- Derive assignments from the worklist and delegate only when useful.
+- Give workers clear scope, file ownership, and unique result paths.
+- Collect writers and early reviewers before integrated verification.
+- Preserve contracts, user changes, and recorded decisions.
+- Require current verification and a clean final review before publication.
+- Return CI and PR feedback to the caller; honor push and merge approval.
 
 ## Example Session
 
 ```
 You: /bob:work "Add rate limiting to API"
+Bob: Do you have an existing implementation plan? [yes/no]
+You: no
 
-Claude: I'll orchestrate the work workflow...
+Bob follows bob:matt-grill-me, asking one question at a time.
+You confirm the requirements and decisions.
 
-[INIT Phase]
-Verifying experimental agent teams flag...
-Creating .bob directory...
-✓ Ready to brainstorm
+Bob creates the coding worklist in an isolated worktree.
+Independent assignments may use concurrent coders and early read-only reviews.
+All workers finish before verification and final integrated review.
 
-[BRAINSTORM Phase]
-Spawning brainstorming skill...
-Creating worktree at ../bob-worktrees/add-rate-limiting...
-Spawning Explore agent to research patterns...
-✓ Research complete, findings in .bob/state/brainstorm.md
-
-[PLAN Phase]
-Spawning workflow-planner agent...
-✓ Implementation plan in .bob/state/plan.md
-✓ Created 8 tasks in task list
-
-[SPAWN TEAM]
-✓ Spawned coder-1, coder-2, reviewer-1, reviewer-2
-
-[EXECUTE + REVIEW - Concurrent]
-coder-1: "Claimed task 1: Implement rate limiter"
-coder-2: "Claimed task 2: Add config"
-reviewer-1: "Reviewing task 1..."
-✓ All tasks complete and reviewed
-
-[REVIEW Phase]
-Spawning review-consolidator...
-  ✓ Security, bugs, errors, quality, performance, Go idioms, architecture, docs
-✓ 3 medium issues found in .bob/state/review.md
-
-[Loop to EXECUTE]
-Teammates fixing medium issues...
-...
-
-[COMMIT Phase]
-Shutting down teammates...
-✓ PR created: https://github.com/user/repo/pull/123
-
-[MONITOR Phase]
-Checking CI status...
-✓ All checks passing
-
-[COMPLETE]
-Workflow complete!
+After passing checks and a clean review, bob:ship prepares the PR and
+honors configured push approval. Bob reports CI and asks for the merge decision.
 ```
 
 ## Customization

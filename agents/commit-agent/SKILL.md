@@ -57,12 +57,12 @@ anything stale in `.bob/state/commit-prompt.md`:
 - **`CONFIRM_MODE: PUBLISH`** — the task text names a branch, a commit SHA, and a
   PR title. First verify `git branch --show-current` and `git rev-parse HEAD`
   equal those values byte-for-byte; on any mismatch STOP with a FAILED report
-  saying "HEAD moved since the preview; re-run /bob:code-review to attempt a
+  saying "HEAD moved since the preview; re-run /bob:ship to attempt a
   fresh preview". Read `.bob/state/pr-title.txt` with the Read tool and
   compare it to the task-provided title in memory. Never place the
   task-provided title in shell command text while verifying it. On any
   mismatch, STOP with a FAILED report saying the title state is stale —
-  re-run /bob:code-review for a fresh preview. A fresh
+  re-run /bob:ship for a fresh preview. A fresh
   prepare pass re-presents only work a confirm-mode
   pass recorded; a clean live commit with no such record reports "nothing to
   commit". Never create a commit in this mode. Run Steps 5-8, creating or

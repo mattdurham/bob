@@ -1,44 +1,12 @@
 ---
 name: bob-work
-description: Single-agent development workflow — INIT → PLAN → EXECUTE → TEST → REVIEW → COMPLETE.
-user-invocable: true
-category: workflow
+description: Develop a change directly in the current workspace using an existing plan or bob-matt-grill-me, then verify and review it without delegation.
 ---
 
-# Bob Work — Single Agent
+# Develop a Change
 
-Run the development workflow yourself in the current workspace. This variant is
-strictly single-agent: never call `Task`, `Agent`, `subagent`, create teammates,
-or use agent teams. Do not delegate exploration, planning, implementation,
-testing, review, commits, or monitoring.
+Ask “Do you have an existing implementation plan? [yes/no]” and wait; a supplied plan, including `--seed-plan <path>`, counts as yes. Obtain and validate the supplied plan without silently replacing it; resolve file paths before changing directories. If no plan exists, follow `bob-matt-grill-me` and `bob-matt-grilling` in this conversation, asking one question at a time until the user confirms shared understanding. That answer authorizes the manual-only interview; missing interview skills or an unusable supplied plan are blockers. Work in the current workspace and preserve unrelated user changes. Perform interview research yourself without delegation. Keep an immutable supplied-plan copy in `.bob/state/seed-plan.md`, or record confirmed requirements in `.bob/state/brainstorm.md`. Derive `.bob/state/plan.md` from this invocation's inputs, ignoring stale state, with a coding worklist of task identifiers, outcomes, owned files, dependencies, verification, assignments, and status.
 
-1. Inspect the repository, current branch, working tree, relevant guidance, and
-   applicable specs. Preserve unrelated user changes.
-2. Form a concise implementation plan and record it in `.bob/state/plan.md`.
-3. Implement the requested change directly, keeping the scope minimal.
-4. Run the most relevant tests, linters, formatters, or verification commands.
-5. Review the diff yourself for correctness, regressions, spec drift, and missing
-   tests. Fix issues found and rerun verification.
-6. Report changed files, verification results, remaining risks, and the final
-   routing recommendation. Commit only when the user requested a commit. If you
-   push and open or update a PR, and `BOB_CONFIRM_BEFORE_PUSH` is exactly `1`
-   (check with `echo "confirm-before-push: ${BOB_CONFIRM_BEFORE_PUSH:-unset}"`),
-   commit locally first, then show the user every commit the push will publish
-   (`git log --oneline HEAD --not --remotes=origin`) and the proposed PR title
-   and body verbatim, and ask `Push this branch and create or update its PR
-   with the title and body shown above? [push / stop]` before running `git
-   push` or `gh pr create`/`gh pr edit`. Only proceed on an exact `push` reply.
+Implement the worklist yourself without spawning subagents or teammates for any part of this workflow. Honor dependencies, preserve agreed scope and public contracts, and update affected specifications and task status. Record `DECISION NEEDED` conflicts between plans, contracts, and code with the competing readings, affected symbols, and consequences; continue unaffected work, surface decisions needing user input, and record the ruling before TEST. Do not silently treat implementation as permission to change an authoritative contract.
 
-Use `.bob/state/brainstorm.md`, `.bob/state/plan.md`, and
-`.bob/state/test-results.md` for direct artifacts when useful. If blocked by a
-missing decision or external state, explain the exact blocker instead of spawning
-another agent.
-
-**Conflicting inputs.** You have no coder to escalate to, so a plan/code conflict
-lands on you. Do not guess and do not stall: bisect what the conflict actually
-affects, implement everything it does not, and adopt already-landed code as the
-tiebreaker (compiling code is the settled shape; a plan or decision record is recorded
-intent). Then surface it to the user in your final message as a `DECISION NEEDED` entry
-— question, both readings, affected symbols, the tiebreaker you applied, and the impact
-if it is wrong — and record the ruling in the plan or decision log so the next plan does
-not repeat the conflict. A surfaced conflict is a successful outcome, not a failure.
+Honor repository-root `.bob/config` verification commands, including ignored configuration, using the tester’s documented parsing and serial execution rules; otherwise run relevant project tests, formatting, and static checks; record results in `.bob/state/test-results.md`. Follow `bob-code-review-simple` directly for a read-only review of the final diff, recording `.bob/state/review.md` and review status. Fix findings yourself and repeat affected verification and final review. Missing, stale, failed, or unresolved gates block completion. Report changes, verification, and remaining risks. Commit or publish only when requested; apply `bob-ship`'s verification, publication, recovery, and monitoring controls directly without delegation. Check `BOB_CONFIRM_BEFORE_PUSH` from the environment; if exactly `1`, commit locally, show every commit the push would publish and the exact proposed PR title and body, then ask `Push this branch and create or update its PR with the title and body shown above? [push / stop]`. Require an exact `push` reply before pushing or creating/updating the PR; a decline ends publication. Changes from hooks, CI, or PR feedback require fresh verification and review. Merge only with the user's approval.

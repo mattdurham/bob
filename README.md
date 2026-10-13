@@ -15,6 +15,21 @@
 Workflow orchestration for Claude Code, Goose, Pi, Codex, and wllr through
 skills and subagents.
 
+## Imported skills
+
+Bob also ships the 27 published engineering and productivity skills from
+[Matt Pocock's skills](https://github.com/mattpocock/skills), with the Bob prefix:
+`bob:matt-tdd`, `bob:matt-implement`, `bob:matt-code-review`, `bob:matt-grill-me`, and `bob:matt-teach`.
+Their supporting files, invocation policies, original credits, and MIT licenses
+travel with each package. Every imported entrypoint attributes Matt Pocock and
+records its upstream source and commit in frontmatter.
+
+`make install` installs them into Claude Code and detects Pi, Codex, wllr, and
+Goose on `PATH`. Each explicit harness installer includes them too, with both
+`SPEC=full` and `SPEC=simple`. Runtime adaptations are generated at install time;
+the source packages remain shared. See [the import catalog](docs/imported-skills.md)
+for the full list and installation details.
+
 ## What is Bob?
 
 Bob coordinates AI agent workflows for feature development. Skills invoke specialized subagents, pass state through `.bob/` artifacts, and enforce quality gates automatically.
@@ -25,7 +40,7 @@ Bob treats **SPECS.md as the source of truth** for module behavior. Every workfl
 
 - **`/bob:work`** reads existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
-- **`/bob:explore`** prioritizes spec docs when analyzing a codebase. For spec-driven modules, it reads SPECS.md and NOTES.md first to understand contracts and design decisions before diving into implementation code. Uses concurrent analysis and adversarial challenge phases for deep, reliable exploration.
+- **`/bob:matt-research`** investigates topics and explores codebases against primary sources, checking documented contracts against implementation and reporting uncertainties.
 
 A spec-driven module is any directory containing SPECS.md, NOTES.md, TESTS.md, BENCHMARKS.md, or `.go` files with this comment:
 
@@ -95,13 +110,25 @@ for runtime details.
 
 ## Workflows
 
-### `/bob:work` — Concurrent Agent Team Workflow
+### `/bob:work` — Development Workflow
 
 ```
-INIT → WORKTREE → BRAINSTORM → PLAN → SPAWN TEAM → EXECUTE ↔ REVIEW → COMMIT → MONITOR → COMPLETE
+Existing plan or bob:matt-grill-me → coding worklist → implement → verify → review → PR → merge decision
 ```
 
-Multiple coder and reviewer teammates work in parallel through a shared task list. Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`.
+At startup Bob asks whether you have an existing implementation plan. Supply a
+file or pasted plan, or answer no to run `bob:matt-grill-me` before planning. Both paths
+produce a coding worklist with dependencies and verification steps. Bob chooses
+direct execution, one coder, or multiple independent coders as appropriate;
+shared files and dependent tasks are serialized. The `-simple` variant remains
+single-agent. Completed assignments may be reviewed while independent coding
+continues; all writers and reviewers finish before verification and final review.
+
+### `/bob:specs` — Spec-Driven Module Setup
+
+Create or update `SPECS.md`, `NOTES.md`, `TESTS.md`, and `BENCHMARKS.md`,
+grounded in the module’s contracts and implementation. Adds Go-file reminders
+to keep specifications in sync. Replaces the former `/bob:design` command.
 
 ### `/bob:audit` — Spec Audit
 
@@ -109,31 +136,25 @@ Multiple coder and reviewer teammates work in parallel through a shared task lis
 INIT → DISCOVER → AUDIT → REPORT → COMPLETE
 ```
 
-Verify code satisfies stated invariants in spec-driven modules. Read-only — reports drift but doesn't fix it.
+Check documented guarantees against implementation and tests. Report each as
+satisfied, violated, or unverified, with evidence and suggested remedies in
+`.bob/state/audit-report.md`. Code and specs remain unchanged.
 
-### `/bob:explore` — Team-Based Exploration with Adversarial Challenge
+### `/bob:matt-research` — Research and Codebase Exploration
 
-```
-INIT → DISCOVER → ANALYZE (4 agents) → CHALLENGE (5 agents) → DOCUMENT → COMPLETE
-                     ↑                       ↓
-                     └───────────────────────┘
-                          (any FAIL, max 2 loops)
-```
+Investigate a question using primary sources. For codebases, trace relevant
+structure, entry points, data flow, contracts, and tests; check the explanation
+against the source and report uncertainties. Work directly or delegate when
+useful, then save one Markdown report. No source changes.
 
-Concurrent specialist agents for codebase exploration. ANALYZE spawns 4 agents (structure, flow, patterns, dependencies). CHALLENGE spawns adversarial agents that stress-test the analysis. Failures loop back to re-analyze. No code changes.
+## Feedback and Verification
 
-## Loop-Back Rules
+The calling workflow owns fixes and plan decisions. Reconsider agreed assumptions
+when findings invalidate the approach; make bounded fixes for other issues. Tests,
+CI, and PR feedback requiring changes return to implementation, followed by
+relevant verification and final review. Failed or incomplete gates block completion.
 
-All work workflows enforce these routing rules:
-
-| Trigger | Route to | Reason |
-|---------|----------|--------|
-| CRITICAL/HIGH review issues | BRAINSTORM | Re-think the approach |
-| MEDIUM/LOW review issues | EXECUTE | Targeted fixes |
-| Test failures | EXECUTE | Fix the code |
-| CI failures or PR feedback | BRAINSTORM | Always re-brainstorm |
-
-REVIEW is mandatory — it cannot be skipped even if tests pass.
+Final review is mandatory, even when tests pass.
 
 ## Subagents
 
@@ -171,6 +192,12 @@ To commit the file in a repo that ignores `.bob` paths: `!.bob/config` works onl
 !.bob/config
 ```
 
+## Code Review
+
+`/bob:code-review` inspects changes and drafts findings, remediation plans, or
+comments. It does not modify code or post comments. Work workflows handle
+repairs and verification, then use `/bob:ship` for publication.
+
 ## Pre-Publish Gate Hook (opt-in, per repo)
 
 A repo can veto bob's publication step by shipping an executable
@@ -178,7 +205,7 @@ A repo can veto bob's publication step by shipping an executable
 committed hook is compared byte-for-byte against HEAD, and one locally
 altered, deleted, or replaced by a symlink is refused; any symlink at the
 hook path is refused). Before the standard publication path
-(`/bob:code-review`, including when the `/bob:work` variants invoke it) pushes
+(`/bob:ship`, invoked by the `/bob:work` variants after review) pushes
 or creates a PR, commit-agent runs the hook from the repo top level with no
 arguments and stdin reading end-of-file — a bob-specific contract, not git's pre-push
 interface. Exit 0 lets the push proceed; any other exit (or a broken hook, or
@@ -196,7 +223,8 @@ travels with the repo. On macOS the hook budget needs GNU coreutils
 
 ## Git Worktrees
 
-All work workflows create isolated git worktrees before any file operations:
+`bob-work` creates or reuses an isolated feature worktree before implementation.
+The simple variant works directly in the current workspace:
 
 ```
 repo/
@@ -211,8 +239,8 @@ repo-worktrees/
 
 ## Confirm Before Push (opt-in)
 
-By default bob publishes autonomously at COMMIT. To have `/bob:code-review`
-(and the `/bob:work` variants, which route COMMIT through it) pause and show
+By default bob publishes autonomously at COMMIT. To have `/bob:ship`
+(and the `/bob:work` variants, which route publication through it) pause and show
 you every commit the push will publish and the proposed PR body verbatim
 before anything is pushed, add to
 `~/.claude/settings.json`:
@@ -239,8 +267,8 @@ verbatim, and asks
 `Push this branch and create or update its PR with the title and body shown above? [push / stop]`
 — `stop` neither creates nor updates a pull request and pushes nothing new.
 
-Scope: the standard publication path (`/bob:code-review`, including when the
-`/bob:work` variants invoke it). `bob-stage-prs` keeps its own built-in
+Scope: the standard publication path (`/bob:ship`, invoked by the
+`/bob:work` variants after review). `bob-stage-prs` keeps its own built-in
 confirmation step. The `*-simple` skill variants do not support the flag and
 may ignore it. Run one bob workflow per checkout — the pause holds its state
 in `.bob/state` between the two passes.
@@ -251,7 +279,7 @@ in `.bob/state` between the two passes.
 make install                # Everything (skills + agents + LSP)
 make install-skills         # Skills only
 make install-agents         # Subagents only
-make enable-agent-teams     # Enable /bob:work
+make enable-agent-teams     # Optional: enable native Claude teams
 make hooks                  # Optional: pre-commit quality checks
 ```
 

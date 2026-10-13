@@ -1,28 +1,12 @@
 ---
 name: bob-cleanup
-description: Goose-native code cleanup workflow with parallel discovery and bounded fixes
+description: Simplify code and documentation while preserving behavior and public contracts, then verify and review the changes.
 ---
 
-# Bob Cleanup for Goose
+# Code Cleanup
 
-Never introduce new functionality. Preserve behavior and public contracts.
+Inspect the requested area, its tests, and documented contracts. Identify evidence-backed simplifications: dead code, needless abstraction, confusing names, inaccurate comments, and stale documentation. Record a brief worklist in `.bob/state/cleanup-plan.md` with scope and verification. Preserve user changes and public contracts; report behavior-changing fixes or disagreements between specifications and implementation for a separate decision. Do not rewrite an authoritative contract merely to match the code.
 
-1. **DISCOVER:** Launch `bug-finder`, `workflow-code-quality`,
-   `architecture-introspector`, and `spec-doc-reviewer` with
-   `delegate(..., async: true)`. Each receives a bounded scope and unique
-   `.bob/state/cleanup-*.md` output. Collect all with
-   `load(source: "<task id>")`; retry a missing domain once.
-2. **PLAN:** Parent deduplicates evidence into `.bob/state/cleanup-plan.md`. If
-   no actionable issue remains, proceed directly to FINAL REVIEW.
-3. **CLEANUP LOOP:** Partition non-overlapping paths and delegate bounded
-   `team-coder` fixes asynchronously. Load all writers, serialize overlaps, and
-   run read-only specialist reviews after the write barrier. Limit fixes to
-   simplification, bug repair, dead-code removal, and truthful documentation.
-4. **TEST:** Delegate to `tester`, load the result, and require
-   `.bob/state/test-results.md`. Failures return to the cleanup loop, max three.
-5. **FINAL REVIEW:** Delegate to `review-consolidator`, load it, and require
-   `.bob/state/review.md`. REVIEW is mandatory; unresolved issues loop back.
-6. **COMMIT:** Delegate to `commit-agent` only after behavior-preserving tests
-   and final review pass.
+Make the smallest useful behavior-preserving changes. Work directly, or use `delegate(..., async: true)` for bounded independent tasks when useful. Give writers clear, disjoint file ownership and unique result paths; serialize overlapping edits. Collect every task with `load(source: "<task id>")` before final verification. The parent owns further dispatch and synthesis. Keep the work within the agreed cleanup scope; add no features or speculative abstractions. Leave out edits whose behavior preservation cannot be demonstrated and explain the uncertainty.
 
-The parent owns task ids, file ownership, barriers, and retry counts.
+Run relevant formatting, tests, and static checks, then review the final diff for regressions and scope drift. Fix issues introduced by the cleanup and repeat the affected checks; unresolved failures block completion. Record verification in `.bob/state/test-results.md` and review findings in `.bob/state/review.md`. Report what changed, what was verified, and deferred opportunities. Commit only when requested. If publication is requested, follow `bob-ship` after verification and review; preserve its configured push approval and recovery controls.

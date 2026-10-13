@@ -1,28 +1,35 @@
 ---
 name: bob-audit
-description: Goose-native read-only audit of documented invariants and codebase health
+description: Check documented guarantees against implementation and tests; report violations and unverified claims without modifying the codebase.
 ---
 
-# Bob Audit for Goose
+# Audit Documented Guarantees
 
-This workflow is strictly read-only: do not fix code or documentation. Discover
-spec-driven modules, then audit documented invariants against implementation and
-tests. A proposed invariant is not authoritative until the user accepts it.
+Audit the requested module or directory; when no scope is supplied, discover
+documented guarantees across the repository. Read applicable SPECS.md,
+CLAUDE.md, AGENTS.md, NOTES.md, TESTS.md, and BENCHMARKS.md, and trace each
+stated invariant, contract, or binding design decision through the
+implementation and relevant tests. Record its source and scope. If documentation
+is absent, contradictory, or inaccessible, report that limit rather than
+inventing authoritative guarantees.
 
-For each bounded module/domain, use:
+For every guarantee, mark it satisfied, violated, or unverified. Cite the
+implementation and test evidence with exact locations; for violations, describe
+the triggering conditions and impact; for unverified claims, explain what
+evidence is missing. A passing test or lack of an obvious defect alone does not
+establish a guarantee. Audit directly or split independent modules into bounded
+read-only Summon jobs using `delegate(source: "Explore", instructions: "Audit
+the named module under these restrictions; write its unique
+.bob/state/audit-module artifact", async: true)`, then `load(source: "<task
+id>")` for every job. Workers cannot delegate. Consolidate only results from
+this invocation; failed or missing coverage remains unverified.
 
-```text
-audit = delegate(source: "Explore", instructions: "Read-only invariant audit; write the named .bob/state artifact", async: true)
-load(source: "<audit task id>")
-```
-
-Run independent module audits asynchronously, retain all task ids, and validate
-every artifact after loading. Check `SPECS.md` first, then `NOTES.md`, `TESTS.md`,
-`BENCHMARKS.md`, code, and tests. Separate documented invariant violations from
-undocumented risks. If structural Go analysis is relevant, delegate a bounded
-call-graph/complexity/coupling scan and load its result.
-
-Score only verified evidence. Write the final audit report with satisfied,
-drifted, unverified, and proposed invariants; include `file:line`, impact, and
-recommended next action. Present proposed-invariant review to the user rather
-than silently changing the source of truth.
+Keep the codebase and external systems unchanged: use file reads and inspection
+commands, without repairs, test generation, builds, test runs, commits, or
+publication. Write only audit artifacts under .bob/state/, with the final report
+at .bob/state/audit-report.md. Include the scope, reviewed revision, every
+guarantee and verdict, coverage limits, and suggested remedies. Keep proposed
+invariants clearly labeled as suggestions; adding or changing specifications is
+a separate task. Summarize verified violations and unverified guarantees, and
+never claim full compliance when coverage is incomplete. Do not run automatic
+codebase health scans or compute complexity or coupling scores.

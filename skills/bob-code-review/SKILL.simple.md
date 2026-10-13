@@ -1,19 +1,37 @@
 ---
 name: bob:code-review
-description: Single-agent code review with optional direct fixes and verification.
+description: Review changes without modifying them; report findings and draft remediation plans or comments.
 user-invocable: true
 category: workflow
 ---
 
-# Bob Code Review — Single Agent
+# Review Changes
 
-Review the requested change yourself. Never call `Task`, `Agent`, `subagent`,
-create teammates, or use agent teams.
+Review the requested changes and relevant surrounding code against the request,
+repository standards, and documented contracts. Inspect the current verification
+configuration, including ignored `.bob/config`, for ineffective checks; missing
+custom checks alone are not a defect. Use the specified diff, branch,
+PR, or revision range; without one, inspect staged, unstaged, and untracked
+work. Record the scope and current revision in the report. Check correctness,
+edge cases, security, resource ownership, concurrency, tests, and
+maintainability; apply Go guidance only to relevant Go changes. Distinguish
+demonstrated defects from suggestions and cite exact locations and evidence.
 
-Inspect the diff and relevant surrounding code. Check contracts and specs, logic,
-edge cases, error handling, security, concurrency, resource lifetime, tests,
-comments, and maintainability. Write findings to `.bob/state/review.md`, sorted
-by CRITICAL/HIGH/MEDIUM/LOW, with exact locations and evidence. If the user asked
-for fixes, apply them directly, run verification, and review the resulting diff.
-Do not commit or push unless explicitly requested. End with PASS, EXECUTE, or
-BRAINSTORM and the reason.
+This skill is read-only for the codebase and external systems. Read files and
+use inspection commands only. Do not edit source, tests, configuration, or
+project documentation; run builds, tests, formatters, or fixes; commit, push,
+create PRs; or publish comments. A request to fix findings produces a proposed
+remediation plan. Draft comments for the user to review. Perform the review
+yourself without subagents or teams.
+
+Write findings to `.bob/state/review.md`, ordered by severity, with proposed
+remedies and any limits on the review. When useful or requested, draft comments
+in `.bob/state/review-comments.md` or an actionable plan in
+`.bob/state/review-plan.md`, including affected files, dependencies, and
+proposed verification. These review artifacts are the only permitted file
+writes; keep existing implementation plans intact. Write
+`.bob/state/code-review-status.md` with `COMPLETE` for no findings,
+`NEEDS_BRAINSTORM` for CRITICAL/HIGH findings, `NEEDS_EXECUTE` for MEDIUM/LOW
+findings, or `FAILED` for incomplete review. Include the reason and report path.
+`COMPLETE` means review complete, with no implementation or publication
+performed; the caller owns subsequent actions.

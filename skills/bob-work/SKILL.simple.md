@@ -1,6 +1,7 @@
 ---
 name: bob-work
 description: Develop a change directly in the current workspace using an existing plan or bob-matt-grill-me, then verify and review it without delegation.
+user-invocable: true
 ---
 
 # Develop a Change

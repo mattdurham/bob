@@ -95,6 +95,8 @@ assert_not_contains "$full_root/codex/skills/bob-matt-teach/SKILL.md" 'argument-
 assert_not_contains "$full_root/codex/skills/bob-matt-implement/SKILL.md" 'Skill tool'
 assert_contains "$full_root/pi/skills/bob-matt-implement/SKILL.md" 'user-invocable: true'
 assert_contains "$full_root/wllr/skills/bob-matt-implement/SKILL.md" 'user-invocable: true'
+assert_contains "$full_root/wllr/skills/bob-work/SKILL.md" 'user-invocable: true'
+assert_contains "$full_root/wllr/skills/bob-work-simple/SKILL.md" 'user-invocable: true'
 assert_contains "$full_root/goose/skills/bob-matt-implement-spec/SKILL.md" 'delegate('
 assert_contains "$full_root/goose/skills/bob-matt-implement-spec/SKILL.md" 'load(source:'
 assert_not_contains "$full_root/goose/skills/bob-matt-implement/SKILL.md" 'Skill tool'
@@ -115,6 +117,7 @@ for harness in claude pi codex wllr goose; do
     cmp -s "$repo_root/skills/bob-ship/references/publication-procedure.md" "$simple_root/$harness/skills/bob-ship/references/publication-procedure.md" || fail "publication procedure changed: $harness"
 done
 assert_file "$simple_root/codex/skills/bob-work-simple/SKILL.md"
+assert_contains "$simple_root/wllr/skills/bob-work-simple/SKILL.md" 'user-invocable: true'
 [[ ! -e "$simple_root/codex/skills/bob-work/SKILL.md" ]] || fail "simple mode installed a normal Bob work skill"
 
 # An earlier skills.sh/local-link install must not be modified through a symlink.

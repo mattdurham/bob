@@ -1,6 +1,7 @@
 ---
 name: bob-work
 description: Develop a change in an isolated worktree using an existing plan or bob-matt-grill-me, then implement, verify, review, and prepare its PR.
+user-invocable: true
 ---
 
 # Develop a Change

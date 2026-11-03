@@ -116,9 +116,9 @@ for runtime details.
 Existing plan or bob:matt-grill-me → coding worklist → implement → verify → review → PR → merge decision
 ```
 
-At startup Bob asks whether you have an existing implementation plan. Supply a
-file or pasted plan, or answer no to run `bob:matt-grill-me` before planning. Both paths
-produce a coding worklist with dependencies and verification steps. Bob chooses
+Bob automatically uses a supplied file or pasted plan. Without one, Bob runs
+`bob:matt-grill-me` before planning. Both paths produce a coding worklist with
+dependencies and verification steps. Bob chooses
 direct execution, one coder, or multiple independent coders as appropriate;
 shared files and dependent tasks are serialized. The `-simple` variant remains
 single-agent. Completed assignments may be reviewed while independent coding

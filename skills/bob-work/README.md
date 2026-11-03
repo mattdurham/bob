@@ -3,11 +3,10 @@
 `/bob:work` develops a requested change in an isolated worktree, verifies and
 reviews it, prepares its PR, and asks for the final merge decision.
 
-Bob starts with **“Do you have an existing implementation plan?”** Supply a
-plan file or pasted text to use it. If you have no plan, Bob runs the imported
+Bob automatically uses a supplied plan file or pasted text, including
+`--seed-plan <path>`. Without a supplied plan, Bob runs the imported
 `bob-matt-grill-me` interview and waits for your confirmation of shared understanding
-before writing the implementation plan. A supplied `--seed-plan <path>` counts
-as an existing plan and avoids a redundant question.
+before writing the implementation plan.
 
 Both paths produce a **coding worklist** in `.bob/state/plan.md`, with task
 identifiers, outcomes, files, dependencies, verification, status, and assignments.

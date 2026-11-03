@@ -15,7 +15,7 @@ Bob gives Claude access to:
 
 Invoke these workflows with slash commands:
 
-1. **`/bob:work`** - Development workflow: ask about an existing plan, use it or run `bob:matt-grill-me`, derive a coding worklist, and choose direct execution or independent coders before verification, review, and publication. Startup intake and the confirmed interview precede autonomous execution. Completed assignments may be reviewed concurrently with independent coding; final verification and review follow the write barrier.
+1. **`/bob:work`** - Development workflow: automatically use a supplied plan or otherwise run `bob:matt-grill-me`, derive a coding worklist, and choose direct execution or independent coders before verification, review, and publication. Plan intake and the confirmed interview precede autonomous execution. Completed assignments may be reviewed concurrently with independent coding; final verification and review follow the write barrier.
 2. **`/bob:matt-research`** - Primary-source research and codebase exploration with a grounded Markdown report.
 3. **`/bob:audit`** - Check documented guarantees against implementation and tests; report satisfied, violated, and unverified guarantees without changing code or specs
 
@@ -262,8 +262,6 @@ project-specific specification guidance.
 
 ```
 You: /bob:work "Add rate limiting to API"
-Bob: Do you have an existing implementation plan? [yes/no]
-You: no
 
 Bob follows bob:matt-grill-me, asking one question at a time.
 You confirm the requirements and decisions.

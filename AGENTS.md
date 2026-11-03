@@ -18,8 +18,8 @@ Bob installs workflow skills and specialized subagents to `~/.claude/`:
 Plan intake → WORKTREE → supplied plan or bob:matt-grill-me → coding worklist → EXECUTE → TEST → REVIEW → PR → merge decision
 ```
 
-Ask whether the user has an existing plan. Use the supplied plan, or run the
-imported `bob:matt-grill-me` interview and wait for confirmed shared understanding before
+Use a supplied implementation plan automatically. Otherwise, run the imported
+`bob:matt-grill-me` interview and wait for confirmed shared understanding before
 planning. Both paths produce a coding worklist; choose direct execution or an
 appropriate number of coders based on dependencies and file ownership. Completed assignments may be reviewed while independent coding continues;
 verification and final review wait for all writers and reviewers to finish.
@@ -105,7 +105,7 @@ make hooks                  # Optional: pre-commit quality checks
 /bob:work "Add rate limiting to API"
 ```
 
-The skill asks about an existing plan and, when needed, runs `bob:matt-grill-me`. After
+The skill uses a supplied plan automatically and otherwise runs `bob:matt-grill-me`. After
 planning it creates coding assignments as appropriate and drives autonomously
 through verification, review, and publication, with the final merge decision
 and the configured push-approval prompt when `BOB_CONFIRM_BEFORE_PUSH=1`.

@@ -1192,7 +1192,7 @@ install-wllr install-wllr-skills: check-agents
 				case "$$CMD" in bob-internal-*) CMD="bob:internal:$${CMD#bob-internal-}" ;; bob-*) CMD="bob:$${CMD#bob-}" ;; esac; \
 				CMD="$$CMD$$SUFFIX"; DEST=$$(echo "$$CMD" | tr ':' '-'); [ -z "$$DEST" ] && DEST="$$skill$$SUFFIX"; \
 				echo "   Installing $$CMD skill..."; mkdir -p "$$SKILLS_DIR/$$DEST"; \
-				sed "s/^name: .*/name: $$CMD/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+				sed "s/^name: .*/name: $$CMD/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh | bash scripts/wllr-model-chain.sh "$$skill" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
 				if [ -d "skills/$$skill/references" ]; then cp -R "skills/$$skill/references" "$$SKILLS_DIR/$$DEST/" || exit 1; fi; \
 			done; \
 		else \
@@ -1220,7 +1220,7 @@ install-wllr install-wllr-skills: check-agents
 		DEST_DIR="$$SKILLS_DIR/$$agent"; \
 		case "$$DEST_DIR" in *'|'*|*'&'*|*'\'*|*'"'*) echo "❌ $$DEST_DIR contains | & \" or a backslash, which cannot be rendered safely into quoted marker references"; exit 1 ;; esac; \
 		mkdir -p "$$DEST_DIR" || exit 1; \
-		sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
+		sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" | bash scripts/wllr-model-chain.sh "$$agent" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
 		for extra in "$$agent_dir"/*; do \
 			case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
 			cp -R "$$extra" "$$DEST_DIR/" || { echo "❌ copy failed for $$extra"; exit 1; }; \

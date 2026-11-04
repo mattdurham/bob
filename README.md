@@ -201,6 +201,33 @@ Final review is mandatory, even when tests pass.
 | team-reviewer | REVIEW | Concurrent reviewer teammate |
 | Explore | DISCOVER | Codebase exploration |
 
+### Model routing in wllr
+
+Agent prompts name Claude Code's model aliases (`model: sonnet`, `model: haiku`),
+which are correct for the Claude, Pi, Codex and Goose targets. wllr has no such
+aliases, so `make install-wllr-skills` rewrites that line into an ordered tier
+chain via `scripts/wllr-model-chain.sh`; the source prompts are left alone.
+
+The order encodes the agent's role, because wllr applies the first candidate that
+resolves to a model configured on that machine:
+
+| Role | Installed chain | Rationale |
+|---|---|---|
+| Planning | `[high, low]` | Spend reasoning capability first |
+| Coding / review | `[low, high]` | Spend the cheap model first |
+
+The two lists live at the top of `scripts/wllr-model-chain.sh`. A new agent that
+appears in neither is still installed (strong-first, so capability is never
+silently downgraded) but the installer reports it, so add it to the right list.
+
+Imported upstream skills (`skills/bob-matt-*`) declare no `model:` at all and
+mostly inherit the session model on purpose, so their sources are copied as-is.
+The exception is `INJECT_PLANNING` in the same script: the grilling skills
+(`bob-matt-grill-me`, `bob-matt-grill-with-docs`, `bob-matt-grilling`) reason
+about a plan or design, so a `model: [high, low]` line is added to their
+frontmatter at install time. Adding a skill there is how you opt an upstream
+skill into planning-tier routing without editing the vendored source.
+
 ## Per-Repo Verification Commands
 
 By default the TEST phases run bob's Go toolchain (`make ci`, or `go test`/`go fmt`/`golangci-lint`/`gocyclo` individually). Repos in other languages can override this with a `.bob/config` file at the repository root containing one `verify:` line per command:

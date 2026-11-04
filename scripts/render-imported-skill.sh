@@ -38,7 +38,16 @@ render() {
 }
 
 # These harnesses load skills by reading their entrypoint instead of a Claude Skill tool.
-render | sed \
+# Only wllr resolves `model:` through a fallback chain, so only wllr is routed
+# through the chain renderer; the other runtimes keep their frontmatter as-is.
+skill_name=$(basename "$(dirname "$source_file")")
+if [[ "$runtime" == wllr ]]; then
+    TEXT=$(render | bash "$script_dir/wllr-model-chain.sh" "$skill_name")
+else
+    TEXT=$(render)
+fi
+
+printf '%s\n' "$TEXT" | sed \
     -e 's/[Cc]all the Skill tool twice, for/Read and follow both skills,/g' \
     -e 's/[Cc]all the Skill tool with/Read and follow the skill/g' \
     -e 's/calls the Skill tool with/reads and follows the skill/g' \

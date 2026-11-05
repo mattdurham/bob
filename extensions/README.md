@@ -106,6 +106,28 @@ The model's tool calls remain in context so it can reference results in subseque
 
 ---
 
+## engram
+
+**File:** `engram.ts`  
+**Purpose:** Persistent memory across sessions via the [engram](https://github.com/Gentleman-Programming/engram) CLI.
+
+On session start (`before_agent_start`), runs `engram context` and injects recent
+memories into the system prompt so the model resumes with prior project context
+automatically (skipped when there are none).
+
+Registers four tools:
+
+- `mem_search` — search memories by query (optional `limit`, default 5)
+- `mem_save` — save a memory (title + content)
+- `mem_context` — reload recent memory context into a message (optionally for a named `project`)
+- `mem_stats` — show engram memory statistics
+
+All commands run through the `engram` binary with a 10s timeout; update banners
+and `brew` notices are filtered from output. Requires the `engram` CLI on `PATH`
+(installed by `make install-engram`).
+
+---
+
 ## Installation
 
 All extensions are installed by `make install-pi`:

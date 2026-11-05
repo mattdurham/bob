@@ -893,6 +893,9 @@ install-pi: check-agents
 	echo "   ✓ Copied extensions/quiet-thoughts.ts → $$HOME/.pi/agent/extensions/quiet-thoughts.ts"
 	@cp extensions/tps.ts "$$HOME/.pi/agent/extensions/tps.ts"; \
 	echo "   ✓ Copied extensions/tps.ts → $$HOME/.pi/agent/extensions/tps.ts"
+	@echo "🧠 Engram Extension"
+	@cp extensions/engram.ts "$$HOME/.pi/agent/extensions/engram.ts"; \
+	echo "   ✓ Copied extensions/engram.ts → $$HOME/.pi/agent/extensions/engram.ts"
 	@echo ""
 	@echo "📚 Skills"
 	@PI_TRANSFORM='s/subagent_type:/agent:/g; s/run_in_background: true/background: true/g; s/taskId:/id:/g; s/status: "completed"/status: "done"/g'; \

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
-    echo "usage: $0 <claude|pi|codex|wllr|goose> <source>" >&2
+    echo "usage: $0 <claude|pi|codex|wllr|goose|omp> <source>" >&2
     exit 2
 fi
 
@@ -14,7 +14,7 @@ case "$runtime" in
         sed 's/bob-matt-/bob:matt-/g' "$source_file"
         exit 0
         ;;
-    codex|pi|wllr|goose) ;;
+    codex|pi|wllr|goose|omp) ;;
     *) echo "unsupported harness: $runtime" >&2; exit 2 ;;
 esac
 
@@ -22,6 +22,8 @@ render() {
     if [[ "$runtime" == goose ]]; then
         name=$(sed -n 's/^name: //p' "$source_file" | head -1)
         bash "$script_dir/render-goose-skill.sh" "$source_file" "$name"
+    elif [[ "$runtime" == omp ]]; then
+        bash "$script_dir/render-omp-skill.sh" "$source_file"
     else
         awk -v runtime="$runtime" '
         NR == 1 && $0 == "---" { frontmatter = 1; print; next }
@@ -48,7 +50,8 @@ if [[ "$runtime" == goose ]] && grep -q '^disable-model-invocation: true' "$sour
 fi
 
 # Generic upstream worker instructions use the harness native delegation mechanism.
-if grep -Eiq 'sub.?agents?|background agent' "$source_file"; then
+# render-omp-skill.sh already appends this note for omp.
+if [[ "$runtime" != omp ]] && grep -Eiq 'sub.?agents?|background agent' "$source_file"; then
     case "$runtime" in
         codex)
             printf '\nUse native collaboration tools for the independent workers described here. Give each worker its task, working directory, relevant skill paths, and expected result; collect its result before dependent work.\n'

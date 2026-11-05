@@ -54,11 +54,15 @@ This installs:
 
 After installation, skills are available via slash commands: `/bob:work`, `/bob:matt-research`, etc.
 
+`make install` also auto-installs runtime skills it detects on `PATH` (Pi,
+Codex, wllr, Goose, and omp).
+
 **Individual component installation:**
 ```bash
-make install-skills   # Skills only
-make install-agents   # Subagents only
-make install-lsp      # Go LSP only
+make install-skills        # Claude skills only
+make install-agents        # Subagents only
+make install-lsp           # Go LSP only
+make install-omp-skills    # omp-native skills to ~/.omp/agent/skills/
 ```
 
 **Optional components (not installed by default):**

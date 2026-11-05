@@ -18,15 +18,16 @@ done < "$repo_root/skills/imported-skills.txt"
 
 install_harnesses() {
     make -s -C "$repo_root" install-skills install-pi-skills install-codex-skills \
-        install-wllr-skills install-goose-skills SPEC="$1" \
+        install-wllr-skills install-goose-skills install-omp-skills SPEC="$1" \
         CLAUDE_SKILLS_DIR="$2/claude/skills" PI_SKILLS_DIR="$2/pi/skills" \
         CODEX_HOME="$2/codex" WLLR_HOME="$2/wllr" GOOSE_HOME="$2/goose" \
+        OMP_HOME="$2/omp" OMP_SKILLS_DIR="$2/omp/skills" \
         > "$tmp_root/install.log" 2>&1 || { cat "$tmp_root/install.log"; fail "harness installation failed"; }
 }
 
 check_packages() {
     local harness skill source_file relative_file installed
-    for harness in claude pi codex wllr goose; do
+    for harness in claude pi codex wllr goose omp; do
         for skill in "${skills[@]}"; do
             installed="$1/$harness/skills/$skill"
             assert_file "$installed/SKILL.md"
@@ -64,7 +65,7 @@ mkdir -p "$full_root/claude/skills/grill-me" "$full_root/claude/skills/code-revi
 sed -e 's/^name: bob-matt-grill-me$/name: grill-me/' -e 's/"bob-matt-grilling"/"grilling"/' \
     "$repo_root/skills/bob-matt-grill-me/SKILL.md" > "$full_root/claude/skills/grill-me/SKILL.md"
 printf 'custom code review\n' > "$full_root/claude/skills/code-review/SKILL.md"
-for harness in claude pi codex wllr goose; do
+for harness in claude pi codex wllr goose omp; do
     mkdir -p "$full_root/$harness/skills/bob-grill-me" "$full_root/$harness/skills/bob-research"
     sed 's/bob-matt-/bob-/g' "$repo_root/skills/bob-matt-grill-me/SKILL.md" > "$tmp_root/old-prefixed-wrapper"
     bash "$repo_root/scripts/render-imported-skill.sh" "$harness" "$tmp_root/old-prefixed-wrapper" \
@@ -73,7 +74,7 @@ for harness in claude pi codex wllr goose; do
 done
 install_harnesses full "$full_root"
 check_packages "$full_root"
-for harness in claude pi codex wllr goose; do
+for harness in claude pi codex wllr goose omp; do
     [[ ! -e "$full_root/$harness/skills/bob-grill-me/SKILL.md" ]] || fail "earlier Bob prefix remained installed: $harness"
     assert_contains "$full_root/$harness/skills/bob-research/SKILL.md" 'custom research'
     for retired in bob-explore bob-explore-simple bob-explore-teams bob-cleanup-teams bob-work-agents bob-work-teams; do
@@ -103,6 +104,13 @@ assert_not_contains "$full_root/goose/skills/bob-matt-implement/SKILL.md" 'Skill
 assert_contains "$full_root/goose/skills/bob-matt-grill-me/SKILL.md" 'only when the user explicitly requests it'
 assert_file "$full_root/goose/agents/workflow-implementer.md"
 assert_file "$full_root/goose/agents/explore.md"
+assert_not_contains "$full_root/omp/skills/bob-matt-implement/SKILL.md" 'Skill tool'
+assert_not_contains "$full_root/omp/skills/bob-matt-grill-me/SKILL.md" 'subagent_type:'
+assert_contains "$full_root/omp/skills/bob-matt-grilling/SKILL.md" 'Use the task tool'
+assert_not_contains "$full_root/omp/skills/bob-adversarial-review/SKILL.md" 'Agent('
+assert_not_contains "$full_root/omp/skills/bob-adversarial-review/SKILL.md" 'subagent_type:'
+assert_contains "$full_root/omp/skills/bob-adversarial-review/SKILL.md" 'task tool'
+assert_contains "$full_root/omp/skills/bob-work/SKILL.md" 'name: bob-work'
 
 # Reinstalling must keep complete packages and leave unrelated skills in place.
 install_harnesses full "$full_root"
@@ -111,7 +119,7 @@ assert_contains "$full_root/codex/skills/unrelated/SKILL.md" 'keep me'
 simple_root="$tmp_root/simple"
 install_harnesses simple "$simple_root"
 check_packages "$simple_root"
-for harness in claude pi codex wllr goose; do
+for harness in claude pi codex wllr goose omp; do
     assert_file "$simple_root/$harness/skills/bob-ship/SKILL.md"
     assert_file "$simple_root/$harness/skills/bob-ship/references/publication-procedure.md"
     cmp -s "$repo_root/skills/bob-ship/references/publication-procedure.md" "$simple_root/$harness/skills/bob-ship/references/publication-procedure.md" || fail "publication procedure changed: $harness"
@@ -133,7 +141,7 @@ assert_contains "$linked_root/skills/bob-matt-tdd/SKILL.md" 'author: Matt Pocock
 # Default runtime detection includes Pi as well as the previously supported CLIs.
 fake_bin="$tmp_root/bin"
 mkdir -p "$fake_bin"
-for harness in pi codex wllr goose; do
+for harness in pi codex wllr goose omp; do
     printf '#!/usr/bin/env bash\nexit 0\n' > "$fake_bin/$harness"
     chmod +x "$fake_bin/$harness"
 done
@@ -141,10 +149,11 @@ auto_root="$tmp_root/auto"
 PATH="$fake_bin:$PATH" make -s -C "$repo_root" install-runtime-skills \
     PI_SKILLS_DIR="$auto_root/pi/skills" CODEX_HOME="$auto_root/codex" \
     WLLR_HOME="$auto_root/wllr" GOOSE_HOME="$auto_root/goose" \
+    OMP_HOME="$auto_root/omp" OMP_SKILLS_DIR="$auto_root/omp/skills" \
     > "$tmp_root/auto.log" 2>&1 || { cat "$tmp_root/auto.log"; fail "automatic installation failed"; }
-for harness in pi codex wllr goose; do
+for harness in pi codex wllr goose omp; do
     assert_file "$auto_root/$harness/skills/bob-matt-tdd/SKILL.md"
     assert_file "$auto_root/$harness/skills/bob-matt-teach/LEARNING-RECORD-FORMAT.md"
 done
 
-printf 'PASS: Imported skills install into all five harnesses with attribution and companions\n'
+printf 'PASS: Imported skills install into all six harnesses with attribution and companions\n'

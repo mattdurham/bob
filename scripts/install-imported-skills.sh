@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [[ $# -ne 2 ]]; then
-    echo "usage: $0 <claude|pi|codex|wllr|goose> <skills-directory>" >&2
+    echo "usage: $0 <claude|pi|codex|wllr|goose|omp> <skills-directory>" >&2
     exit 2
 fi
 
@@ -10,7 +10,7 @@ runtime=$1
 skills_dir=$2
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 case "$runtime" in
-    claude|pi|codex|wllr|goose) ;;
+    claude|pi|codex|wllr|goose|omp) ;;
     *) echo "unsupported harness: $runtime" >&2; exit 2 ;;
 esac
 

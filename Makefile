@@ -7,8 +7,11 @@ PI_SKILLS_DIR ?= $(HOME)/.pi/agent/skills
 CODEX_HOME ?= $(HOME)/.codex
 WLLR_HOME ?= $(HOME)/.wllr
 GOOSE_HOME ?= $(HOME)/.agents
+# omp discovers native user skills at ~/.omp/agent/skills/<name>/SKILL.md.
+OMP_HOME ?= $(HOME)/.omp
+OMP_SKILLS_DIR ?= $(OMP_HOME)/agent/skills
 
-.PHONY: help all install install-runtime-skills install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills install-goose-skills check-agents check-conflict-guidance
+.PHONY: help all install install-runtime-skills install-skills install-agents install-lsp install-guidance install-statusline install-worktree install-personality install-plugins allow hooks enable-agent-teams resolve-copilot ci clean install-no-python install-engram install-pi install-pi-skills install-codex-skills install-wllr install-wllr-skills install-goose-skills install-omp-skills check-agents check-conflict-guidance
 
 all: install install-statusline install-worktree allow enable-agent-teams hooks install-engram
 	@echo ""
@@ -48,6 +51,8 @@ help:
 	@echo "  make install-wllr-skills      - Install Bob skills for wllr to ~/.wllr/skills/"
 	@echo "  make install-goose-skills     - Install Bob skills and custom agents for Goose"
 	@echo "                                  Override with GOOSE_HOME=/path or SPEC=simple"
+	@echo "  make install-omp-skills       - Install Bob skills for omp to ~/.omp/agent/skills/"
+	@echo "                                  Override with OMP_HOME=/path or SPEC=simple"
 	@# make install-bob-plugin is intentionally hidden; the zellij plugin is not part of the default workflow.
 	@echo ""
 	@echo "Quick start:"
@@ -274,7 +279,7 @@ install-plugins:
 # Install everything (skills, agents, LSP, personality) - PRIMARY COMMAND
 # Usage: make install [PERSONALITY=pirate|cartoon_pirate]
 install: install-skills install-agents install-lsp install-plugins allow
-	@$(MAKE) install-runtime-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)" WLLR_HOME="$(WLLR_HOME)" GOOSE_HOME="$(GOOSE_HOME)"
+	@$(MAKE) install-runtime-skills SPEC=$(SPEC) CODEX_HOME="$(CODEX_HOME)" WLLR_HOME="$(WLLR_HOME)" GOOSE_HOME="$(GOOSE_HOME)" OMP_HOME="$(OMP_HOME)" OMP_SKILLS_DIR="$(OMP_SKILLS_DIR)"
 	@if [ -n "$(PERSONALITY)" ] && [ "$(PERSONALITY)" != "default" ]; then \
 		echo ""; \
 		echo "🎭 Installing personality: $(PERSONALITY)..."; \
@@ -336,6 +341,12 @@ install-runtime-skills:
 		$(MAKE) install-goose-skills SPEC=$(SPEC) GOOSE_HOME="$(GOOSE_HOME)"; \
 	else \
 		echo "⏭️  Goose CLI not installed — skipping Goose skills"; \
+	fi
+	@if command -v omp >/dev/null 2>&1; then \
+		echo ""; \
+		$(MAKE) install-omp-skills SPEC=$(SPEC) OMP_HOME="$(OMP_HOME)" OMP_SKILLS_DIR="$(OMP_SKILLS_DIR)"; \
+	else \
+		echo "⏭️  omp CLI not installed — skipping omp skills"; \
 	fi
 
 # Install Bob personality
@@ -1109,6 +1120,53 @@ install-goose-skills: check-agents
 	@bash scripts/retire-cleanup-teams.sh "$(GOOSE_HOME)/skills"
 	@bash scripts/retire-work-agents.sh "$(GOOSE_HOME)/skills"
 	@bash scripts/retire-work-teams.sh "$(GOOSE_HOME)/skills"
+
+# Install Bob workflow skills for omp.
+# omp discovers native user skills at ~/.omp/agent/skills/<name>/SKILL.md.
+# Skill bodies that delegate use the omp `task` tool; hand-authored SKILL.omp.md
+# variants carry that delegation inline for the skills with embedded subagent code.
+# Usage: make install-omp-skills [SPEC=simple] [OMP_HOME=/path/to/.omp]
+install-omp-skills:
+	@echo "⚡ Installing Bob skills for omp..."
+	@SKILLS_DIR="$(OMP_SKILLS_DIR)"; \
+	mkdir -p "$$SKILLS_DIR"; \
+	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+		if [ -d "skills/$$skill" ]; then \
+			for variant in $$VARIANTS; do \
+				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				SRC="skills/$$skill/SKILL.omp.md"; SUFFIX=""; \
+				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
+				if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; \
+				[ -f "$$SRC" ] || continue; \
+				RAW=$$(grep -m1 '^name:' "$$SRC" | sed 's/^name: *//; s/^"//; s/"$$//'); \
+				DEST=$$(echo "$$RAW" | tr ':' '-'); [ -n "$$DEST" ] || DEST="$$skill"; DEST="$$DEST$$SUFFIX"; \
+				echo "   Installing $$DEST skill..."; mkdir -p "$$SKILLS_DIR/$$DEST"; \
+				if [ -f "skills/$$skill/SKILL.omp.md" ] && [ "$$variant" = "normal" ]; then \
+					sed "s/^name: .*/name: $$DEST/" "skills/$$skill/SKILL.omp.md" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+				else \
+					bash scripts/render-omp-skill.sh "$$SRC" > "$$SKILLS_DIR/$$DEST/SKILL.md" || exit 1; \
+				fi; \
+				if [ -d "skills/$$skill/references" ]; then cp -R "skills/$$skill/references" "$$SKILLS_DIR/$$DEST/" || exit 1; fi; \
+			done; \
+		else \
+			echo "   ⚠️  Skill $$skill not found, skipping..."; \
+		fi; \
+	done; \
+	bash scripts/retire-bob-design.sh "$$SKILLS_DIR"; \
+	bash scripts/retire-feature-page.sh "$$SKILLS_DIR"; \
+	bash scripts/retire-internal-wrappers.sh "$$SKILLS_DIR"; \
+	bash scripts/retire-version.sh "$$SKILLS_DIR"; \
+	bash scripts/retire-talk-to-codex.sh "$$SKILLS_DIR"; \
+	echo "✅ Bob omp skills installed to $$SKILLS_DIR"
+	@bash scripts/install-imported-skills.sh omp "$(OMP_SKILLS_DIR)"
+	@bash scripts/retire-explore.sh "$(OMP_SKILLS_DIR)"
+	@bash scripts/retire-cleanup-teams.sh "$(OMP_SKILLS_DIR)"
+	@bash scripts/retire-work-agents.sh "$(OMP_SKILLS_DIR)"
+	@bash scripts/retire-work-teams.sh "$(OMP_SKILLS_DIR)"
+	@echo ""
+	@echo "Use /skill:<name> to invoke. Restart omp or start a new session to load the newly installed skills."
+	@echo ""
 
 # Install Bob skills and agent prompts for wllr.
 

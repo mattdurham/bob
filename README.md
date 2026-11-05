@@ -12,8 +12,8 @@
                                 ^^^^      ^^^
 ```
 
-Workflow orchestration for Claude Code, Goose, Pi, Codex, and wllr through
-skills and subagents.
+Workflow orchestration for Claude Code, Goose, Pi, Codex, wllr, and omp
+through skills and subagents.
 
 ## Imported skills
 
@@ -24,10 +24,10 @@ Their supporting files, invocation policies, original credits, and MIT licenses
 travel with each package. Every imported entrypoint attributes Matt Pocock and
 records its upstream source and commit in frontmatter.
 
-`make install` installs them into Claude Code and detects Pi, Codex, wllr, and
-Goose on `PATH`. Each explicit harness installer includes them too, with both
-`SPEC=full` and `SPEC=simple`. Runtime adaptations are generated at install time;
-the source packages remain shared. See [the import catalog](docs/imported-skills.md)
+`make install` installs them into Claude Code and detects Pi, Codex, wllr,
+Goose, and omp on `PATH`. Each explicit harness installer includes them too,
+with both `SPEC=full` and `SPEC=simple`. Runtime adaptations are generated at
+install time; the source packages remain shared. See [the import catalog](docs/imported-skills.md)
 for the full list and installation details.
 
 ## What is Bob?
@@ -59,7 +59,9 @@ make install
 This installs workflow skills to `~/.claude/skills/` and subagents to
 `~/.claude/agents/`. When the `goose` CLI is on `PATH`, it also installs
 Goose-native skills to `~/.agents/skills/` and custom agents to
-`~/.agents/agents/`. Restart or open a new agent session after installation.
+`~/.agents/agents/`. When the `omp` CLI is on `PATH`, it installs omp-native
+skills to `~/.omp/agent/skills/`. Restart or open a new agent session after
+installation.
 
 The default install publishes both normal skills and `-simple` siblings. These
 simple files are alternate workflow specifications; they may still use agents when
@@ -74,7 +76,7 @@ make install SPEC=simple
 For example, this provides both `/bob:adversarial-review` and
 `/bob:adversarial-review-simple`; the latter writes findings to
 `.bob/state/review.md` without spawning subagents. The same naming applies to the
-Pi, Codex, wllr, and Goose install targets.
+Pi, Codex, wllr, Goose, and omp install targets.
 
 ## Goose
 
@@ -107,6 +109,33 @@ skills and invoke one by name, such as `bob-work`.
 See the [Goose Agent Skills guide](https://goose-docs.ai/docs/guides/context-engineering/using-skills/)
 and [Goose subagent guide](https://goose-docs.ai/docs/guides/context-engineering/subagents/)
 for runtime details.
+
+## omp
+
+Bob provides omp-native versions of every orchestration-heavy workflow. Because
+omp has no named Bob subagents, delegation runs through omp's `task` tool: the
+parent launches independent, self-contained `tasks[]` items (generic `task`
+agent) and consolidates auto-delivered results. The three skills that embed
+subagent code — `bob-adversarial-review`, `bob-challenge-idea`, and `bob-ship` —
+ship hand-authored `SKILL.omp.md` variants; the rest are rendered from the
+shared skill at install time.
+
+The default `make install` detects omp on `PATH` automatically. To install omp
+support explicitly, without requiring the omp executable to be present:
+
+```bash
+make install-omp-skills
+make install-omp-skills SPEC=simple
+make install-omp-skills OMP_HOME=/custom/.omp
+```
+
+`OMP_HOME` defaults to `~/.omp`; skills install under
+`~/.omp/agent/skills/<name>/SKILL.md` for the omp native provider. Existing
+unrelated skills are left untouched.
+
+omp discovers skills natively at startup. Start a new session (or restart omp)
+to load them; the interactive `/skill:<name>` command invokes one, such as
+`/skill:bob-work`.
 
 ## Workflows
 

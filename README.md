@@ -36,7 +36,7 @@ Bob coordinates AI agent workflows for feature development. Skills invoke specia
 
 ## Spec-Driven Development
 
-Bob treats **SPECS.md as the source of truth** for module behavior. Every workflow is spec-aware:
+In spec-driven modules, Bob treats **SPECS.md as the source of truth** for module behavior. Book-driven repositories instead treat the mdBook sources under `book/` as authoritative through `/bob:book`; project guidance must not assign both artifacts authority over the same behavior. Existing workflows remain spec-aware:
 
 - **`/bob:work`** reads existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
@@ -158,6 +158,27 @@ continues; all writers and reviewers finish before verification and final review
 Create or update `SPECS.md`, `NOTES.md`, `TESTS.md`, and `BENCHMARKS.md`,
 grounded in the module’s contracts and implementation. Adds Go-file reminders
 to keep specifications in sync. Replaces the former `/bob:design` command.
+
+### `/bob:book` — Book-Driven Development
+
+Create or update an authoritative, multi-file Markdown book under `book/`.
+Bootstrap the book from an existing repository, revise intent before a code
+change, or reconcile it with verified implementation. The skill writes and
+checks documentation only; it does not implement code, create specs or OKF
+concepts, or generate HTML.
+
+The reading path moves from basic concepts and operation through architecture
+to a Haynes-style workshop chapter for every meaningful component and precise
+reference material. Sources use mdBook conventions, and project guidance points
+coding agents to the book. Behavioral code/book conflicts require explicit
+resolution rather than automatic reconciliation.
+
+### `/bob:book-site` — Static Book Site
+
+Build the Markdown book with mdBook and verify the generated navigation and
+pages. The default output is `book/html/`; Markdown sources remain unchanged.
+Install mdBook separately with `cargo install mdbook --locked`. Hosting and
+deployment are outside this skill.
 
 ### `/bob:audit` — Spec Audit
 

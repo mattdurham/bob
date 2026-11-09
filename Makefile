@@ -74,10 +74,10 @@ install-skills:
 	@SKILLS_DIR="$(CLAUDE_SKILLS_DIR)"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				[ -f "$$SRC" ] || continue; \
@@ -105,6 +105,8 @@ install-skills:
 	@echo "Available workflow commands:"
 	@echo "  /bob:work        - Development from an existing plan or bob-matt-grill-me"
 	@echo "  /bob:matt-research - Research topics and explore codebases"
+	@echo "  /bob:book        - Create or reconcile the authoritative project book"
+	@echo "  /bob:book-site   - Build the project book as static HTML"
 	@echo "  /bob:audit       - Audit documented guarantees"
 
 # Companion-reference check. Every "[agent-directory]/<path>" token in an agent
@@ -902,10 +904,10 @@ install-pi: check-agents
 	SKILLS_DIR="$(PI_SKILLS_DIR)"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.pi.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; [ -f "$$SRC" ] || continue; \
@@ -1003,10 +1005,10 @@ install-pi-skills:
 	SKILLS_DIR="$(PI_SKILLS_DIR)"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.pi.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; [ -f "$$SRC" ] || continue; \
@@ -1044,10 +1046,10 @@ install-codex-skills:
 	@SKILLS_DIR="$(CODEX_HOME)/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.codex.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; [ -f "$$SRC" ] || continue; \
@@ -1079,10 +1081,10 @@ install-goose-skills: check-agents
 	AGENTS_DIR="$(GOOSE_HOME)/agents"; \
 	mkdir -p "$$SKILLS_DIR" "$$AGENTS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		[ -d "skills/$$skill" ] || continue; \
 		for variant in $$VARIANTS; do \
-			if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+			if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 			SRC="skills/$$skill/SKILL.goose.md"; SUFFIX=""; \
 			if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 			if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; \
@@ -1134,10 +1136,10 @@ install-omp-skills:
 	@SKILLS_DIR="$(OMP_SKILLS_DIR)"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.omp.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				if [ "$$variant" = "normal" ] && [ ! -f "$$SRC" ]; then SRC="skills/$$skill/SKILL.md"; fi; \
@@ -1181,10 +1183,10 @@ install-wllr install-wllr-skills: check-agents
 	@SKILLS_DIR="$(WLLR_HOME)/skills"; \
 	mkdir -p "$$SKILLS_DIR"; \
 	VARIANTS="normal simple"; [ "$(SPEC)" = "simple" ] && VARIANTS="simple"; \
-	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
+	for skill in bob-work bob-audit bob-code-review bob-ship bob-cleanup bob-specs bob-generate-overview bob-generate-okf bob-book bob-book-site bob-stage-prs bob-adversarial-review bob-postmortem bob-premortem bob-challenge-idea bob-operational bob-internal-go-coding; do \
 		if [ -d "skills/$$skill" ]; then \
 			for variant in $$VARIANTS; do \
-				if [ "$$skill" = "bob-ship" ] && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
+				if { [ "$$skill" = "bob-ship" ] || [ "$$skill" = "bob-book" ] || [ "$$skill" = "bob-book-site" ]; } && [ "$$variant" = "simple" ]; then [ "$(SPEC)" = "simple" ] || continue; variant="normal"; fi; \
 				SRC="skills/$$skill/SKILL.md"; SUFFIX=""; \
 				if [ "$$variant" = "simple" ]; then SRC="skills/$$skill/SKILL.simple.md"; SUFFIX="-simple"; fi; \
 				[ -f "$$SRC" ] || continue; \
@@ -1192,7 +1194,7 @@ install-wllr install-wllr-skills: check-agents
 				case "$$CMD" in bob-internal-*) CMD="bob:internal:$${CMD#bob-internal-}" ;; bob-*) CMD="bob:$${CMD#bob-}" ;; esac; \
 				CMD="$$CMD$$SUFFIX"; DEST=$$(echo "$$CMD" | tr ':' '-'); [ -z "$$DEST" ] && DEST="$$skill$$SUFFIX"; \
 				echo "   Installing $$CMD skill..."; mkdir -p "$$SKILLS_DIR/$$DEST"; \
-				sed "s/^name: .*/name: $$CMD/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
+				sed "s/^name: .*/name: $$CMD/" "$$SRC" | bash scripts/sanitize-native-team-skill.sh | bash scripts/wllr-model-chain.sh "$$skill" > "$$SKILLS_DIR/$$DEST/SKILL.md"; \
 				if [ -d "skills/$$skill/references" ]; then cp -R "skills/$$skill/references" "$$SKILLS_DIR/$$DEST/" || exit 1; fi; \
 			done; \
 		else \
@@ -1220,7 +1222,7 @@ install-wllr install-wllr-skills: check-agents
 		DEST_DIR="$$SKILLS_DIR/$$agent"; \
 		case "$$DEST_DIR" in *'|'*|*'&'*|*'\'*|*'"'*) echo "❌ $$DEST_DIR contains | & \" or a backslash, which cannot be rendered safely into quoted marker references"; exit 1 ;; esac; \
 		mkdir -p "$$DEST_DIR" || exit 1; \
-		sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
+		sed "s|\[agent-directory\]|$$DEST_DIR|g" "$$SRC" | bash scripts/wllr-model-chain.sh "$$agent" > "$$DEST_DIR/SKILL.md" || { echo "❌ render failed for $$SRC"; exit 1; }; \
 		for extra in "$$agent_dir"/*; do \
 			case "$${extra##*/}" in SKILL*.md) continue ;; esac; \
 			cp -R "$$extra" "$$DEST_DIR/" || { echo "❌ copy failed for $$extra"; exit 1; }; \

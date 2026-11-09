@@ -39,6 +39,19 @@ Check documented guarantees against implementation and tests. Report each as
 satisfied, violated, or unverified, with evidence and suggested remedies in
 `.bob/state/audit-report.md`. Code and specs remain unchanged.
 
+### /bob:book — Book-Driven Development
+
+Create, revise, or reconcile an authoritative Markdown book under `book/`.
+The book progresses from basic operation to architecture, component workshop
+chapters, and reference material. The skill installs project agent guidance and
+requires explicit resolution for code/book conflicts. It does not implement
+code, update specs or OKF, or generate HTML.
+
+### /bob:book-site — Static Book Site
+
+Build the mdBook-compatible source into `book/html/`, verify its ordered pages,
+and leave hosting and deployment separate.
+
 ## Feedback and Verification
 
 The calling workflow owns fixes and plan decisions. Reconsider agreed assumptions
@@ -81,7 +94,7 @@ These files persist across Claude sessions and serve as context for subsequent p
 
 ## Spec-Driven Development
 
-Bob treats spec documents as the **source of truth** for module behavior:
+In spec-driven modules, Bob treats spec documents as the **source of truth** for module behavior. Book-driven repositories instead use the Markdown sources under `book/`, as documented by `/bob:book`; project guidance must not assign competing authority over the same behavior:
 
 - **Planner** reads SPECS.md/CLAUDE.md invariants and derives verification tests from them
 - **Coder** receives the actual invariants as hard constraints in the implementation prompt

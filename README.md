@@ -36,7 +36,7 @@ Bob coordinates AI agent workflows for feature development. Skills invoke specia
 
 ## Spec-Driven Development
 
-Bob treats **SPECS.md as the source of truth** for module behavior. Every workflow is spec-aware:
+In spec-driven modules, Bob treats **SPECS.md as the source of truth** for module behavior. Book-driven repositories instead treat the mdBook sources under `book/` as authoritative through `/bob:book`; project guidance must not assign both artifacts authority over the same behavior. Existing workflows remain spec-aware:
 
 - **`/bob:work`** reads existing specs before making changes. If a request contradicts a contract or invariant in SPECS.md, the workflow will question it — specs can be changed, but only deliberately. Code changes to spec-driven modules must be reflected in the corresponding spec docs.
 
@@ -159,6 +159,27 @@ Create or update `SPECS.md`, `NOTES.md`, `TESTS.md`, and `BENCHMARKS.md`,
 grounded in the module’s contracts and implementation. Adds Go-file reminders
 to keep specifications in sync. Replaces the former `/bob:design` command.
 
+### `/bob:book` — Book-Driven Development
+
+Create or update an authoritative, multi-file Markdown book under `book/`.
+Bootstrap the book from an existing repository, revise intent before a code
+change, or reconcile it with verified implementation. The skill writes and
+checks documentation only; it does not implement code, create specs or OKF
+concepts, or generate HTML.
+
+The reading path moves from basic concepts and operation through architecture
+to a Haynes-style workshop chapter for every meaningful component and precise
+reference material. Sources use mdBook conventions, and project guidance points
+coding agents to the book. Behavioral code/book conflicts require explicit
+resolution rather than automatic reconciliation.
+
+### `/bob:book-site` — Static Book Site
+
+Build the Markdown book with mdBook and verify the generated navigation and
+pages. The default output is `book/html/`; Markdown sources remain unchanged.
+Install mdBook separately with `cargo install mdbook --locked`. Hosting and
+deployment are outside this skill.
+
 ### `/bob:audit` — Spec Audit
 
 ```
@@ -200,6 +221,33 @@ Final review is mandatory, even when tests pass.
 | team-coder | EXECUTE | Concurrent coder teammate |
 | team-reviewer | REVIEW | Concurrent reviewer teammate |
 | Explore | DISCOVER | Codebase exploration |
+
+### Model routing in wllr
+
+Agent prompts name Claude Code's model aliases (`model: sonnet`, `model: haiku`),
+which are correct for the Claude, Pi, Codex and Goose targets. wllr has no such
+aliases, so `make install-wllr-skills` rewrites that line into an ordered tier
+chain via `scripts/wllr-model-chain.sh`; the source prompts are left alone.
+
+The order encodes the agent's role, because wllr applies the first candidate that
+resolves to a model configured on that machine:
+
+| Role | Installed chain | Rationale |
+|---|---|---|
+| Planning | `[high, low]` | Spend reasoning capability first |
+| Coding / review | `[low, high]` | Spend the cheap model first |
+
+The two lists live at the top of `scripts/wllr-model-chain.sh`. A new agent that
+appears in neither is still installed (strong-first, so capability is never
+silently downgraded) but the installer reports it, so add it to the right list.
+
+Imported upstream skills (`skills/bob-matt-*`) declare no `model:` at all and
+mostly inherit the session model on purpose, so their sources are copied as-is.
+The exception is `INJECT_PLANNING` in the same script: the grilling skills
+(`bob-matt-grill-me`, `bob-matt-grill-with-docs`, `bob-matt-grilling`) reason
+about a plan or design, so a `model: [high, low]` line is added to their
+frontmatter at install time. Adding a skill there is how you opt an upstream
+skill into planning-tier routing without editing the vendored source.
 
 ## Per-Repo Verification Commands
 

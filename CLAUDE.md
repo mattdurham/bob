@@ -20,6 +20,8 @@ Invoke these workflows with slash commands:
 3. **`/bob:audit`** - Check documented guarantees against implementation and tests; report satisfied, violated, and unverified guarantees without changing code or specs
 
 4. **`/bob:specs`** - Create or update living module specifications for spec-driven development.
+5. **`/bob:book`** - Create, revise, or reconcile the project's authoritative, progressively structured Markdown book without implementing code.
+6. **`/bob:book-site`** - Build and verify the project's static HTML book with mdBook.
 
 See individual skill files in `skills/*/SKILL.md` for detailed documentation.
 
